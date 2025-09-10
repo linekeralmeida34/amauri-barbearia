@@ -14,7 +14,7 @@ const Index = () => {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center">
               <h1 className="text-2xl font-bold text-barbershop-dark">
-                Elite<span className="text-barbershop-gold">Barber</span>
+                Amauri<span className="text-barbershop-gold">Barbearia</span>
               </h1>
             </div>
             <div className="hidden md:flex items-center space-x-8">
@@ -55,7 +55,7 @@ const Index = () => {
           <div className="grid md:grid-cols-3 gap-12">
             <div>
               <h3 className="text-3xl font-bold mb-6">
-                Elite<span className="text-barbershop-gold">Barber</span>
+                Amauri<span className="text-barbershop-gold">Barbearia</span>
               </h3>
               <p className="text-white/80 mb-6 leading-relaxed">
                 Tradição e excelência em cortes masculinos. Há mais de 10 anos cuidando do visual dos homens mais exigentes de São Paulo.
@@ -118,7 +118,7 @@ const Index = () => {
           
           <div className="border-t border-white/20 mt-12 pt-8 text-center">
             <p className="text-white/60">
-              © 2024 EliteBarber. Todos os direitos reservados. | Desenvolvido com tecnologia Lovable
+              © 2024 Amauri Barbearia. Todos os direitos reservados. | Desenvolvido com tecnologia Lovable
             </p>
           </div>
         </div>
