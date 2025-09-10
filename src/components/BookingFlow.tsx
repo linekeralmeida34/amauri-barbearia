@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Calendar, Clock, User, Phone, Mail, ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,9 +18,9 @@ const services = [
 ];
 
 const barbers = [
-  { id: 1, name: "Carlos Silva", photo: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face" },
-  { id: 2, name: "Roberto Lima", photo: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face" },
-  { id: 3, name: "André Santos", photo: "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&h=150&fit=crop&crop=face" }
+  { id: 1, name: "Amauri", photo: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face" },
+  { id: 2, name: "Carlos", photo: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face" },
+  { id: 3, name: "Ronaldo", photo: "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&h=150&fit=crop&crop=face" }
 ];
 
 const timeSlots = [
@@ -33,6 +34,7 @@ export const BookingFlow = () => {
   const [selectedBarber, setSelectedBarber] = useState<any>(null);
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedTime, setSelectedTime] = useState<string>("");
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [customerDetails, setCustomerDetails] = useState({
     name: "",
     phone: "",
@@ -43,9 +45,24 @@ export const BookingFlow = () => {
   const nextStep = () => {
     const steps: BookingStep[] = ['service', 'barber', 'datetime', 'details', 'confirmation'];
     const currentIndex = steps.indexOf(currentStep);
+    
+    if (currentStep === 'details' && canProceed()) {
+      setShowConfirmationModal(true);
+      return;
+    }
+    
     if (currentIndex < steps.length - 1) {
       setCurrentStep(steps[currentIndex + 1]);
     }
+  };
+
+  const confirmBooking = () => {
+    setShowConfirmationModal(false);
+    setCurrentStep('confirmation');
+  };
+
+  const editBooking = () => {
+    setShowConfirmationModal(false);
   };
 
   const prevStep = () => {
@@ -255,7 +272,7 @@ export const BookingFlow = () => {
             </Card>
             
             <p className="text-sm text-muted-foreground mt-4">
-              Confirmação enviada para {customerDetails.phone}
+              Confirmação enviada para {customerDetails.phone} - Amauri Barbearia
             </p>
           </div>
         );
@@ -269,7 +286,7 @@ export const BookingFlow = () => {
     <section className="py-20 bg-background">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold text-barbershop-dark mb-4">Agendar Horário</h2>
+          <h2 className="text-4xl font-bold text-barbershop-dark mb-4">Agendar na Amauri Barbearia</h2>
           <p className="text-xl text-muted-foreground">Simples, rápido e conveniente</p>
         </div>
 
@@ -325,11 +342,66 @@ export const BookingFlow = () => {
               disabled={!canProceed()}
               className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark"
             >
-              Continuar
+              {currentStep === 'details' ? 'Revisar Agendamento' : 'Continuar'}
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           </div>
         )}
+
+        {/* Booking Confirmation Modal */}
+        <Dialog open={showConfirmationModal} onOpenChange={setShowConfirmationModal}>
+          <DialogContent className="sm:max-w-[425px]" onOpenAutoFocus={(e) => e.preventDefault()}>
+            <DialogHeader>
+              <DialogTitle>Confirmar Agendamento</DialogTitle>
+              <DialogDescription>
+                Revise os detalhes do seu agendamento na Amauri Barbearia
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-3 items-center gap-4">
+                <Label className="font-semibold text-right">Serviço:</Label>
+                <div className="col-span-2">{selectedService?.name}</div>
+              </div>
+              <div className="grid grid-cols-3 items-center gap-4">
+                <Label className="font-semibold text-right">Barbeiro:</Label>
+                <div className="col-span-2">{selectedBarber?.name}</div>
+              </div>
+              <div className="grid grid-cols-3 items-center gap-4">
+                <Label className="font-semibold text-right">Data/Hora:</Label>
+                <div className="col-span-2">
+                  {selectedDate && new Date(selectedDate + 'T00:00:00').toLocaleDateString('pt-BR')} às {selectedTime}
+                </div>
+              </div>
+              <div className="grid grid-cols-3 items-center gap-4">
+                <Label className="font-semibold text-right">Duração:</Label>
+                <div className="col-span-2">{selectedService?.duration}min</div>
+              </div>
+              <div className="grid grid-cols-3 items-center gap-4">
+                <Label className="font-semibold text-right">Preço:</Label>
+                <div className="col-span-2 font-bold">R$ {selectedService?.price}</div>
+              </div>
+              <div className="mt-4 p-4 bg-muted rounded-lg">
+                <p className="text-sm text-muted-foreground">
+                  <strong>Política de Cancelamento:</strong> Cancelamentos devem ser feitos com pelo menos 2 horas de antecedência. 
+                  Cancelamentos em cima da hora podem ser cobrados.
+                </p>
+              </div>
+            </div>
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={editBooking}>
+                Editar
+              </Button>
+              <Button 
+                onClick={confirmBooking}
+                className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark"
+                autoFocus
+              >
+                <Check className="h-4 w-4 mr-2" />
+                Confirmar Agendamento
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </section>
   );

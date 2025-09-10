@@ -6,53 +6,33 @@ import { Star, Instagram, Calendar } from "lucide-react";
 const barbers = [
   {
     id: 1,
-    name: "Carlos Silva",
-    specialties: ["Cortes Clássicos", "Barbas"],
-    bio: "15 anos de experiência em cortes tradicionais e modernos",
-    rating: 4.9,
-    reviews: 127,
+    name: "Amauri",
+    specialties: ["Proprietário", "Cortes Tradicionais"],
+    bio: "Proprietário da Amauri Barbearia, com mais de 20 anos de experiência",
+    rating: 5.0,
+    reviews: 248,
     photo: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&crop=face",
-    instagram: "@carlos_barber"
+    instagram: "@amauri_barbearia"
   },
   {
     id: 2,
-    name: "Roberto Lima",
-    specialties: ["Cortes Modernos", "Tratamentos"],
-    bio: "Especialista em cortes contemporâneos e cuidados capilares",
-    rating: 4.8,
-    reviews: 89,
+    name: "Carlos",
+    specialties: ["Cortes Modernos", "Barbas"],
+    bio: "Especialista em cortes contemporâneos e modelagem de barbas",
+    rating: 4.9,
+    reviews: 156,
     photo: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop&crop=face",
-    instagram: "@roberto_cuts"
+    instagram: "@carlos_amauri"
   },
   {
     id: 3,
-    name: "André Santos",
-    specialties: ["Barbas", "Acabamentos"],
-    bio: "Mestre em modelagem de barbas e acabamentos de precisão",
-    rating: 4.9,
-    reviews: 156,
+    name: "Ronaldo",
+    specialties: ["Degradês", "Acabamentos"],
+    bio: "Expert em técnicas de degradê e acabamentos de precisão",
+    rating: 4.8,
+    reviews: 134,
     photo: "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=400&h=400&fit=crop&crop=face",
-    instagram: "@andre_beardmaster"
-  },
-  {
-    id: 4,
-    name: "Paulo Mendes",
-    specialties: ["Cortes Premium", "Eventos"],
-    bio: "Especializado em cortes para eventos especiais e noivos",
-    rating: 5.0,
-    reviews: 78,
-    photo: "https://images.unsplash.com/photo-1519345182560-3f2917c472ef?w=400&h=400&fit=crop&crop=face",
-    instagram: "@paulo_premium"
-  },
-  {
-    id: 5,
-    name: "Diego Costa",
-    specialties: ["Estilos Jovens", "Degradês"],
-    bio: "Expert em cortes jovens e técnicas de degradê modernas",
-    rating: 4.7,
-    reviews: 94,
-    photo: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=400&fit=crop&crop=face",
-    instagram: "@diego_fade"
+    instagram: "@ronaldo_cuts"
   }
 ];
 
@@ -70,7 +50,7 @@ export const BarbersSection = () => {
           </p>
         </div>
         
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-8">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
           {barbers.map((barber) => (
             <Card key={barber.id} className="group hover:shadow-elegant transition-all duration-300 hover:-translate-y-2 border-2 hover:border-barbershop-gold/50 bg-gradient-card">
               <CardContent className="p-6">
