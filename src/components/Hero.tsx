@@ -4,7 +4,7 @@ import heroImage from "@/assets/barbershop-hero.jpg";
 
 export const Hero = () => {
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+    <section className="relative min-h-[90svh] sm:min-h-screen flex items-center justify-center overflow-hidden pt-safe pb-safe">
       {/* Background Image */}
       <div 
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
@@ -14,30 +14,45 @@ export const Hero = () => {
       </div>
       
       {/* Content */}
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center lg:text-left">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center lg:text-left pt-24 md:pt-0">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           <div className="text-white">
-            <h1 className="text-5xl lg:text-7xl font-bold mb-6 leading-tight">
+            <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-4 md:mb-6 leading-[1.1]">
               Cortes de
               <span className="text-barbershop-gold block">Excelência</span>
             </h1>
-            <p className="text-xl lg:text-2xl mb-8 text-white/90 leading-relaxed">
+            <p className="text-base md:text-xl lg:text-2xl mb-6 md:mb-8 text-white/90 leading-relaxed">
               Tradição e modernidade em um só lugar. Agende seu horário e experimente o melhor em cortes masculinos.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-              <Button 
-                size="lg" 
-                className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark font-semibold text-lg px-8 py-6 shadow-glow transition-all duration-300 hover:scale-105"
+            <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center lg:justify-start">
+              <Button
+                asChild
+                size="lg"
+                className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark
+                            font-semibold text-lg px-6 py-4 md:px-8 md:py-6 shadow-glow
+                            transition-all duration-300 hover:scale-105"
               >
-                <Calendar className="mr-2 h-5 w-5" />
-                Agendar Horário
+                <a href="#agendamento">
+                  <Calendar className="mr-2 h-5 w-5" />
+                  Agendar Horário
+                </a>
               </Button>
-              <Button 
-                size="lg" 
-                className="bg-barbershop-dark text-white hover:bg-barbershop-brown border-2 border-barbershop-dark hover:border-barbershop-brown font-semibold text-lg px-8 py-6 transition-all duration-300"
+              <Button
+                asChild
+                size="lg"
+                className="
+                  bg-white text-neutral-900 border-2 border-neutral-900
+                  font-semibold text-lg px-6 py-4 md:px-8 md:py-6
+                  transform-gpu transition-transform duration-200 ease-out
+                  hover:scale-[1.03] active:scale-[0.98] hover:bg-neutral-100
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2
+                  dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200
+                "
               >
-                <Users className="mr-2 h-5 w-5" />
-                Nossos Barbeiros
+                <a href="#barbeiros">
+                  <Users className="mr-2 h-5 w-5" />
+                  Nossos Barbeiros
+                </a>
               </Button>
             </div>
           </div>
@@ -46,7 +61,7 @@ export const Hero = () => {
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-white/10 backdrop-blur-md rounded-lg p-6 text-center text-white border border-white/20">
               <Clock className="h-8 w-8 text-barbershop-gold mx-auto mb-2" />
-              <div className="text-2xl font-bold">15min</div>
+              <div className="text-2xl font-bold">40min</div>
               <div className="text-sm opacity-90">Tempo médio</div>
             </div>
             <div className="bg-white/10 backdrop-blur-md rounded-lg p-6 text-center text-white border border-white/20">

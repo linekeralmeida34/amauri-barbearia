@@ -7,12 +7,12 @@ const barbers = [
   {
     id: 1,
     name: "Amauri",
-    specialties: ["Proprietário", "Cortes Tradicionais"],
-    bio: "Proprietário da Amauri Barbearia, com mais de 20 anos de experiência",
+    specialties: ["Proprietário", "Cortes Tradicionais e Modernos"],
+    bio: "Proprietário da Amauri Barbearia, com mais de 10 anos de experiência",
     rating: 5.0,
     reviews: 248,
-    photo: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&crop=face",
-    instagram: "@amauri_barbearia"
+    photo: "https://i.ibb.co/fzRKKXM0/amauri.jpg",
+    instagram: "@amauribarbearia"
   },
   {
     id: 2,
@@ -21,8 +21,8 @@ const barbers = [
     bio: "Especialista em cortes contemporâneos e modelagem de barbas",
     rating: 4.9,
     reviews: 156,
-    photo: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop&crop=face",
-    instagram: "@carlos_amauri"
+    photo: "https://i.ibb.co/FkVP6r5d/carlos.jpg",
+    instagram: "@carlos_barber83"
   },
   {
     id: 3,
@@ -31,8 +31,8 @@ const barbers = [
     bio: "Expert em técnicas de degradê e acabamentos de precisão",
     rating: 4.8,
     reviews: 134,
-    photo: "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=400&h=400&fit=crop&crop=face",
-    instagram: "@ronaldo_cuts"
+    photo: "https://i.ibb.co/whs08JYs/ronaldojpg.jpg",
+    instagram: "@ronaldo_das_nega"
   }
 ];
 

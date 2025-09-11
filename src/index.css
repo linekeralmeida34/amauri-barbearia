@@ -124,3 +124,21 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+/* Rolagem suave em toda a página */
+html { scroll-behavior: smooth; }
+
+/* Compensa o header fixo ao navegar para âncoras (#barbeiros, #agendamento, etc.) */
+section[id] { scroll-margin-top: 96px; } /* ajuste 96px se seu header tiver outra altura */
+
+/* ---- mobile safe area + viewport estável ---- */
+:root{
+  --safe-top: env(safe-area-inset-top);
+  --safe-bottom: env(safe-area-inset-bottom);
+}
+
+/* padding que respeita o notch/barras do iOS/Android */
+.pt-safe{ padding-top: max(1rem, var(--safe-top)); }
+.pb-safe{ padding-bottom: max(1rem, var(--safe-bottom)); }
+
+/* rolagem suave (se ainda não tiver) */
+html{ scroll-behavior:smooth; }

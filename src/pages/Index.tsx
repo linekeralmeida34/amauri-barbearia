@@ -58,7 +58,7 @@ const Index = () => {
                 Amauri<span className="text-barbershop-gold">Barbearia</span>
               </h3>
               <p className="text-white/80 mb-6 leading-relaxed">
-                Tradição e excelência em cortes masculinos. Há mais de 10 anos cuidando do visual dos homens mais exigentes de São Paulo.
+                Tradição e excelência em cortes masculinos. Há mais de 10 anos cuidando do visual dos homens mais exigentes de João Pessoa.
               </p>
               <div className="flex space-x-4">
                 <Button variant="outline" size="sm" className="border-barbershop-gold text-barbershop-gold hover:bg-barbershop-gold hover:text-barbershop-dark">
@@ -76,14 +76,14 @@ const Index = () => {
                 <div className="flex items-center">
                   <MapPin className="h-5 w-5 mr-3 text-barbershop-gold" />
                   <div>
-                    <p className="text-white/90">Rua Augusta, 1234</p>
-                    <p className="text-white/70 text-sm">Consolação, São Paulo - SP</p>
+                    <p className="text-white/90">Rua Manoel Pereira Diniz, 360</p>
+                    <p className="text-white/70 text-sm">Jardim Cidade Universitária, João Pessoa - PB</p>
                   </div>
                 </div>
                 <div className="flex items-center">
                   <Phone className="h-5 w-5 mr-3 text-barbershop-gold" />
                   <div>
-                    <p className="text-white/90">(11) 99999-9999</p>
+                    <p className="text-white/90">(83) 98902-2607</p>
                     <p className="text-white/70 text-sm">WhatsApp e Ligações</p>
                   </div>
                 </div>
