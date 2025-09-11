@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Calendar, Clock, User, Phone, Mail, ArrowLeft, ArrowRight, Check } from "lucide-react";
+import { Calendar, Clock, ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Link, useSearchParams } from "react-router-dom"; // <- IMPORT CORRIGIDO
 
 type BookingStep = 'service' | 'barber' | 'datetime' | 'details' | 'confirmation';
 
@@ -42,15 +43,31 @@ export const BookingFlow = () => {
     notes: ""
   });
 
+  // Pré-seleciona barbeiro vindo de /agendar?barbeiro=<id>
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const idStr = searchParams.get("barbeiro");
+    if (idStr && !selectedBarber) {
+      const id = Number(idStr);
+      const found = barbers.find((b) => b.id === id);
+      if (found) setSelectedBarber(found);
+    }
+  }, [searchParams, selectedBarber]);
+
+  const handleSelectBarber = (barber: any) => {
+    setSelectedBarber(barber);
+    const sp = new URLSearchParams(searchParams);
+    sp.set("barbeiro", String(barber.id));
+    setSearchParams(sp, { replace: true });
+  };
+
   const nextStep = () => {
     const steps: BookingStep[] = ['service', 'barber', 'datetime', 'details', 'confirmation'];
     const currentIndex = steps.indexOf(currentStep);
-    
     if (currentStep === 'details' && canProceed()) {
       setShowConfirmationModal(true);
       return;
     }
-    
     if (currentIndex < steps.length - 1) {
       setCurrentStep(steps[currentIndex + 1]);
     }
@@ -61,30 +78,21 @@ export const BookingFlow = () => {
     setCurrentStep('confirmation');
   };
 
-  const editBooking = () => {
-    setShowConfirmationModal(false);
-  };
+  const editBooking = () => setShowConfirmationModal(false);
 
   const prevStep = () => {
     const steps: BookingStep[] = ['service', 'barber', 'datetime', 'details', 'confirmation'];
     const currentIndex = steps.indexOf(currentStep);
-    if (currentIndex > 0) {
-      setCurrentStep(steps[currentIndex - 1]);
-    }
+    if (currentIndex > 0) setCurrentStep(steps[currentIndex - 1]);
   };
 
   const canProceed = () => {
     switch (currentStep) {
-      case 'service':
-        return selectedService !== null;
-      case 'barber':
-        return selectedBarber !== null;
-      case 'datetime':
-        return selectedDate && selectedTime;
-      case 'details':
-        return customerDetails.name && customerDetails.phone;
-      default:
-        return false;
+      case 'service':   return selectedService !== null;
+      case 'barber':    return selectedBarber !== null;
+      case 'datetime':  return !!selectedDate && !!selectedTime;
+      case 'details':   return !!customerDetails.name && !!customerDetails.phone;
+      default:          return false;
     }
   };
 
@@ -135,13 +143,17 @@ export const BookingFlow = () => {
                   className={`cursor-pointer transition-all hover:shadow-md ${
                     selectedBarber?.id === barber.id ? 'ring-2 ring-barbershop-gold border-barbershop-gold' : ''
                   }`}
-                  onClick={() => setSelectedBarber(barber)}
+                  onClick={() => handleSelectBarber(barber)}
                 >
                   <CardContent className="p-6 text-center">
                     <img
                       src={barber.photo}
                       alt={barber.name}
                       className="w-20 h-20 rounded-full mx-auto mb-4 object-cover"
+                      loading="lazy"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/80?text=Foto";
+                      }}
                     />
                     <h4 className="font-semibold text-barbershop-dark">{barber.name}</h4>
                   </CardContent>
@@ -309,9 +321,7 @@ export const BookingFlow = () => {
                     {isCompleted ? <Check className="w-4 h-4" /> : index + 1}
                   </div>
                   {index < 4 && (
-                    <div className={`w-12 h-0.5 ${
-                      isCompleted ? 'bg-success' : 'bg-muted'
-                    }`} />
+                    <div className={`w-12 h-0.5 ${isCompleted ? 'bg-success' : 'bg-muted'}`} />
                   )}
                 </div>
               );
@@ -327,16 +337,30 @@ export const BookingFlow = () => {
         </Card>
 
         {/* Navigation */}
-        {currentStep !== 'confirmation' && (
-          <div className="flex justify-between">
-            <Button 
-              variant="outline" 
-              onClick={prevStep}
-              disabled={currentStep === 'service'}
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Voltar
-            </Button>
+        {currentStep !== 'confirmation' ? (
+          <div className="flex items-center justify-between">
+            <div className="flex gap-2">
+              {/* sempre disponível: voltar à Home */}
+              <Button
+                asChild
+                className="bg-[#F4D06F] hover:bg-[#E9C85F] text-[#1A1A1A] font-semibold
+                          rounded-xl px-4 py-2.5 transition-colors"
+              >
+                <Link to="/" aria-label="Voltar ao início">← Início</Link>
+              </Button>
+
+
+              {/* voltar um passo */}
+              <Button 
+                variant="outline" 
+                onClick={prevStep}
+                disabled={currentStep === 'service'}
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Voltar
+              </Button>
+            </div>
+
             <Button 
               onClick={nextStep}
               disabled={!canProceed()}
@@ -345,6 +369,17 @@ export const BookingFlow = () => {
               {currentStep === 'details' ? 'Revisar Agendamento' : 'Continuar'}
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
+          </div>
+        ) : (
+          <div className="mt-6 flex justify-center">
+            <Button
+              asChild
+              className="bg-[#F4D06F] hover:bg-[#E9C85F] text-[#1A1A1A] font-semibold
+                        rounded-xl px-4 py-2.5 transition-colors"
+            >
+              <Link to="/" aria-label="Voltar ao início">← Início</Link>
+            </Button>
+
           </div>
         )}
 

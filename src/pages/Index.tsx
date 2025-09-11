@@ -4,6 +4,7 @@ import { BarbersSection } from "@/components/BarbersSection";
 import { BookingFlow } from "@/components/BookingFlow";
 import { Button } from "@/components/ui/button";
 import { MapPin, Phone, Clock, Instagram, MessageCircle } from "lucide-react";
+const WHATSAPP_URL = "https://wa.me/message/FVJDVARVMA2XE1";
 
 const Index = () => {
   return (
@@ -23,9 +24,14 @@ const Index = () => {
               <a href="#agendamento" className="text-barbershop-dark hover:text-primary transition-colors">Agendar</a>
               <a href="#contato" className="text-barbershop-dark hover:text-primary transition-colors">Contato</a>
             </div>
-            <Button className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark font-semibold">
-              <MessageCircle className="h-4 w-4 mr-2" />
-              WhatsApp
+            <Button
+              asChild
+              className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark font-semibold"
+            >
+              <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" aria-label="Abrir WhatsApp">
+                <MessageCircle className="h-4 w-4 mr-2" />
+                WhatsApp
+              </a>
             </Button>
           </div>
         </div>
@@ -118,7 +124,7 @@ const Index = () => {
           
           <div className="border-t border-white/20 mt-12 pt-8 text-center">
             <p className="text-white/60">
-              © 2024 Amauri Barbearia. Todos os direitos reservados. | Desenvolvido com tecnologia Lovable
+              © 2024 Amauri Barbearia. Todos os direitos reservados. | Desenvolvido por LK
             </p>
           </div>
         </div>
