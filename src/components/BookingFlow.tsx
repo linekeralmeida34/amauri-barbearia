@@ -1,3 +1,4 @@
+// src/components/BookingFlow.tsx
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +17,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Link, useSearchParams } from "react-router-dom";
 
-import { services } from "@/data/services"; // fonte única de serviços
+// fonte única de serviços (compartilhada com ServicesSection)
+import { services } from "@/data/services";
 
 type BookingStep = "service" | "barber" | "datetime" | "details" | "confirmation";
 
@@ -47,7 +49,7 @@ export const BookingFlow = () => {
 
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Pré-seleciona serviço vindo de /agendar?servico=<id> e PULA para "barber"
+  // Pré-seleciona serviço via /agendar?servico=<id> e pula para "barber"
   useEffect(() => {
     const s = searchParams.get("servico");
     if (s && !selectedService) {
@@ -55,13 +57,12 @@ export const BookingFlow = () => {
       const found = services.find((sv) => sv.id === id);
       if (found) {
         setSelectedService(found);
-        // pula o passo "service" ao entrar pela aba Serviços
         setCurrentStep((prev) => (prev === "service" ? "barber" : prev));
       }
     }
   }, [searchParams, selectedService]);
 
-  // Pré-seleciona barbeiro vindo de /agendar?barbeiro=<id>
+  // Pré-seleciona barbeiro via /agendar?barbeiro=<id>
   useEffect(() => {
     const b = searchParams.get("barbeiro");
     if (b && !selectedBarber) {
@@ -93,9 +94,7 @@ export const BookingFlow = () => {
       setShowConfirmationModal(true);
       return;
     }
-    if (currentIndex < steps.length - 1) {
-      setCurrentStep(steps[currentIndex + 1]);
-    }
+    if (currentIndex < steps.length - 1) setCurrentStep(steps[currentIndex + 1]);
   };
 
   const confirmBooking = () => {
@@ -113,11 +112,16 @@ export const BookingFlow = () => {
 
   const canProceed = () => {
     switch (currentStep) {
-      case "service":  return selectedService !== null;
-      case "barber":   return selectedBarber !== null;
-      case "datetime": return !!selectedDate && !!selectedTime;
-      case "details":  return !!customerDetails.name && !!customerDetails.phone;
-      default:         return false;
+      case "service":
+        return selectedService !== null;
+      case "barber":
+        return selectedBarber !== null;
+      case "datetime":
+        return !!selectedDate && !!selectedTime;
+      case "details":
+        return !!customerDetails.name && !!customerDetails.phone;
+      default:
+        return false;
     }
   };
 
@@ -126,8 +130,10 @@ export const BookingFlow = () => {
       case "service":
         return (
           <div>
-            <h3 className="text-2xl font-bold text-barbershop-dark mb-6">Escolha seu serviço</h3>
-            <div className="grid md:grid-cols-2 gap-4">
+            <h3 className="font-bold text-barbershop-dark mb-6 text-2xl">
+              Escolha seu serviço
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
               {services.map((service) => (
                 <Card
                   key={service.id}
@@ -136,25 +142,27 @@ export const BookingFlow = () => {
                   }`}
                   onClick={() => handleSelectService(service)}
                 >
-                  <CardHeader>
+                  <CardHeader className="p-4 sm:p-5 md:p-6">
                     <div className="flex justify-between items-start">
-                      <CardTitle className="text-lg">{service.name}</CardTitle>
+                      <CardTitle className="text-base sm:text-lg md:text-xl">
+                        {service.name}
+                      </CardTitle>
                       <div className="flex items-center gap-2">
-                        {/* 'tag' é opcional; se você não usa no services.ts, remova esse Badge */}
-                        {/* {service.tag && <Badge variant="secondary">{service.tag}</Badge>} */}
                         {service.popular && (
                           <Badge className="bg-barbershop-gold text-barbershop-dark">Popular</Badge>
                         )}
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="p-4 sm:p-5 md:p-6 pt-0">
                     <div className="flex justify-between items-center">
-                      <div className="flex items-center text-muted-foreground text-sm">
+                      <div className="flex items-center text-muted-foreground text-xs sm:text-sm">
                         <Clock className="h-4 w-4 mr-1" />
                         {service.duration}min
                       </div>
-                      <div className="text-xl font-bold text-barbershop-brown">R$ {service.price}</div>
+                      <div className="font-bold text-barbershop-brown text-lg sm:text-xl">
+                        R$ {service.price}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -166,8 +174,10 @@ export const BookingFlow = () => {
       case "barber":
         return (
           <div>
-            <h3 className="text-2xl font-bold text-barbershop-dark mb-6">Escolha seu barbeiro</h3>
-            <div className="grid md:grid-cols-3 gap-4">
+            <h3 className="font-bold text-barbershop-dark mb-6 text-2xl">
+              Escolha seu barbeiro
+            </h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
               {barbers.map((barber) => (
                 <Card
                   key={barber.id}
@@ -176,17 +186,20 @@ export const BookingFlow = () => {
                   }`}
                   onClick={() => handleSelectBarber(barber)}
                 >
-                  <CardContent className="p-6 text-center">
+                  <CardContent className="p-5 sm:p-6 text-center">
                     <img
                       src={barber.photo}
                       alt={barber.name}
-                      className="w-20 h-20 rounded-full mx-auto mb-4 object-cover"
+                      className="w-16 h-16 sm:w-20 sm:h-20 rounded-full mx-auto mb-4 object-cover"
                       loading="lazy"
                       onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/80?text=Foto";
+                        (e.currentTarget as HTMLImageElement).src =
+                          "https://via.placeholder.com/80?text=Foto";
                       }}
                     />
-                    <h4 className="font-semibold text-barbershop-dark">{barber.name}</h4>
+                    <h4 className="font-semibold text-barbershop-dark text-sm sm:text-base">
+                      {barber.name}
+                    </h4>
                   </CardContent>
                 </Card>
               ))}
@@ -197,8 +210,10 @@ export const BookingFlow = () => {
       case "datetime":
         return (
           <div>
-            <h3 className="text-2xl font-bold text-barbershop-dark mb-6">Escolha data e horário</h3>
-            <div className="grid md:grid-cols-2 gap-8">
+            <h3 className="font-bold text-barbershop-dark mb-6 text-2xl">
+              Escolha data e horário
+            </h3>
+            <div className="grid md:grid-cols-2 gap-6 md:gap-8">
               <div>
                 <Label className="text-base font-semibold mb-4 block">Data</Label>
                 <Input
@@ -206,19 +221,21 @@ export const BookingFlow = () => {
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
                   min={new Date().toISOString().split("T")[0]}
-                  className="mb-4"
+                  className="mb-2"
                 />
               </div>
               <div>
                 <Label className="text-base font-semibold mb-4 block">Horário Disponível</Label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
                   {timeSlots.map((time) => (
                     <Button
                       key={time}
                       variant={selectedTime === time ? "default" : "outline"}
                       size="sm"
                       onClick={() => setSelectedTime(time)}
-                      className={selectedTime === time ? "bg-barbershop-gold text-barbershop-dark" : ""}
+                      className={`h-9 ${
+                        selectedTime === time ? "bg-barbershop-gold text-barbershop-dark" : ""
+                      }`}
                     >
                       {time}
                     </Button>
@@ -232,7 +249,7 @@ export const BookingFlow = () => {
       case "details":
         return (
           <div>
-            <h3 className="text-2xl font-bold text-barbershop-dark mb-6">Seus dados</h3>
+            <h3 className="font-bold text-barbershop-dark mb-6 text-2xl">Seus dados</h3>
             <div className="space-y-4">
               <div>
                 <Label htmlFor="name">Nome completo *</Label>
@@ -258,7 +275,9 @@ export const BookingFlow = () => {
                   }}
                   placeholder="(11) 99999-9999"
                 />
-                <p className="text-xs text-muted-foreground mt-1">Apenas números, até 11 dígitos.</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Apenas números, até 11 dígitos.
+                </p>
               </div>
               <div>
                 <Label htmlFor="email">E-mail (opcional)</Label>
@@ -266,7 +285,9 @@ export const BookingFlow = () => {
                   id="email"
                   type="email"
                   value={customerDetails.email}
-                  onChange={(e) => setCustomerDetails({ ...customerDetails, email: e.target.value })}
+                  onChange={(e) =>
+                    setCustomerDetails({ ...customerDetails, email: e.target.value })
+                  }
                   placeholder="seu@email.com"
                 />
               </div>
@@ -275,7 +296,9 @@ export const BookingFlow = () => {
                 <Textarea
                   id="notes"
                   value={customerDetails.notes}
-                  onChange={(e) => setCustomerDetails({ ...customerDetails, notes: e.target.value })}
+                  onChange={(e) =>
+                    setCustomerDetails({ ...customerDetails, notes: e.target.value })
+                  }
                   placeholder="Alguma preferência ou observação especial?"
                   rows={3}
                 />
@@ -291,7 +314,9 @@ export const BookingFlow = () => {
               <div className="w-16 h-16 bg-success rounded-full flex items-center justify-center mx-auto mb-4">
                 <Check className="w-8 h-8 text-white" />
               </div>
-              <h3 className="text-2xl font-bold text-barbershop-dark mb-2">Agendamento Confirmado!</h3>
+              <h3 className="text-2xl font-bold text-barbershop-dark mb-2">
+                Agendamento Confirmado!
+              </h3>
               <p className="text-muted-foreground">Seu horário foi reservado com sucesso.</p>
             </div>
 
@@ -309,7 +334,9 @@ export const BookingFlow = () => {
                   <div className="flex justify-between items-center">
                     <span className="font-semibold">Data/Hora:</span>
                     <span>
-                      {selectedDate && new Date(selectedDate + "T00:00:00").toLocaleDateString("pt-BR")} às {selectedTime}
+                      {selectedDate &&
+                        new Date(selectedDate + "T00:00:00").toLocaleDateString("pt-BR")}{" "}
+                      às {selectedTime}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
@@ -338,16 +365,27 @@ export const BookingFlow = () => {
   return (
     <section className="py-20 bg-background">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold text-barbershop-dark mb-4">Agendar na Amauri Barbearia</h2>
-          <p className="text-xl text-muted-foreground">Simples, rápido e conveniente</p>
+        {/* Títulos responsivos */}
+        <div className="text-center mb-10 sm:mb-12">
+          <h2 className="font-bold text-barbershop-dark mb-4 text-3xl sm:text-4xl md:text-5xl">
+            Agendar na Amauri Barbearia
+          </h2>
+          <p className="text-muted-foreground text-base sm:text-lg md:text-xl">
+            Simples, rápido e conveniente
+          </p>
         </div>
 
-        {/* Steps */}
-        <div className="flex items-center justify-center mb-12">
-          <div className="flex items-center space-x-4">
+        {/* Steps com scroll horizontal no mobile */}
+        <div className="mb-10 sm:mb-12 -mx-4 px-4 overflow-x-auto">
+          <div className="min-w-max flex items-center gap-3 sm:gap-4">
             {["Serviço", "Barbeiro", "Data/Hora", "Dados", "Confirmação"].map((step, index) => {
-              const stepKeys: BookingStep[] = ["service", "barber", "datetime", "details", "confirmation"];
+              const stepKeys: BookingStep[] = [
+                "service",
+                "barber",
+                "datetime",
+                "details",
+                "confirmation",
+              ];
               const currentStepIndex = stepKeys.indexOf(currentStep);
               const isActive = index === currentStepIndex;
               const isCompleted = index < currentStepIndex;
@@ -355,17 +393,25 @@ export const BookingFlow = () => {
               return (
                 <div key={step} className="flex items-center">
                   <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
-                      isCompleted
-                        ? "bg-success text-white"
-                        : isActive
-                        ? "bg-barbershop-gold text-barbershop-dark"
-                        : "bg-muted text-muted-foreground"
-                    }`}
+                    className={`rounded-full flex items-center justify-center font-semibold
+                                w-6 h-6 text-xs sm:w-8 sm:h-8 sm:text-sm
+                                ${
+                                  isCompleted
+                                    ? "bg-success text-white"
+                                    : isActive
+                                    ? "bg-barbershop-gold text-barbershop-dark"
+                                    : "bg-muted text-muted-foreground"
+                                }`}
                   >
-                    {isCompleted ? <Check className="w-4 h-4" /> : index + 1}
+                    {isCompleted ? (
+                      <Check className="w-3 h-3 sm:w-4 sm:h-4" />
+                    ) : (
+                      index + 1
+                    )}
                   </div>
-                  {index < 4 && <div className={`w-12 h-0.5 ${isCompleted ? "bg-success" : "bg-muted"}`} />}
+                  {index < 4 && (
+                    <div className={`h-0.5 w-8 sm:w-12 ${isCompleted ? "bg-success" : "bg-muted"}`} />
+                  )}
                 </div>
               );
             })}
@@ -374,24 +420,22 @@ export const BookingFlow = () => {
 
         {/* Conteúdo do step */}
         <Card className="mb-8">
-          <CardContent className="p-8">{renderStepContent()}</CardContent>
+          <CardContent className="p-5 sm:p-8">{renderStepContent()}</CardContent>
         </Card>
 
-        {/* Navegação */}
+        {/* Navegação (empilhado no mobile) */}
         {currentStep !== "confirmation" ? (
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col-reverse gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex gap-2">
-              {/* Início (sempre visível) */}
               <Button
                 asChild
-                className="bg-[#F4D06F] hover:bg-[#E9C85F] text-[#1A1A1A] font-semibold rounded-xl px-4 py-2.5 transition-colors"
+                className="bg-[#F4D06F] hover:bg-[#E9C85F] text-[#1A1A1A] font-semibold rounded-xl px-4 py-2.5"
               >
                 <Link to="/#hero" aria-label="Voltar ao início">
                   ← Início
                 </Link>
               </Button>
 
-              {/* Voltar um passo */}
               <Button variant="outline" onClick={prevStep} disabled={currentStep === "service"}>
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Voltar
@@ -401,7 +445,7 @@ export const BookingFlow = () => {
             <Button
               onClick={nextStep}
               disabled={!canProceed()}
-              className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark"
+              className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark w-full md:w-auto h-11"
             >
               {currentStep === "details" ? "Revisar Agendamento" : "Continuar"}
               <ArrowRight className="h-4 w-4 ml-2" />
@@ -411,7 +455,7 @@ export const BookingFlow = () => {
           <div className="mt-6 flex justify-center">
             <Button
               asChild
-              className="bg-[#F4D06F] hover:bg-[#E9C85F] text-[#1A1A1A] font-semibold rounded-xl px-4 py-2.5 transition-colors"
+              className="bg-[#F4D06F] hover:bg-[#E9C85F] text-[#1A1A1A] font-semibold rounded-xl px-4 py-2.5"
             >
               <Link to="/#hero" aria-label="Voltar ao início">
                 ← Voltar ao início
@@ -420,12 +464,14 @@ export const BookingFlow = () => {
           </div>
         )}
 
-        {/* Modal de confirmação */}
+        {/* Modal de confirmação com respiro entre botões */}
         <Dialog open={showConfirmationModal} onOpenChange={setShowConfirmationModal}>
           <DialogContent className="sm:max-w-[425px]" onOpenAutoFocus={(e) => e.preventDefault()}>
             <DialogHeader>
               <DialogTitle>Confirmar Agendamento</DialogTitle>
-              <DialogDescription>Revise os detalhes do seu agendamento na Amauri Barbearia</DialogDescription>
+              <DialogDescription>
+                Revise os detalhes do seu agendamento na Amauri Barbearia
+              </DialogDescription>
             </DialogHeader>
 
             <div className="grid gap-4 py-4">
@@ -440,7 +486,9 @@ export const BookingFlow = () => {
               <div className="grid grid-cols-3 items-center gap-4">
                 <Label className="font-semibold text-right">Data/Hora:</Label>
                 <div className="col-span-2">
-                  {selectedDate && new Date(selectedDate + "T00:00:00").toLocaleDateString("pt-BR")} às {selectedTime}
+                  {selectedDate &&
+                    new Date(selectedDate + "T00:00:00").toLocaleDateString("pt-BR")}{" "}
+                  às {selectedTime}
                 </div>
               </div>
               <div className="grid grid-cols-3 items-center gap-4">
@@ -451,15 +499,16 @@ export const BookingFlow = () => {
                 <Label className="font-semibold text-right">Preço:</Label>
                 <div className="col-span-2 font-bold">R$ {selectedService?.price}</div>
               </div>
-              <div className="mt-4 p-4 bg-muted rounded-lg">
+              <div className="mt-2 p-4 bg-muted rounded-lg">
                 <p className="text-sm text-muted-foreground">
-                  <strong>Política de Cancelamento:</strong> Cancelamentos devem ser feitos com pelo menos 2 horas de
-                  antecedência. Cancelamentos em cima da hora podem ser cobrados.
+                  <strong>Política de Cancelamento:</strong> Cancelamentos devem ser feitos com
+                  pelo menos 2 horas de antecedência. Cancelamentos em cima da hora podem ser
+                  cobrados.
                 </p>
               </div>
             </div>
 
-            <DialogFooter className="gap-4 pt-2">
+            <DialogFooter className="gap-3 sm:gap-4 pt-2 flex-col-reverse sm:flex-row">
               <Button variant="outline" onClick={editBooking}>
                 Editar
               </Button>
@@ -478,3 +527,5 @@ export const BookingFlow = () => {
     </section>
   );
 };
+
+export default BookingFlow;
