@@ -16,8 +16,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Link, useSearchParams } from "react-router-dom";
-
-// fonte única de serviços (compartilhada com ServicesSection)
 import { services } from "@/data/services";
 
 type BookingStep = "service" | "barber" | "datetime" | "details" | "confirmation";
@@ -29,8 +27,8 @@ const barbers = [
 ];
 
 const timeSlots = [
-  "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
-  "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00",
+  "09:00","09:30","10:00","10:30","11:00","11:30",
+  "14:00","14:30","15:00","15:30","16:00","16:30","17:00",
 ];
 
 export const BookingFlow = () => {
@@ -49,7 +47,7 @@ export const BookingFlow = () => {
 
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Pré-seleciona serviço via /agendar?servico=<id> e pula para "barber"
+  // Pré-seleciona serviço (?servico=) e pula para barbeiro
   useEffect(() => {
     const s = searchParams.get("servico");
     if (s && !selectedService) {
@@ -62,7 +60,7 @@ export const BookingFlow = () => {
     }
   }, [searchParams, selectedService]);
 
-  // Pré-seleciona barbeiro via /agendar?barbeiro=<id>
+  // Pré-seleciona barbeiro (?barbeiro=)
   useEffect(() => {
     const b = searchParams.get("barbeiro");
     if (b && !selectedBarber) {
@@ -86,15 +84,20 @@ export const BookingFlow = () => {
     setSearchParams(sp, { replace: true });
   };
 
-  const nextStep = () => {
-    const steps: BookingStep[] = ["service", "barber", "datetime", "details", "confirmation"];
-    const currentIndex = steps.indexOf(currentStep);
+  const stepsOrder: BookingStep[] = ["service","barber","datetime","details","confirmation"];
 
+  const nextStep = () => {
+    const idx = stepsOrder.indexOf(currentStep);
     if (currentStep === "details" && canProceed()) {
       setShowConfirmationModal(true);
       return;
     }
-    if (currentIndex < steps.length - 1) setCurrentStep(steps[currentIndex + 1]);
+    if (idx < stepsOrder.length - 1) setCurrentStep(stepsOrder[idx + 1]);
+  };
+
+  const prevStep = () => {
+    const idx = stepsOrder.indexOf(currentStep);
+    if (idx > 0) setCurrentStep(stepsOrder[idx - 1]);
   };
 
   const confirmBooking = () => {
@@ -102,26 +105,13 @@ export const BookingFlow = () => {
     setCurrentStep("confirmation");
   };
 
-  const editBooking = () => setShowConfirmationModal(false);
-
-  const prevStep = () => {
-    const steps: BookingStep[] = ["service", "barber", "datetime", "details", "confirmation"];
-    const currentIndex = steps.indexOf(currentStep);
-    if (currentIndex > 0) setCurrentStep(steps[currentIndex - 1]);
-  };
-
   const canProceed = () => {
     switch (currentStep) {
-      case "service":
-        return selectedService !== null;
-      case "barber":
-        return selectedBarber !== null;
-      case "datetime":
-        return !!selectedDate && !!selectedTime;
-      case "details":
-        return !!customerDetails.name && !!customerDetails.phone;
-      default:
-        return false;
+      case "service": return selectedService !== null;
+      case "barber":  return selectedBarber  !== null;
+      case "datetime":return !!selectedDate && !!selectedTime;
+      case "details": return !!customerDetails.name && !!customerDetails.phone;
+      default:        return false;
     }
   };
 
@@ -130,9 +120,7 @@ export const BookingFlow = () => {
       case "service":
         return (
           <div>
-            <h3 className="font-bold text-barbershop-dark mb-6 text-2xl">
-              Escolha seu serviço
-            </h3>
+            <h3 className="font-bold text-barbershop-dark mb-6 text-2xl">Escolha seu serviço</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
               {services.map((service) => (
                 <Card
@@ -147,11 +135,9 @@ export const BookingFlow = () => {
                       <CardTitle className="text-base sm:text-lg md:text-xl">
                         {service.name}
                       </CardTitle>
-                      <div className="flex items-center gap-2">
-                        {service.popular && (
-                          <Badge className="bg-barbershop-gold text-barbershop-dark">Popular</Badge>
-                        )}
-                      </div>
+                      {service.popular && (
+                        <Badge className="bg-barbershop-gold text-barbershop-dark">Popular</Badge>
+                      )}
                     </div>
                   </CardHeader>
                   <CardContent className="p-4 sm:p-5 md:p-6 pt-0">
@@ -170,13 +156,10 @@ export const BookingFlow = () => {
             </div>
           </div>
         );
-
       case "barber":
         return (
           <div>
-            <h3 className="font-bold text-barbershop-dark mb-6 text-2xl">
-              Escolha seu barbeiro
-            </h3>
+            <h3 className="font-bold text-barbershop-dark mb-6 text-2xl">Escolha seu barbeiro</h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
               {barbers.map((barber) => (
                 <Card
@@ -193,8 +176,7 @@ export const BookingFlow = () => {
                       className="w-16 h-16 sm:w-20 sm:h-20 rounded-full mx-auto mb-4 object-cover"
                       loading="lazy"
                       onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).src =
-                          "https://via.placeholder.com/80?text=Foto";
+                        (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/80?text=Foto";
                       }}
                     />
                     <h4 className="font-semibold text-barbershop-dark text-sm sm:text-base">
@@ -206,13 +188,10 @@ export const BookingFlow = () => {
             </div>
           </div>
         );
-
       case "datetime":
         return (
           <div>
-            <h3 className="font-bold text-barbershop-dark mb-6 text-2xl">
-              Escolha data e horário
-            </h3>
+            <h3 className="font-bold text-barbershop-dark mb-6 text-2xl">Escolha data e horário</h3>
             <div className="grid md:grid-cols-2 gap-6 md:gap-8">
               <div>
                 <Label className="text-base font-semibold mb-4 block">Data</Label>
@@ -233,9 +212,7 @@ export const BookingFlow = () => {
                       variant={selectedTime === time ? "default" : "outline"}
                       size="sm"
                       onClick={() => setSelectedTime(time)}
-                      className={`h-9 ${
-                        selectedTime === time ? "bg-barbershop-gold text-barbershop-dark" : ""
-                      }`}
+                      className={`h-9 ${selectedTime === time ? "bg-barbershop-gold text-barbershop-dark" : ""}`}
                     >
                       {time}
                     </Button>
@@ -245,7 +222,6 @@ export const BookingFlow = () => {
             </div>
           </div>
         );
-
       case "details":
         return (
           <div>
@@ -275,9 +251,7 @@ export const BookingFlow = () => {
                   }}
                   placeholder="(11) 99999-9999"
                 />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Apenas números, até 11 dígitos.
-                </p>
+                <p className="text-xs text-muted-foreground mt-1">Apenas números, até 11 dígitos.</p>
               </div>
               <div>
                 <Label htmlFor="email">E-mail (opcional)</Label>
@@ -285,9 +259,7 @@ export const BookingFlow = () => {
                   id="email"
                   type="email"
                   value={customerDetails.email}
-                  onChange={(e) =>
-                    setCustomerDetails({ ...customerDetails, email: e.target.value })
-                  }
+                  onChange={(e) => setCustomerDetails({ ...customerDetails, email: e.target.value })}
                   placeholder="seu@email.com"
                 />
               </div>
@@ -296,9 +268,7 @@ export const BookingFlow = () => {
                 <Textarea
                   id="notes"
                   value={customerDetails.notes}
-                  onChange={(e) =>
-                    setCustomerDetails({ ...customerDetails, notes: e.target.value })
-                  }
+                  onChange={(e) => setCustomerDetails({ ...customerDetails, notes: e.target.value })}
                   placeholder="Alguma preferência ou observação especial?"
                   rows={3}
                 />
@@ -306,7 +276,6 @@ export const BookingFlow = () => {
             </div>
           </div>
         );
-
       case "confirmation":
         return (
           <div className="text-center">
@@ -314,49 +283,26 @@ export const BookingFlow = () => {
               <div className="w-16 h-16 bg-success rounded-full flex items-center justify-center mx-auto mb-4">
                 <Check className="w-8 h-8 text-white" />
               </div>
-              <h3 className="text-2xl font-bold text-barbershop-dark mb-2">
-                Agendamento Confirmado!
-              </h3>
+              <h3 className="text-2xl font-bold text-barbershop-dark mb-2">Agendamento Confirmado!</h3>
               <p className="text-muted-foreground">Seu horário foi reservado com sucesso.</p>
             </div>
-
             <Card className="bg-barbershop-cream border-barbershop-gold/20">
               <CardContent className="p-6">
                 <div className="space-y-3 text-left">
-                  <div className="flex justify-between items-center">
-                    <span className="font-semibold">Serviço:</span>
-                    <span>{selectedService?.name}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="font-semibold">Barbeiro:</span>
-                    <span>{selectedBarber?.name}</span>
-                  </div>
+                  <div className="flex justify-between items-center"><span className="font-semibold">Serviço:</span><span>{selectedService?.name}</span></div>
+                  <div className="flex justify-between items-center"><span className="font-semibold">Barbeiro:</span><span>{selectedBarber?.name}</span></div>
                   <div className="flex justify-between items-center">
                     <span className="font-semibold">Data/Hora:</span>
-                    <span>
-                      {selectedDate &&
-                        new Date(selectedDate + "T00:00:00").toLocaleDateString("pt-BR")}{" "}
-                      às {selectedTime}
-                    </span>
+                    <span>{selectedDate && new Date(selectedDate + "T00:00:00").toLocaleDateString("pt-BR")} às {selectedTime}</span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="font-semibold">Duração:</span>
-                    <span>{selectedService?.duration}min</span>
-                  </div>
-                  <div className="flex justify-between items-center text-lg font-bold border-t pt-2">
-                    <span>Total:</span>
-                    <span>R$ {selectedService?.price}</span>
-                  </div>
+                  <div className="flex justify-between items-center"><span className="font-semibold">Duração:</span><span>{selectedService?.duration}min</span></div>
+                  <div className="flex justify-between items-center text-lg font-bold border-t pt-2"><span>Total:</span><span>R$ {selectedService?.price}</span></div>
                 </div>
               </CardContent>
             </Card>
-
-            <p className="text-sm text-muted-foreground mt-4">
-              Confirmação enviada para {customerDetails.phone} - Amauri Barbearia
-            </p>
+            <p className="text-sm text-muted-foreground mt-4">Confirmação enviada para {customerDetails.phone} - Amauri Barbearia</p>
           </div>
         );
-
       default:
         return null;
     }
@@ -365,7 +311,7 @@ export const BookingFlow = () => {
   return (
     <section className="py-20 bg-background">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Títulos responsivos */}
+        {/* Título */}
         <div className="text-center mb-10 sm:mb-12">
           <h2 className="font-bold text-barbershop-dark mb-4 text-3xl sm:text-4xl md:text-5xl">
             Agendar na Amauri Barbearia
@@ -375,39 +321,23 @@ export const BookingFlow = () => {
           </p>
         </div>
 
-        {/* Steps com scroll horizontal no mobile */}
-        <div className="mb-10 sm:mb-12 -mx-4 px-4 overflow-x-auto">
-          <div className="min-w-max flex items-center gap-3 sm:gap-4">
-            {["Serviço", "Barbeiro", "Data/Hora", "Dados", "Confirmação"].map((step, index) => {
-              const stepKeys: BookingStep[] = [
-                "service",
-                "barber",
-                "datetime",
-                "details",
-                "confirmation",
-              ];
-              const currentStepIndex = stepKeys.indexOf(currentStep);
-              const isActive = index === currentStepIndex;
-              const isCompleted = index < currentStepIndex;
-
+        {/* STEPS — centralizados */}
+        <div className="mb-10 sm:mb-12 px-2">
+          <div className="flex items-center justify-center gap-4">
+            {["Serviço","Barbeiro","Data/Hora","Dados","Confirmação"].map((step, index) => {
+              const currentIndex = stepsOrder.indexOf(currentStep);
+              const isActive = index === currentIndex;
+              const isCompleted = index < currentIndex;
               return (
                 <div key={step} className="flex items-center">
                   <div
                     className={`rounded-full flex items-center justify-center font-semibold
                                 w-6 h-6 text-xs sm:w-8 sm:h-8 sm:text-sm
-                                ${
-                                  isCompleted
-                                    ? "bg-success text-white"
-                                    : isActive
-                                    ? "bg-barbershop-gold text-barbershop-dark"
-                                    : "bg-muted text-muted-foreground"
-                                }`}
+                                ${isCompleted ? "bg-success text-white" :
+                                  isActive ? "bg-barbershop-gold text-barbershop-dark" :
+                                  "bg-muted text-muted-foreground"}`}
                   >
-                    {isCompleted ? (
-                      <Check className="w-3 h-3 sm:w-4 sm:h-4" />
-                    ) : (
-                      index + 1
-                    )}
+                    {isCompleted ? <Check className="w-3 h-3 sm:w-4 sm:h-4" /> : index + 1}
                   </div>
                   {index < 4 && (
                     <div className={`h-0.5 w-8 sm:w-12 ${isCompleted ? "bg-success" : "bg-muted"}`} />
@@ -418,60 +348,86 @@ export const BookingFlow = () => {
           </div>
         </div>
 
-        {/* Conteúdo do step */}
+        {/* Conteúdo */}
         <Card className="mb-8">
           <CardContent className="p-5 sm:p-8">{renderStepContent()}</CardContent>
         </Card>
 
-        {/* Navegação (empilhado no mobile) */}
+        {/* Navegação */}
         {currentStep !== "confirmation" ? (
-          <div className="flex flex-col-reverse gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="flex gap-2">
+          <>
+            {/* Desktop / tablets: layout antigo */}
+            <div className="hidden md:flex items-center justify-between">
+              <div className="flex gap-2">
+                <Button
+                  asChild
+                  className="bg-[#F4D06F] hover:bg-[#E9C85F] text-[#1A1A1A] font-semibold rounded-xl px-4 py-2.5"
+                >
+                  <Link to="/#hero" aria-label="Voltar ao início">← Início</Link>
+                </Button>
+                <Button variant="outline" onClick={prevStep} disabled={currentStep === "service"}>
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Voltar
+                </Button>
+              </div>
               <Button
-                asChild
-                className="bg-[#F4D06F] hover:bg-[#E9C85F] text-[#1A1A1A] font-semibold rounded-xl px-4 py-2.5"
+                onClick={nextStep}
+                disabled={!canProceed()}
+                className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark h-11"
               >
-                <Link to="/#hero" aria-label="Voltar ao início">
-                  ← Início
-                </Link>
-              </Button>
-
-              <Button variant="outline" onClick={prevStep} disabled={currentStep === "service"}>
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Voltar
+                {currentStep === "details" ? "Revisar Agendamento" : "Continuar"}
+                <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             </div>
 
-            <Button
-              onClick={nextStep}
-              disabled={!canProceed()}
-              className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark w-full md:w-auto h-11"
-            >
-              {currentStep === "details" ? "Revisar Agendamento" : "Continuar"}
-              <ArrowRight className="h-4 w-4 ml-2" />
-            </Button>
-          </div>
+            {/* Mobile: Continuar em cima (full), linha de baixo com Voltar à esquerda e Início à direita */}
+            <div className="md:hidden space-y-3">
+              <Button
+                onClick={nextStep}
+                disabled={!canProceed()}
+                className="w-full bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark h-11"
+              >
+                {currentStep === "details" ? "Revisar Agendamento" : "Continuar"}
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+
+              <div className="flex justify-between gap-3">
+                <Button
+                  variant="outline"
+                  onClick={prevStep}
+                  disabled={currentStep === "service"}
+                  className="flex-1"
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Voltar
+                </Button>
+
+                <Button
+                  asChild
+                  className="flex-1 bg-[#F4D06F] hover:bg-[#E9C85F] text-[#1A1A1A] font-semibold rounded-xl"
+                >
+                  <Link to="/#hero" aria-label="Voltar ao início">Início →</Link>
+                </Button>
+              </div>
+            </div>
+          </>
         ) : (
           <div className="mt-6 flex justify-center">
             <Button
               asChild
               className="bg-[#F4D06F] hover:bg-[#E9C85F] text-[#1A1A1A] font-semibold rounded-xl px-4 py-2.5"
             >
-              <Link to="/#hero" aria-label="Voltar ao início">
-                ← Voltar ao início
-              </Link>
+              <Link to="/#hero" aria-label="Voltar ao início">← Voltar ao início</Link>
             </Button>
           </div>
         )}
 
-        {/* Modal de confirmação com respiro entre botões */}
+        {/* Modal */}
         <Dialog open={showConfirmationModal} onOpenChange={setShowConfirmationModal}>
           <DialogContent className="sm:max-w-[425px]" onOpenAutoFocus={(e) => e.preventDefault()}>
             <DialogHeader>
               <DialogTitle>Confirmar Agendamento</DialogTitle>
-              <DialogDescription>
-                Revise os detalhes do seu agendamento na Amauri Barbearia
-              </DialogDescription>
+              <DialogDescription>Revise os detalhes do seu agendamento na Amauri Barbearia</DialogDescription>
             </DialogHeader>
 
             <div className="grid gap-4 py-4">
@@ -486,9 +442,7 @@ export const BookingFlow = () => {
               <div className="grid grid-cols-3 items-center gap-4">
                 <Label className="font-semibold text-right">Data/Hora:</Label>
                 <div className="col-span-2">
-                  {selectedDate &&
-                    new Date(selectedDate + "T00:00:00").toLocaleDateString("pt-BR")}{" "}
-                  às {selectedTime}
+                  {selectedDate && new Date(selectedDate + "T00:00:00").toLocaleDateString("pt-BR")} às {selectedTime}
                 </div>
               </div>
               <div className="grid grid-cols-3 items-center gap-4">
@@ -501,17 +455,13 @@ export const BookingFlow = () => {
               </div>
               <div className="mt-2 p-4 bg-muted rounded-lg">
                 <p className="text-sm text-muted-foreground">
-                  <strong>Política de Cancelamento:</strong> Cancelamentos devem ser feitos com
-                  pelo menos 2 horas de antecedência. Cancelamentos em cima da hora podem ser
-                  cobrados.
+                  <strong>Política de Cancelamento:</strong> Cancelamentos devem ser feitos com pelo menos 2 horas de antecedência. Cancelamentos em cima da hora podem ser cobrados.
                 </p>
               </div>
             </div>
 
             <DialogFooter className="gap-3 sm:gap-4 pt-2 flex-col-reverse sm:flex-row">
-              <Button variant="outline" onClick={editBooking}>
-                Editar
-              </Button>
+              <Button variant="outline" onClick={() => setShowConfirmationModal(false)}>Editar</Button>
               <Button
                 onClick={confirmBooking}
                 className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark"
