@@ -1,18 +1,22 @@
 import { Button } from "@/components/ui/button";
 import { Calendar, Clock, Scissors, Users } from "lucide-react";
 import heroImage from "@/assets/barbershop-hero.jpg";
+import { Link } from "react-router-dom";
 
 export const Hero = () => {
   return (
-    <section className="relative min-h-[90svh] sm:min-h-screen flex items-center justify-center overflow-hidden pt-safe pb-safe">
+    <section
+      id="hero"
+      className="relative min-h-[90svh] sm:min-h-screen flex items-center justify-center overflow-hidden pt-safe pb-safe"
+    >
       {/* Background Image */}
-      <div 
+      <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: `url(${heroImage})` }}
       >
         <div className="absolute inset-0 bg-gradient-to-r from-barbershop-dark/80 via-barbershop-brown/60 to-transparent" />
       </div>
-      
+
       {/* Content */}
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center lg:text-left pt-24 md:pt-0">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
@@ -24,19 +28,23 @@ export const Hero = () => {
             <p className="text-base md:text-xl lg:text-2xl mb-6 md:mb-8 text-white/90 leading-relaxed">
               Tradição e modernidade em um só lugar. Agende seu horário e experimente o melhor em cortes masculinos.
             </p>
+
             <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center lg:justify-start">
+              {/* Agendar -> sempre abre a página de agendamento */}
               <Button
                 asChild
                 size="lg"
                 className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark
-                            font-semibold text-lg px-6 py-4 md:px-8 md:py-6 shadow-glow
-                            transition-all duration-300 hover:scale-105"
+                           font-semibold text-lg px-6 py-4 md:px-8 md:py-6 shadow-glow
+                           transition-all duration-300 hover:scale-105"
               >
-                <a href="#agendamento">
+                <Link to="/agendar" aria-label="Ir para a página de agendamento">
                   <Calendar className="mr-2 h-5 w-5" />
                   Agendar Horário
-                </a>
+                </Link>
               </Button>
+
+              {/* Nossos Barbeiros -> ancora na home */}
               <Button
                 asChild
                 size="lg"
@@ -49,14 +57,14 @@ export const Hero = () => {
                   dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200
                 "
               >
-                <a href="#barbeiros">
+                <a href="#barbeiros" aria-label="Ir para a seção de barbeiros">
                   <Users className="mr-2 h-5 w-5" />
                   Nossos Barbeiros
                 </a>
               </Button>
             </div>
           </div>
-          
+
           {/* Stats Cards */}
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-white/10 backdrop-blur-md rounded-lg p-6 text-center text-white border border-white/20">
@@ -77,7 +85,7 @@ export const Hero = () => {
           </div>
         </div>
       </div>
-      
+
       {/* Scroll Indicator */}
       <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-white animate-bounce">
         <div className="w-6 h-10 border-2 border-white/50 rounded-full flex justify-center">

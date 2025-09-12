@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Clock, Scissors, Sparkles, Star } from "lucide-react";
+import { Link } from "react-router-dom"; // << novo
 
 const services = [
   {
@@ -84,7 +85,10 @@ export const ServicesSection = () => {
           {services.map((service) => {
             const IconComponent = service.icon;
             return (
-              <Card key={service.id} className="group hover:shadow-elegant transition-all duration-300 hover:-translate-y-1 border-2 hover:border-barbershop-gold/50 bg-gradient-card">
+              <Card
+                key={service.id}
+                className="group hover:shadow-elegant transition-all duration-300 hover:-translate-y-1 border-2 hover:border-barbershop-gold/50 bg-gradient-card"
+              >
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div className="bg-barbershop-gold/20 p-3 rounded-full">
@@ -103,6 +107,7 @@ export const ServicesSection = () => {
                     {service.description}
                   </CardDescription>
                 </CardHeader>
+
                 <CardContent>
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center text-muted-foreground">
@@ -113,13 +118,22 @@ export const ServicesSection = () => {
                       R$ {service.price}
                     </div>
                   </div>
+
                   <Badge variant="secondary" className="mb-4">
                     {service.category}
                   </Badge>
-                  <Button 
+
+                  {/* Botão leva para a MESMA página do fluxo, com serviço pré-selecionado */}
+                  <Button
+                    asChild
                     className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold transition-all duration-300 hover:scale-105"
                   >
-                    Agendar Serviço
+                    <Link
+                      to={`/agendar?servico=${service.id}`}
+                      aria-label={`Agendar ${service.name}`}
+                    >
+                      Agendar Serviço
+                    </Link>
                   </Button>
                 </CardContent>
               </Card>
