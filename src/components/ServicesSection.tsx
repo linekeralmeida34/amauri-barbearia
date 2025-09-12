@@ -1,9 +1,21 @@
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Clock, Scissors, Sparkles, Star } from "lucide-react";
 import { Link } from "react-router-dom"; // << novo
+import { supabase } from "@/lib/supabase"; // << novo
 
+// === helper para ícone (apenas para itens vindos do banco) ===
+function pickIcon(name?: string | null, category?: string | null) {
+  const n = (name || "").toLowerCase();
+  const c = (category || "").toLowerCase();
+  if (n.includes("barba") || c.includes("barba") || n.includes("corte") || c.includes("cabelo")) return Scissors;
+  if (c.includes("premium") || c.includes("especial") || n.includes("premium")) return Star;
+  return Sparkles;
+}
+
+// === SEU ARRAY ORIGINAL (inalterado) ===
 const services = [
   {
     id: 1,
@@ -67,7 +79,42 @@ const services = [
   }
 ];
 
+// tipagem do item local (shape do array acima)
+type LocalService = typeof services[number];
+
 export const ServicesSection = () => {
+  // dados vindos do banco (se nulo, usa o array original sem mudar layout)
+  const [dbServices, setDbServices] = useState<LocalService[] | null>(null);
+
+  // carrega do Supabase e mapeia pro MESMO shape do array original
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await supabase
+        .from("services")
+        .select("id,name,description,duration_min,price,category,popular,is_active")
+        .eq("is_active", true)
+        .order("name", { ascending: true });
+
+      if (!error && data) {
+        const mapped: LocalService[] = data.map((s: any) => ({
+          id: s.id,
+          name: s.name ?? "",
+          description: s.description ?? "",
+          duration: Number(s.duration_min ?? 0),
+          price: Number(s.price ?? 0),
+          category: s.category ?? "",
+          popular: !!s.popular,
+          icon: pickIcon(s.name, s.category) // mantém o mesmo padrão visual
+        }));
+        // se vier vazio, mantém seus 6; se vier banco, usa só banco
+        setDbServices(mapped.length ? mapped : services);
+      }
+    })();
+  }, []);
+
+  // a lista que o JSX renderiza (NÃO muda layout/markup/classes)
+  const list = dbServices ?? services;
+
   return (
     <section className="py-20 bg-barbershop-cream">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -82,7 +129,7 @@ export const ServicesSection = () => {
         </div>
         
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {services.map((service) => {
+          {list.map((service) => {
             const IconComponent = service.icon;
             return (
               <Card
@@ -144,3 +191,6 @@ export const ServicesSection = () => {
     </section>
   );
 };
+
+// export default também para compatibilizar com import anterior
+export default ServicesSection;

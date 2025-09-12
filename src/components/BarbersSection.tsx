@@ -1,8 +1,10 @@
+import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Star, Instagram, Calendar } from "lucide-react";
 import { Link } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
 
 const barbers = [
   {
@@ -40,7 +42,7 @@ const barbers = [
 ];
 
 function toInstagramUrl(insta: string): string {
-  if (!insta) return "#";
+  if (!insta) return "https://instagram.com/";
   if (insta.startsWith("http")) return insta;
   const handle = insta.replace(/^@/, "");
   return `https://instagram.com/${handle}`;
@@ -55,7 +57,38 @@ function toInstagramHandle(insta: string): string {
   return insta.startsWith("@") ? insta : `@${insta}`;
 }
 
+// tipagem do item local
+type LocalBarber = typeof barbers[number];
+
 export const BarbersSection = () => {
+  // dados vindos do Supabase; se nulo, usa a lista local acima
+  const [dbBarbers, setDbBarbers] = useState<LocalBarber[] | null>(null);
+  const list: LocalBarber[] = dbBarbers ?? barbers;
+
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await supabase
+        .from("barbers")
+        .select("id,name,photo_url,bio,rating,reviews,is_active,instagram,specialties")
+        .eq("is_active", true)
+        .order("name", { ascending: true });
+
+      if (!error && data) {
+        const mapped: LocalBarber[] = data.map((b: any) => ({
+          id: b.id,
+          name: b.name ?? "",
+          specialties: Array.isArray(b.specialties) ? b.specialties : [], // mantemos vazio por enquanto (coluna futura)
+          bio: b.bio ?? "",
+          rating: Number(b.rating ?? 0),
+          reviews: Number(b.reviews ?? 0),
+          photo: b.photo_url ?? "https://via.placeholder.com/96?text=Foto",
+          instagram: (b.instagram ?? "").toString(), // se quiser, depois criamos coluna para isso
+        }));
+        setDbBarbers(mapped.length ? mapped : barbers);
+      }
+    })();
+  }, []);
+
   return (
     <section className="py-20 bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -70,7 +103,7 @@ export const BarbersSection = () => {
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {barbers.map((barber) => {
+          {list.map((barber) => {
             const igUrl = toInstagramUrl(barber.instagram);
             const igHandle = toInstagramHandle(barber.instagram);
 

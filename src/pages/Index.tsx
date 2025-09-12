@@ -1,5 +1,5 @@
 import { Hero } from "@/components/Hero";
-import { ServicesSection } from "@/components/ServicesSection";
+import ServicesSection from "@/components/ServicesSection";
 import { BarbersSection } from "@/components/BarbersSection";
 // ❌ removido: import { BookingFlow } from "@/components/BookingFlow";
 import { Button } from "@/components/ui/button";
