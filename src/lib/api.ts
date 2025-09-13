@@ -92,19 +92,28 @@ export async function fetchBarbersMap(): Promise<Map<string, Barber>> {
 export type CreateBookingInput = {
   service_id: string | number;   // aceito number p/ fallback, valido abaixo
   barber_id:  string | number;
+
   customer_name: string;
-  phone: string;
-  email?: string;
-  notes?: string;
+  phone: string;                 // WhatsApp do cliente (será salvo em customer_phone)
+
+  email?: string;                // (não salvo por enquanto)
+  notes?: string;                // (não salvo por enquanto)
 
   starts_at_iso: string;         // ex: new Date('2025-09-12T14:30:00-03:00').toISOString()
   duration_min: number;
-  price: number;                  // number já normalizado
+  price: number;                 // number já normalizado
 };
 
 export type CreateBookingResult =
   | { ok: true }
-  | { ok: false; reason: 'CONFLICT' | 'VALIDATION' | 'UNKNOWN'; message: string };
+  | { ok: false; reason: "CONFLICT" | "VALIDATION" | "UNKNOWN"; message: string };
+
+/** Normaliza telefone BR: mantém apenas dígitos (ex.: "+55 (11) 91234-5678" -> "5511912345678") */
+function normalizePhone(brPhone: string | null | undefined) {
+  if (!brPhone) return null;
+  const digits = brPhone.replace(/\D/g, "");
+  return digits.length ? digits : null;
+}
 
 export async function createBooking(input: CreateBookingInput): Promise<CreateBookingResult> {
   // Garantir que IDs vieram do banco (uuid como string). Se vierem do fallback (número), bloqueia.
@@ -113,64 +122,66 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
   if (svcId.length < 10 || brbId.length < 10) {
     return {
       ok: false,
-      reason: 'VALIDATION',
-      message: 'Selecione um serviço e um barbeiro válidos do sistema.',
+      reason: "VALIDATION",
+      message: "Selecione um serviço e um barbeiro válidos do sistema.",
     };
-  }
+    }
 
   // Valida campos mínimos
   if (!input.customer_name?.trim() || !input.phone?.trim()) {
-    return { ok: false, reason: 'VALIDATION', message: 'Nome e WhatsApp são obrigatórios.' };
+    return { ok: false, reason: "VALIDATION", message: "Nome e WhatsApp são obrigatórios." };
   }
   if (!input.starts_at_iso || isNaN(Date.parse(input.starts_at_iso))) {
-    return { ok: false, reason: 'VALIDATION', message: 'Data/hora inválidas.' };
+    return { ok: false, reason: "VALIDATION", message: "Data/hora inválidas." };
   }
   if (!input.duration_min || input.duration_min <= 0) {
-    return { ok: false, reason: 'VALIDATION', message: 'Duração inválida.' };
+    return { ok: false, reason: "VALIDATION", message: "Duração inválida." };
   }
 
-  // Monta payload para o insert (sem .select(), pois RLS não permite SELECT)
+  // Monta payload para o insert
+  // OBS: somente colunas existentes na sua tabela: starts_at, service_id, barber_id, duration_min, price, status,
+  //      customer_name, customer_phone (adicionadas no passo anterior).
   const payload = {
     service_id: svcId,
     barber_id: brbId,
-    customer_name: input.customer_name.trim(),
-    phone: input.phone.trim(),
-    email: input.email?.trim() || null,
-    notes: input.notes?.trim() || null,
-    starts_at: input.starts_at_iso,
+    starts_at: input.starts_at_iso,                   // timestamptz em UTC
     duration_min: Math.round(input.duration_min),
     price: Number(input.price),
-    status: 'pending' as const,
+    status: "pending" as const,
+
+    // ✅ novos campos persistidos
+    customer_name: input.customer_name.trim(),
+    customer_phone: normalizePhone(input.phone),
   };
 
-  const { error } = await supabase.from('bookings').insert([payload]);
+  const { error } = await supabase.from("bookings").insert([payload]);
 
   if (!error) return { ok: true };
 
-  // Trata conflito de horário (exclusion constraint)
-  const code = (error as any)?.code || '';
-  const msg = (error as any)?.message || '';
-  const details = (error as any)?.details || '';
+  // Trata conflito de horário (exclusion constraint/overlap)
+  const code = (error as any)?.code || "";
+  const msg = (error as any)?.message || "";
+  const details = (error as any)?.details || "";
 
   const looksLikeConflict =
-    code === '23P01' ||                           // exclusion_violation
-    msg.toLowerCase().includes('bookings_no_overlap') ||
-    details.toLowerCase().includes('bookings_no_overlap') ||
-    msg.toLowerCase().includes('overlap') ||
-    details.toLowerCase().includes('overlap');
+    code === "23P01" ||                           // exclusion_violation
+    msg.toLowerCase().includes("bookings_no_overlap") ||
+    details.toLowerCase().includes("bookings_no_overlap") ||
+    msg.toLowerCase().includes("overlap") ||
+    details.toLowerCase().includes("overlap");
 
   if (looksLikeConflict) {
     return {
       ok: false,
-      reason: 'CONFLICT',
-      message: 'Esse horário já foi reservado para este barbeiro. Escolha outro horário.',
+      reason: "CONFLICT",
+      message: "Esse horário já foi reservado para este barbeiro. Escolha outro horário.",
     };
   }
 
   return {
     ok: false,
-    reason: 'UNKNOWN',
-    message: 'Não foi possível concluir o agendamento. Tente novamente.',
+    reason: "UNKNOWN",
+    message: "Não foi possível concluir o agendamento. Tente novamente.",
   };
 }
 
