@@ -32,18 +32,20 @@ function ScrollToTop() {
   return null;
 }
 
-/** Rola até a âncora quando a URL tiver hash (/#servicos, /#barbeiros, /#contato, /#hero) */
-function ScrollToHash() {
-  const { pathname, hash } = useLocation();
+function ScrollToAnchorFromSearch() {
+  const { pathname, search } = useLocation();
   useEffect(() => {
-    if (!hash) return;
+    const params = new URLSearchParams(search);
+    const anchor = params.get("a");
+    if (!anchor) return;
     requestAnimationFrame(() => {
-      const el = document.querySelector(hash) as HTMLElement | null;
+      const el = document.getElementById(anchor);
       if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
     });
-  }, [pathname, hash]);
+  }, [pathname, search]);
   return null;
 }
+
 
 /** Link “Admin (dev)” controlado por flag de ambiente (funciona em prod também) */
 function AdminDevLink() {
@@ -141,7 +143,7 @@ export default function App() {
         <HashRouter>
           {/* Helpers de rolagem */}
           <ScrollToTop />
-          <ScrollToHash />
+          <ScrollToAnchorFromSearch />
 
           {/* “Admin (dev)” só na home em DEV */}
           <AdminDevLink />

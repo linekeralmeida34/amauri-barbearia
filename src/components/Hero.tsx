@@ -44,7 +44,7 @@ export const Hero = () => {
                 </Link>
               </Button>
 
-              {/* Nossos Barbeiros -> ancora na home */}
+              {/* Nossos Barbeiros -> ancora na home (via query ?a=barbeiros) */}
               <Button
                 asChild
                 size="lg"
@@ -57,10 +57,10 @@ export const Hero = () => {
                   dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200
                 "
               >
-                <a href="#barbeiros" aria-label="Ir para a seção de barbeiros">
+                <Link to="/?a=barbeiros" aria-label="Ir para a seção de barbeiros">
                   <Users className="mr-2 h-5 w-5" />
                   Nossos Barbeiros
-                </a>
+                </Link>
               </Button>
             </div>
           </div>

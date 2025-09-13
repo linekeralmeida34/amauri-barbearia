@@ -16,16 +16,18 @@ const Index = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center">
-              <Link to="/#hero" className="text-2xl font-bold text-barbershop-dark">
+              {/* ⬇️ logo agora navega para a seção hero usando query */}
+              <Link to="/?a=hero" className="text-2xl font-bold text-barbershop-dark">
                 Amauri<span className="text-barbershop-gold">Barbearia</span>
               </Link>
             </div>
 
             <div className="hidden md:flex items-center space-x-8">
-              <NavLink to="/#servicos" className="text-barbershop-dark hover:text-primary transition-colors">
+              {/* ⬇️ menu usa query ?a=... para rolar até as âncoras */}
+              <NavLink to="/?a=servicos" className="text-barbershop-dark hover:text-primary transition-colors">
                 Serviços
               </NavLink>
-              <NavLink to="/#barbeiros" className="text-barbershop-dark hover:text-primary transition-colors">
+              <NavLink to="/?a=barbeiros" className="text-barbershop-dark hover:text-primary transition-colors">
                 Barbeiros
               </NavLink>
 
@@ -34,7 +36,7 @@ const Index = () => {
                 Agendar
               </NavLink>
 
-              <NavLink to="/#contato" className="text-barbershop-dark hover:text-primary transition-colors">
+              <NavLink to="/?a=contato" className="text-barbershop-dark hover:text-primary transition-colors">
                 Contato
               </NavLink>
             </div>
