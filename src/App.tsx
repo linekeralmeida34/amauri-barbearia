@@ -45,10 +45,16 @@ function ScrollToHash() {
   return null;
 }
 
-/** Link “Admin (dev)” aparece só na home e somente em ambiente de desenvolvimento */
+/** Link “Admin (dev)” controlado por flag de ambiente (funciona em prod também) */
 function AdminDevLink() {
   const { pathname } = useLocation();
-  if (!import.meta.env.DEV || pathname !== "/") return null;
+  const show =
+    (import.meta.env.VITE_SHOW_ADMIN_LINK === "true" ||
+     import.meta.env.VITE_SHOW_ADMIN_LINK === "1");
+
+  // mantém a regra de só mostrar na home
+  if (!show || pathname !== "/") return null;
+
   return (
     <a
       href="#/admin/login"
