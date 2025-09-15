@@ -1,44 +1,45 @@
+// src/components/admin/BookingsList.tsx
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
-import { Check, X } from "lucide-react";
 
-/** Tipos (simplificados) */
-type Booking = {
+/** ---------- Tipos ---------- */
+type BookingStatus = "pending" | "confirmed" | "canceled";
+
+type BookingRow = {
   id: string;
-  service_id: string | null;
-  barber_id: string | null;
-  starts_at: string;     // UTC ISO
-  ends_at: string | null;
-  duration_min: number | null;
-  price: number | null;
-  status: string;        // 'pending' | 'confirmed' | 'canceled'...
+  starts_at: string; // timestamptz
+  status: BookingStatus;
   customer_name: string | null;
   phone: string | null;
+  price: number | null;
+  services?: { name: string | null } | null;
+  barbers?: { name: string | null; id?: string } | null;
 };
 
-type IdName = { id: string; name: string };
+type BarberLite = { id: string; name: string };
 
-/** Util: formata horário em America/Sao_Paulo */
-function fmtSP(isoUtc: string) {
-  const d = new Date(isoUtc);
-  return new Intl.DateTimeFormat("pt-BR", {
-    timeZone: "America/Sao_Paulo",
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(d);
+/** ---------- Utils de formatação ---------- */
+function fmtDateTimeBR(iso: string) {
+  const d = new Date(iso);
+  return d.toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
-/** Util: formata telefone BR de forma tolerante */
+function fmtPriceBR(v: number | null | undefined) {
+  if (v == null) return "—";
+  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
 function fmtPhoneBR(raw: string | null | undefined) {
   if (!raw) return "—";
   const digits = raw.replace(/\D/g, "");
-  // Celular (11 dígitos) → (11) 9####-#### ; Fixo (10) → (11) ####-#### ; outros → retorna como veio
   if (digits.length === 11) {
-    return `(${digits.slice(0, 2)}) ${digits.slice(2, 3)}${digits.slice(3, 7)}-${digits.slice(7)}`;
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
   }
   if (digits.length === 10) {
     return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
@@ -46,239 +47,305 @@ function fmtPhoneBR(raw: string | null | undefined) {
   return raw;
 }
 
-/** Badge por status */
-function StatusBadge({ status }: { status: string }) {
-  const s = status.toLowerCase();
-  const variant =
-    s === "confirmed" ? "default" :
-    s === "pending"   ? "secondary" :
-    s === "canceled"  ? "destructive" :
-    "outline";
-  return <Badge variant={variant} className="capitalize">{s}</Badge>;
-}
-
+/** ---------- Componente ---------- */
 export default function BookingsList() {
-  const [rows, setRows] = useState<Booking[] | null>(null);
-  const [loading, setLoading] = useState(true);
+  /** dados crus */
+  const [rows, setRows] = useState<BookingRow[]>([]);
+  const [barbers, setBarbers] = useState<BarberLite[]>([]);
 
-  // 🔎 dicionários id->nome
-  const [serviceMap, setServiceMap] = useState<Record<string, string>>({});
-  const [barberMap, setBarberMap] = useState<Record<string, string>>({});
+  /** filtros */
+  const [statusFilter, setStatusFilter] = useState<"" | BookingStatus>("");
+  const [barberFilter, setBarberFilter] = useState<string>("");
+  const [dateFrom, setDateFrom] = useState<string>(""); // yyyy-mm-dd
+  const [dateTo, setDateTo] = useState<string>(""); // yyyy-mm-dd
 
-  const ordered = useMemo(() => {
-    if (!rows) return [];
-    return [...rows].sort((a, b) => (a.starts_at < b.starts_at ? 1 : -1));
-  }, [rows]);
+  const [loading, setLoading] = useState(false);
 
-  // ✅ atualizar status (optimistic UI)
-  async function updateStatus(id: string, newStatus: "confirmed" | "canceled") {
-    const prev = rows;
-    setRows((curr) =>
-      (curr ?? []).map((r) => (r.id === id ? { ...r, status: newStatus } : r))
-    );
+  /** --------- fetch inicial (bookings + barbers) --------- */
+  async function fetchAll() {
+    setLoading(true);
+    try {
+      // Barbeiros para o filtro
+      const { data: barbs } = await supabase
+        .from("barbers")
+        .select("id,name")
+        .eq("is_active", true)
+        .order("name", { ascending: true });
+      setBarbers((barbs ?? []) as BarberLite[]);
 
-    const { error } = await supabase
-      .from("bookings")
-      .update({ status: newStatus })
-      .eq("id", id);
+      // Bookings
+      const { data, error } = await supabase
+        .from("bookings")
+        .select(
+          `
+          id,
+          starts_at,
+          status,
+          customer_name,
+          phone,
+          price,
+          services ( name ),
+          barbers ( id, name )
+        `
+        )
+        .order("starts_at", { ascending: true });
 
-    if (error) {
-      console.error("update booking error", error);
-      toast.error("Erro ao atualizar agendamento");
-      setRows(prev ?? null);
-    } else {
-      toast.success(`Agendamento ${newStatus === "confirmed" ? "confirmado" : "cancelado"}`);
+      if (error) throw error;
+      setRows((data ?? []) as BookingRow[]);
+    } finally {
+      setLoading(false);
     }
   }
 
-  // 📥 carga inicial + realtime de bookings
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("bookings")
-        .select("id, service_id, barber_id, starts_at, ends_at, duration_min, price, status, customer_name, phone")
-        .order("starts_at", { ascending: false })
-        .limit(200);
-      if (!cancelled) {
-        if (error) {
-          console.error("bookings SELECT error", error);
-          setRows([]);
-        } else {
-          setRows((data ?? []) as Booking[]);
-        }
-        setLoading(false);
-      }
+  /** --------- update de status --------- */
+  async function updateStatus(id: string, newStatus: BookingStatus) {
+    const { error } = await supabase.from("bookings").update({ status: newStatus }).eq("id", id);
+    if (!error) {
+      setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status: newStatus } : r)));
     }
+  }
 
-    load();
+  /** --------- realtime --------- */
+  useEffect(() => {
+    fetchAll();
 
-    // Realtime
     const channel = supabase
-      .channel("bookings-admin-list")
+      .channel("bookings-admin-realtime")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "bookings" },
         (payload) => {
-          setRows((curr) => {
-            const list = curr ? [...curr] : [];
-            if (payload.eventType === "INSERT") {
-              list.unshift(payload.new as unknown as Booking);
-              return list;
-            }
-            if (payload.eventType === "UPDATE") {
-              const idx = list.findIndex((r) => r.id === (payload.new as any).id);
-              if (idx >= 0) list[idx] = payload.new as any as Booking;
-              return list;
-            }
-            if (payload.eventType === "DELETE") {
-              return list.filter((r) => r.id !== (payload.old as any).id);
-            }
-            return list;
-          });
+          if (payload.eventType === "INSERT") {
+            setRows((prev) => {
+              const next = [...prev, payload.new as BookingRow];
+              next.sort(
+                (a, b) =>
+                  new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()
+              );
+              return next;
+            });
+          }
+          if (payload.eventType === "UPDATE") {
+            setRows((prev) =>
+              prev.map((r) => (r.id === (payload.new as any).id ? (payload.new as any) : r))
+            );
+          }
+          if (payload.eventType === "DELETE") {
+            setRows((prev) => prev.filter((r) => r.id !== (payload.old as any).id));
+          }
         }
       )
       .subscribe();
 
     return () => {
-      cancelled = true;
       supabase.removeChannel(channel);
     };
   }, []);
 
-  // 📚 lookups de nomes (services / barbers)
-  useEffect(() => {
-    let cancelled = false;
+  /** --------- aplicação dos filtros + ordenação garantida --------- */
+  const filtered = useMemo(() => {
+    let list = [...rows];
 
-    async function loadLookups() {
-      const sv = await supabase.from("services").select("id, name");
-      if (!cancelled && !sv.error && sv.data) {
-        const map: Record<string, string> = {};
-        (sv.data as IdName[]).forEach((r) => (map[r.id] = r.name));
-        setServiceMap(map);
-      } else if (sv.error) {
-        console.error("services SELECT error", sv.error);
-      }
-
-      const bb = await supabase.from("barbers").select("id, name");
-      if (!cancelled && !bb.error && bb.data) {
-        const map: Record<string, string> = {};
-        (bb.data as IdName[]).forEach((r) => (map[r.id] = r.name));
-        setBarberMap(map);
-      } else if (bb.error) {
-        console.error("barbers SELECT error", bb.error);
-      }
+    if (statusFilter) {
+      list = list.filter((r) => r.status === statusFilter);
+    }
+    if (barberFilter) {
+      list = list.filter((r) => String(r.barbers?.id ?? "") === barberFilter);
+    }
+    if (dateFrom) {
+      const fromTs = new Date(dateFrom + "T00:00:00").getTime();
+      list = list.filter((r) => new Date(r.starts_at).getTime() >= fromTs);
+    }
+    if (dateTo) {
+      const toTs = new Date(dateTo + "T23:59:59").getTime();
+      list = list.filter((r) => new Date(r.starts_at).getTime() <= toTs);
     }
 
-    loadLookups();
+    list.sort(
+      (a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()
+    );
+    return list;
+  }, [rows, statusFilter, barberFilter, dateFrom, dateTo]);
 
-    const ch = supabase
-      .channel("lookup-services-barbers")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "services" },
-        () => loadLookups()
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "barbers" },
-        () => loadLookups()
-      )
-      .subscribe();
-
-    return () => {
-      cancelled = true;
-      supabase.removeChannel(ch);
-    };
-  }, []);
-
-  // helpers de exibição
-  const getServiceName = (id?: string | null) =>
-    id ? serviceMap[id] ?? id.slice(0, 8) : "-";
-  const getBarberName  = (id?: string | null) =>
-    id ? barberMap[id] ?? id.slice(0, 8) : "-";
+  /** --------- limpar filtros --------- */
+  function clearFilters() {
+    setStatusFilter("");
+    setBarberFilter("");
+    setDateFrom("");
+    setDateTo("");
+  }
 
   return (
-    <Card className="bg-white/5 border-white/10 text-white">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-xl">Agendamentos (realtime)</CardTitle>
-          <Button
-            variant="outline"
-            size="sm"
-            className="border-white/20 text-white hover:bg-white/10"
-            onClick={() => location.reload()}
-            title="Recarregar"
+    <div className="w-full">
+      {/* Filtros */}
+      <div className="mb-4 grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+        {/* Status */}
+        <div className="flex flex-col">
+          <label className="mb-1 text-white/80 text-sm">Status</label>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as any)}
+            className="rounded-md bg-white text-[#1A1A1A] px-3 py-2 border border-white/20"
           >
-            Recarregar
-          </Button>
+            <option value="">Todos</option>
+            <option value="pending">Pending</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="canceled">Canceled</option>
+          </select>
         </div>
-      </CardHeader>
-      <CardContent className="overflow-x-auto">
-        {loading ? (
-          <div className="py-10 text-white/80">Carregando…</div>
-        ) : ordered.length === 0 ? (
-          <div className="py-10 text-white/80">Nenhum agendamento.</div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead className="text-white/70">
-              <tr className="border-b border-white/10">
-                <th className="text-left py-2 pr-3">Data/Hora</th>
-                <th className="text-left py-2 pr-3">Status</th>
-                <th className="text-left py-2 pr-3">Cliente</th>
-                <th className="text-left py-2 pr-3">Telefone</th>
-                <th className="text-left py-2 pr-3">Serviço</th>
-                <th className="text-left py-2 pr-3">Barbeiro</th>
-                <th className="text-right py-2 pl-3">Preço</th>
-                <th className="text-right py-2 pl-3">Ações</th>
+
+        {/* Barbeiro */}
+        <div className="flex flex-col">
+          <label className="mb-1 text-white/80 text-sm">Barbeiro</label>
+          <select
+            value={barberFilter}
+            onChange={(e) => setBarberFilter(e.target.value)}
+            className="rounded-md bg-white text-[#1A1A1A] px-3 py-2 border border-white/20"
+          >
+            <option value="">Todos</option>
+            {barbers.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* De */}
+        <div className="flex flex-col">
+          <label className="mb-1 text-white/80 text-sm">De</label>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="rounded-md bg-white text-[#1A1A1A] px-3 py-2 border border-white/20"
+          />
+        </div>
+
+        {/* Até */}
+        <div className="flex flex-col">
+          <label className="mb-1 text-white/80 text-sm">Até</label>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="rounded-md bg-white text-[#1A1A1A] px-3 py-2 border border-white/20"
+          />
+        </div>
+
+        {/* Ações */}
+        <div className="flex gap-2">
+          <button
+            onClick={fetchAll}
+            disabled={loading}
+            className="rounded-md bg-white/10 text-white px-3 py-2 border border-white/20 hover:bg-white/15 disabled:opacity-60"
+          >
+            {loading ? "Carregando…" : "Recarregar"}
+          </button>
+          <button
+            onClick={clearFilters}
+            className="rounded-md bg-white/10 text-white px-3 py-2 border border-white/20 hover:bg-white/15"
+          >
+            Limpar filtros
+          </button>
+        </div>
+      </div>
+
+      {/* Tabela — Desktop */}
+      <div className="hidden md:block overflow-x-auto rounded-xl border border-white/10 bg-white/5">
+        <table className="min-w-full text-sm">
+          <thead className="bg-white/10 text-white">
+            <tr>
+              <th className="px-4 py-3 text-left font-semibold">Data/Hora</th>
+              <th className="px-4 py-3 text-left font-semibold">Cliente</th>
+              <th className="px-4 py-3 text-left font-semibold">Telefone</th>
+              <th className="px-4 py-3 text-left font-semibold">Serviço</th>
+              <th className="px-4 py-3 text-left font-semibold">Barbeiro</th>
+              <th className="px-4 py-3 text-left font-semibold">Preço</th>
+              <th className="px-4 py-3 text-left font-semibold">Status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/10 text-white/90">
+            {filtered.map((r) => (
+              <tr key={r.id} className="hover:bg-white/5">
+                <td className="px-4 py-3">{fmtDateTimeBR(r.starts_at)}</td>
+                <td className="px-4 py-3">{r.customer_name ?? "—"}</td>
+                <td className="px-4 py-3">{fmtPhoneBR(r.phone)}</td>
+                <td className="px-4 py-3">{r.services?.name ?? "—"}</td>
+                <td className="px-4 py-3">{r.barbers?.name ?? "—"}</td>
+                <td className="px-4 py-3">{fmtPriceBR(r.price)}</td>
+                <td className="px-4 py-3">
+                  <select
+                    value={r.status}
+                    onChange={(e) => updateStatus(r.id, e.target.value as BookingStatus)}
+                    className="rounded-md bg-white text-[#1A1A1A] px-2 py-1 border border-white/20"
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="confirmed">Confirmed</option>
+                    <option value="canceled">Canceled</option>
+                  </select>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {ordered.map((b) => (
-                <tr key={b.id} className="border-b border-white/5 hover:bg-white/5">
-                  <td className="py-2 pr-3 whitespace-nowrap">{fmtSP(b.starts_at)}</td>
-                  <td className="py-2 pr-3"><StatusBadge status={b.status} /></td>
-                  <td className="py-2 pr-3 text-white/90">{b.customer_name || "—"}</td>
-                  <td className="py-2 pr-3 text-white/90">{fmtPhoneBR(b.phone)}</td>
-                  <td className="py-2 pr-3 text-white/90">{getServiceName(b.service_id)}</td>
-                  <td className="py-2 pr-3 text-white/90">{getBarberName(b.barber_id)}</td>
-                  <td className="py-2 pl-3 text-right">
-                    {b.price != null ? b.price.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—"}
-                  </td>
-                  <td className="py-2 pl-3 text-right space-x-2">
-                    {b.status === "pending" ? (
-                      <>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-green-500 border-green-500 hover:bg-green-500/20"
-                          onClick={() => updateStatus(b.id, "confirmed")}
-                          title="Confirmar"
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-red-500 border-red-500 hover:bg-red-500/20"
-                          onClick={() => updateStatus(b.id, "canceled")}
-                          title="Cancelar"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </>
-                    ) : (
-                      <span className="text-white/50">—</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            ))}
+            {filtered.length === 0 && (
+              <tr>
+                <td colSpan={7} className="px-4 py-8 text-center text-white/60">
+                  Nenhum agendamento encontrado.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Lista — Mobile (cards) */}
+      <div className="md:hidden space-y-3">
+        {filtered.map((b) => (
+          <div key={b.id} className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-white font-bold text-base">{fmtDateTimeBR(b.starts_at)}</div>
+              <select
+                value={b.status}
+                onChange={(e) => updateStatus(b.id, e.target.value as BookingStatus)}
+                className="rounded-md bg-white text-[#1A1A1A] text-xs px-2 py-1 border border-white/20"
+              >
+                <option value="pending">Pending</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="canceled">Canceled</option>
+              </select>
+            </div>
+
+            <div className="space-y-1 text-sm">
+              <div className="text-white/90">
+                <span className="text-white/60">Cliente: </span>
+                {b.customer_name ?? "—"}
+              </div>
+              <div className="text-white/90">
+                <span className="text-white/60">Telefone: </span>
+                {fmtPhoneBR(b.phone)}
+              </div>
+              <div className="text-white/90">
+                <span className="text-white/60">Serviço: </span>
+                {b.services?.name ?? "—"}
+              </div>
+              <div className="text-white/90">
+                <span className="text-white/60">Barbeiro: </span>
+                {b.barbers?.name ?? "—"}
+              </div>
+              <div className="text-white/90">
+                <span className="text-white/60">Preço: </span>
+                {fmtPriceBR(b.price)}
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {filtered.length === 0 && (
+          <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-center text-white/70">
+            Nenhum agendamento encontrado.
+          </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

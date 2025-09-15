@@ -72,7 +72,7 @@ export async function fetchActiveBarbers(): Promise<Barber[]> {
   })) as Barber[];
 }
 
-/* ---------- Helpers para pré-seleção rápida no BookingFlow ---------- */
+/* ---------- Helpers ---------- */
 export async function fetchServicesMap(): Promise<Map<string, Service>> {
   const list = await fetchActiveServices();
   const map = new Map<string, Service>();
@@ -88,27 +88,25 @@ export async function fetchBarbersMap(): Promise<Map<string, Barber>> {
 }
 
 /* ---------- Criação de agendamento ---------- */
-
 export type CreateBookingInput = {
-  service_id: string | number;   // aceito number p/ fallback, valido abaixo
+  service_id: string | number;
   barber_id:  string | number;
 
   customer_name: string;
-  phone: string;                 // WhatsApp do cliente (será salvo em customer_phone)
+  phone: string;                 // WhatsApp do cliente
 
-  email?: string;                // (não salvo por enquanto)
-  notes?: string;                // (não salvo por enquanto)
+  email?: string;
+  notes?: string;
 
-  starts_at_iso: string;         // ex: new Date('2025-09-12T14:30:00-03:00').toISOString()
+  starts_at_iso: string;
   duration_min: number;
-  price: number;                 // number já normalizado
+  price: number;
 };
 
 export type CreateBookingResult =
   | { ok: true }
   | { ok: false; reason: "CONFLICT" | "VALIDATION" | "UNKNOWN"; message: string };
 
-/** Normaliza telefone BR: mantém apenas dígitos (ex.: "+55 (11) 91234-5678" -> "5511912345678") */
 function normalizePhone(brPhone: string | null | undefined) {
   if (!brPhone) return null;
   const digits = brPhone.replace(/\D/g, "");
@@ -116,7 +114,6 @@ function normalizePhone(brPhone: string | null | undefined) {
 }
 
 export async function createBooking(input: CreateBookingInput): Promise<CreateBookingResult> {
-  // Garantir que IDs vieram do banco (uuid como string). Se vierem do fallback (número), bloqueia.
   const svcId = String(input.service_id);
   const brbId = String(input.barber_id);
   if (svcId.length < 10 || brbId.length < 10) {
@@ -125,9 +122,8 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
       reason: "VALIDATION",
       message: "Selecione um serviço e um barbeiro válidos do sistema.",
     };
-    }
+  }
 
-  // Valida campos mínimos
   if (!input.customer_name?.trim() || !input.phone?.trim()) {
     return { ok: false, reason: "VALIDATION", message: "Nome e WhatsApp são obrigatórios." };
   }
@@ -138,33 +134,28 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
     return { ok: false, reason: "VALIDATION", message: "Duração inválida." };
   }
 
-  // Monta payload para o insert
-  // OBS: somente colunas existentes na sua tabela: starts_at, service_id, barber_id, duration_min, price, status,
-  //      customer_name, customer_phone (adicionadas no passo anterior).
   const payload = {
     service_id: svcId,
     barber_id: brbId,
-    starts_at: input.starts_at_iso,                   // timestamptz em UTC
+    starts_at: input.starts_at_iso,
     duration_min: Math.round(input.duration_min),
     price: Number(input.price),
     status: "pending" as const,
 
-    // ✅ novos campos persistidos
     customer_name: input.customer_name.trim(),
-    customer_phone: normalizePhone(input.phone),
+    phone: normalizePhone(input.phone),
   };
 
   const { error } = await supabase.from("bookings").insert([payload]);
 
   if (!error) return { ok: true };
 
-  // Trata conflito de horário (exclusion constraint/overlap)
   const code = (error as any)?.code || "";
   const msg = (error as any)?.message || "";
   const details = (error as any)?.details || "";
 
   const looksLikeConflict =
-    code === "23P01" ||                           // exclusion_violation
+    code === "23P01" ||
     msg.toLowerCase().includes("bookings_no_overlap") ||
     details.toLowerCase().includes("bookings_no_overlap") ||
     msg.toLowerCase().includes("overlap") ||
@@ -188,12 +179,11 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
 /* ---------- Horários disponíveis (RPC) ---------- */
 export async function listAvailableTimes(
   barberId: string | number,
-  dayYMD: string,          // formato "YYYY-MM-DD"
+  dayYMD: string,
   durationMin: number
 ): Promise<string[]> {
   const id = String(barberId);
   if (!dayYMD || !durationMin || durationMin <= 0) return [];
-  // Se veio de fallback (ex.: 1, 2, 3), não chamamos a RPC (espera UUID do banco)
   if (id.length < 10) return [];
 
   const { data, error } = await supabase.rpc("list_available_times", {
@@ -203,6 +193,5 @@ export async function listAvailableTimes(
   });
 
   if (error) throw error;
-  // data vem como [{ slot: "HH:MM" }, ...]
   return (data ?? []).map((r: any) => r.slot);
 }
