@@ -1,25 +1,31 @@
-// topo do App.tsx (junto dos outros imports)
-import BookingsList from "@/components/admin/BookingsList";
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+// src/App.tsx
+import { useEffect } from "react";
 import {
   HashRouter,
   Routes,
   Route,
   useLocation,
-  useNavigate, // ⬅️ add
+  useNavigate,
 } from "react-router-dom";
-import { useEffect } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
+
+import { supabase } from "@/lib/supabase";
+import BookingsList from "@/components/admin/BookingsList";
 
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import { BookingFlow } from "@/components/BookingFlow";
 import AdminLogin from "./routes/AdminLogin";
-import AdminGuard from "./routes/AdminGuard";
-import { Button } from "@/components/ui/button";
-import { supabase } from "@/lib/supabase";
+import AdminGuard from "./routes/AdminGuard"; // ← Deve renderizar <Outlet />
+import AdminBarbers from "./routes/AdminBarbers";
+import { Link } from "react-router-dom";
+import { Users } from "lucide-react";
+
 
 const queryClient = new QueryClient();
 
@@ -32,6 +38,7 @@ function ScrollToTop() {
   return null;
 }
 
+/** Rola para a âncora passada via query (?a=barbeiros) */
 function ScrollToAnchorFromSearch() {
   const { pathname, search } = useLocation();
   useEffect(() => {
@@ -46,15 +53,13 @@ function ScrollToAnchorFromSearch() {
   return null;
 }
 
-
-/** Link “Admin (dev)” controlado por flag de ambiente (funciona em prod também) */
+/** Link “Admin (dev)” controlado por flag de ambiente */
 function AdminDevLink() {
   const { pathname } = useLocation();
   const show =
-    (import.meta.env.VITE_SHOW_ADMIN_LINK === "true" ||
-     import.meta.env.VITE_SHOW_ADMIN_LINK === "1");
+    import.meta.env.VITE_SHOW_ADMIN_LINK === "true" ||
+    import.meta.env.VITE_SHOW_ADMIN_LINK === "1";
 
-  // mantém a regra de só mostrar na home
   if (!show || pathname !== "/") return null;
 
   return (
@@ -69,22 +74,19 @@ function AdminDevLink() {
 }
 
 /** 🔒 Placeholder do painel com topbar no tema + botão Sair */
+/** 🔒 Placeholder do painel com topbar no tema + botões e Sair */
 function AdminPanelPlaceholder() {
   const navigate = useNavigate();
 
   async function onSignOut() {
     try {
-      // tenta encerrar a sessão
       const { error } = await supabase.auth.signOut();
       if (error) console.error(error);
     } finally {
-      // redireciona mesmo que o Router não esteja pronto
       window.location.hash = "/admin/login?from=/admin";
-      // como fallback extra (caso algum state fique preso), força um reload leve
       setTimeout(() => window.location.reload(), 50);
     }
   }
-
 
   return (
     <section className="min-h-screen relative overflow-hidden">
@@ -98,10 +100,23 @@ function AdminPanelPlaceholder() {
               <span className="text-white">Amauri</span>
               <span className="text-barbershop-gold">Barbearia</span>
             </a>
-            <div className="flex items-center gap-3">
+
+            <div className="flex items-center gap-2">
+              {/* NOVO botão: Barbeiros */}
+              <Button
+                asChild
+                className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark"
+              >
+                <Link to="/admin/barbeiros" aria-label="Gerenciar barbeiros">
+                  <Users className="h-4 w-4 mr-2" />
+                  Barbeiros
+                </Link>
+              </Button>
+
               <span className="hidden sm:inline text-white/70 text-sm">
                 Painel Administrativo
               </span>
+
               <Button
                 type="button"
                 onClick={onSignOut}
@@ -116,23 +131,23 @@ function AdminPanelPlaceholder() {
 
         {/* Corpo */}
         <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 text-white">
-            {/* cartões placeholder */}
-            <div className="grid gap-6">
-              <h1 className="text-3xl md:text-4xl font-bold">
-                Bem-vindo ao <span className="text-barbershop-gold">Painel</span>
-              </h1>
-              <p className="text-white/80 max-w-2xl">
-                Abaixo estão os agendamentos em tempo real.
-              </p>
+          <div className="grid gap-6">
+            <h1 className="text-3xl md:text-4xl font-bold">
+              Bem-vindo ao <span className="text-barbershop-gold">Painel</span>
+            </h1>
+            <p className="text-white/80 max-w-2xl">
+              Abaixo estão os agendamentos em tempo real.
+            </p>
 
-              {/* ✅ Lista de agendamentos (realtime) */}
-              <BookingsList />
-            </div>
+            {/* ✅ Lista de agendamentos (realtime) */}
+            <BookingsList />
+          </div>
         </main>
       </div>
     </section>
   );
 }
+
 
 export default function App() {
   return (
@@ -145,19 +160,22 @@ export default function App() {
           <ScrollToTop />
           <ScrollToAnchorFromSearch />
 
-          {/* “Admin (dev)” só na home em DEV */}
+          {/* “Admin (dev)” apenas na home */}
           <AdminDevLink />
 
           <Routes>
+            {/* Público */}
             <Route path="/" element={<Index />} />
             <Route path="/agendar" element={<BookingFlow />} />
             <Route path="/admin/login" element={<AdminLogin />} />
 
-            {/* 🔒 Rota protegida por AdminGuard */}
+            {/* 🔒 Tudo sob /admin protegido por AdminGuard (usa <Outlet />) */}
             <Route element={<AdminGuard />}>
               <Route path="/admin" element={<AdminPanelPlaceholder />} />
+              <Route path="/admin/barbeiros" element={<AdminBarbers />} />
             </Route>
 
+            {/* 404 */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </HashRouter>

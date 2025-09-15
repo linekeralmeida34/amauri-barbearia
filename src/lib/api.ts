@@ -1,12 +1,15 @@
+// src/lib/api.ts
 import { supabase } from "./supabase";
 
-/* ---------- Tipos ---------- */
+/* =========================
+   Tipos
+========================= */
 export type Service = {
   id: string;
   name: string;
   description: string | null;
   duration_min: number;
-  price: number;                 // numeric normalizado para number
+  price: number;           // numeric -> number
   category: string | null;
   popular: boolean;
   is_active: boolean;
@@ -17,14 +20,16 @@ export type Barber = {
   name: string;
   photo_url: string | null;
   bio: string | null;
-  rating: number | null;         // numeric normalizado para number
-  reviews: number | null;        // int normalizado para number
+  rating: number | null;   // numeric -> number | null
+  reviews: number | null;  // int -> number | null
   is_active: boolean;
   instagram?: string | null;
   specialties?: string[] | null;
 };
 
-/* ---------- Services ---------- */
+/* =========================
+   Services
+========================= */
 export async function fetchActiveServices(): Promise<Service[]> {
   const { data, error } = await supabase
     .from("services")
@@ -34,7 +39,6 @@ export async function fetchActiveServices(): Promise<Service[]> {
 
   if (error) throw error;
 
-  // normaliza numeric/int para number
   return (data ?? []).map((s: any) => ({
     id: String(s.id),
     name: s.name ?? "",
@@ -47,7 +51,9 @@ export async function fetchActiveServices(): Promise<Service[]> {
   })) as Service[];
 }
 
-/* ---------- Barbers ---------- */
+/* =========================
+   Barbers
+========================= */
 export async function fetchActiveBarbers(): Promise<Barber[]> {
   const { data, error } = await supabase
     .from("barbers")
@@ -72,7 +78,9 @@ export async function fetchActiveBarbers(): Promise<Barber[]> {
   })) as Barber[];
 }
 
-/* ---------- Helpers ---------- */
+/* =========================
+   Helpers (mapas p/ pré-seleção)
+========================= */
 export async function fetchServicesMap(): Promise<Map<string, Service>> {
   const list = await fetchActiveServices();
   const map = new Map<string, Service>();
@@ -87,18 +95,20 @@ export async function fetchBarbersMap(): Promise<Map<string, Barber>> {
   return map;
 }
 
-/* ---------- Criação de agendamento ---------- */
+/* =========================
+   Criação de agendamento
+========================= */
 export type CreateBookingInput = {
-  service_id: string | number;
+  service_id: string | number; // aceito number no fallback, mas valido abaixo
   barber_id:  string | number;
 
   customer_name: string;
-  phone: string;                 // WhatsApp do cliente
+  phone: string;               // WhatsApp do cliente -> salvo em "phone"
 
-  email?: string;
-  notes?: string;
+  email?: string;              // (não salvo por enquanto)
+  notes?: string;              // (não salvo por enquanto)
 
-  starts_at_iso: string;
+  starts_at_iso: string;       // ex.: new Date(...).toISOString()
   duration_min: number;
   price: number;
 };
@@ -107,6 +117,7 @@ export type CreateBookingResult =
   | { ok: true }
   | { ok: false; reason: "CONFLICT" | "VALIDATION" | "UNKNOWN"; message: string };
 
+/** Normaliza telefone BR para apenas dígitos (ex.: "+55 (11) 9..." -> "55119...") */
 function normalizePhone(brPhone: string | null | undefined) {
   if (!brPhone) return null;
   const digits = brPhone.replace(/\D/g, "");
@@ -114,6 +125,7 @@ function normalizePhone(brPhone: string | null | undefined) {
 }
 
 export async function createBooking(input: CreateBookingInput): Promise<CreateBookingResult> {
+  // Valida IDs (espera UUID vindo do banco). Se vier fallback numérico curto, bloqueia.
   const svcId = String(input.service_id);
   const brbId = String(input.barber_id);
   if (svcId.length < 10 || brbId.length < 10) {
@@ -124,6 +136,7 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
     };
   }
 
+  // Campos mínimos
   if (!input.customer_name?.trim() || !input.phone?.trim()) {
     return { ok: false, reason: "VALIDATION", message: "Nome e WhatsApp são obrigatórios." };
   }
@@ -134,32 +147,36 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
     return { ok: false, reason: "VALIDATION", message: "Duração inválida." };
   }
 
+  // Payload compatível com a tabela "bookings"
   const payload = {
     service_id: svcId,
     barber_id: brbId,
-    starts_at: input.starts_at_iso,
+    starts_at: input.starts_at_iso,                    // timestamptz (UTC)
     duration_min: Math.round(input.duration_min),
     price: Number(input.price),
     status: "pending" as const,
-
     customer_name: input.customer_name.trim(),
     phone: normalizePhone(input.phone),
   };
 
-  const { error } = await supabase.from("bookings").insert([payload]);
+  // returning: "minimal" evita SELECT no retorno (útil quando RLS é mais restrita)
+  const { error } = await supabase
+    .from("bookings")
+    .insert([payload], { returning: "minimal" });
 
   if (!error) return { ok: true };
 
+  // Tratamento de conflito (constraint de overlap)
   const code = (error as any)?.code || "";
-  const msg = (error as any)?.message || "";
-  const details = (error as any)?.details || "";
+  const msg = (error as any)?.message?.toLowerCase?.() || "";
+  const details = (error as any)?.details?.toLowerCase?.() || "";
 
   const looksLikeConflict =
     code === "23P01" ||
-    msg.toLowerCase().includes("bookings_no_overlap") ||
-    details.toLowerCase().includes("bookings_no_overlap") ||
-    msg.toLowerCase().includes("overlap") ||
-    details.toLowerCase().includes("overlap");
+    msg.includes("bookings_no_overlap") ||
+    details.includes("bookings_no_overlap") ||
+    msg.includes("overlap") ||
+    details.includes("overlap");
 
   if (looksLikeConflict) {
     return {
@@ -169,6 +186,7 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
     };
   }
 
+  console.error("[createBooking] insert error:", error);
   return {
     ok: false,
     reason: "UNKNOWN",
@@ -176,14 +194,17 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
   };
 }
 
-/* ---------- Horários disponíveis (RPC) ---------- */
+/* =========================
+   Horários disponíveis (RPC)
+========================= */
 export async function listAvailableTimes(
   barberId: string | number,
-  dayYMD: string,
+  dayYMD: string,      // "YYYY-MM-DD"
   durationMin: number
 ): Promise<string[]> {
   const id = String(barberId);
   if (!dayYMD || !durationMin || durationMin <= 0) return [];
+  // Se ainda estiver no fallback (ex.: 1, 2, 3), não chama a RPC (ela espera UUID)
   if (id.length < 10) return [];
 
   const { data, error } = await supabase.rpc("list_available_times", {
@@ -193,5 +214,39 @@ export async function listAvailableTimes(
   });
 
   if (error) throw error;
+
+  // data = [{ slot: "HH:MM" }, ...]
   return (data ?? []).map((r: any) => r.slot);
+}
+
+/* ---------- Admin: Barbers (listar todos / ativar-desativar) ---------- */
+export type AdminBarber = {
+  id: string;
+  name: string;
+  photo_url: string | null;
+  is_active: boolean;
+};
+
+export async function adminFetchAllBarbers(): Promise<AdminBarber[]> {
+  const { data, error } = await supabase
+    .from("barbers")
+    .select("id,name,photo_url,is_active")
+    .order("name", { ascending: true });
+
+  if (error) throw error;
+  return (data ?? []).map((b: any) => ({
+    id: String(b.id),
+    name: b.name ?? "",
+    photo_url: b.photo_url ?? null,
+    is_active: !!b.is_active,
+  }));
+}
+
+export async function adminSetBarberActive(barberId: string, isActive: boolean) {
+  const { error } = await supabase
+    .from("barbers")
+    .update({ is_active: isActive })
+    .eq("id", barberId);
+
+  if (error) throw error;
 }
