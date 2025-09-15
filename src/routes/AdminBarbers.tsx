@@ -85,7 +85,7 @@ export default function AdminBarbers() {
                 asChild
                 className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark"
               >
-                <Link to="/admin">← Voltar ao Painel</Link>
+                <Link to="/admin">← Painel</Link>
               </Button>
 
               <Button
