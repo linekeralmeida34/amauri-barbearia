@@ -1,6 +1,17 @@
 // src/components/admin/BookingsList.tsx
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { 
+  Calendar, 
+  Clock, 
+  Users, 
+  Filter,
+  RotateCcw,
+  X,
+  CheckCircle,
+  AlertTriangle,
+  XCircle
+} from "lucide-react";
 
 /** ---------- Tipos ---------- */
 type BookingStatus = "pending" | "confirmed" | "canceled";
@@ -45,6 +56,60 @@ function fmtPhoneBR(raw: string | null | undefined) {
     return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
   }
   return raw;
+}
+
+/** ---------- Componente de Status Badge ---------- */
+function StatusBadge({ status }: { status: BookingStatus }) {
+  const config = {
+    pending: { 
+      icon: AlertTriangle, 
+      color: "bg-amber-100 text-amber-800 border-amber-200", 
+      label: "Pendente" 
+    },
+    confirmed: { 
+      icon: CheckCircle, 
+      color: "bg-green-100 text-green-800 border-green-200", 
+      label: "Confirmado" 
+    },
+    canceled: { 
+      icon: XCircle, 
+      color: "bg-red-100 text-red-800 border-red-200", 
+      label: "Cancelado" 
+    }
+  };
+
+  const { icon: Icon, color, label } = config[status];
+
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${color}`}>
+      <Icon className="w-3 h-3" />
+      {label}
+    </span>
+  );
+}
+
+/** ---------- Componente de Estatísticas ---------- */
+function StatsCard({ icon: Icon, title, value, subtitle, color = "text-blue-600" }: {
+  icon: any;
+  title: string;
+  value: string | number;
+  subtitle: string;
+  color?: string;
+}) {
+  return (
+    <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-4 hover:bg-white/10 transition-all duration-200">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-white/60 text-sm font-medium">{title}</p>
+          <p className="text-white text-2xl font-bold mt-1">{value}</p>
+          <p className="text-white/50 text-xs mt-1">{subtitle}</p>
+        </div>
+        <div className={`p-3 rounded-lg bg-white/10 ${color}`}>
+          <Icon className="w-6 h-6" />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /** ---------- Componente ---------- */
@@ -167,6 +232,18 @@ export default function BookingsList() {
     return list;
   }, [rows, statusFilter, barberFilter, dateFrom, dateTo]);
 
+  /** --------- estatísticas calculadas --------- */
+  const stats = useMemo(() => {
+    const total = rows.length;
+    const pending = rows.filter(r => r.status === 'pending').length;
+    const confirmed = rows.filter(r => r.status === 'confirmed').length;
+    const canceled = rows.filter(r => r.status === 'canceled').length;
+    const today = new Date().toDateString();
+    const todayBookings = rows.filter(r => new Date(r.starts_at).toDateString() === today).length;
+    
+    return { total, pending, confirmed, canceled, todayBookings };
+  }, [rows]);
+
   /** --------- limpar filtros --------- */
   function clearFilters() {
     setStatusFilter("");
@@ -176,176 +253,333 @@ export default function BookingsList() {
   }
 
   return (
-    <div className="w-full">
-      {/* Filtros */}
-      <div className="mb-4 grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
-        {/* Status */}
-        <div className="flex flex-col">
-          <label className="mb-1 text-white/80 text-sm">Status</label>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="rounded-md bg-white text-[#1A1A1A] px-3 py-2 border border-white/20"
-          >
-            <option value="">Todos</option>
-            <option value="pending">Pending</option>
-            <option value="confirmed">Confirmed</option>
-            <option value="canceled">Canceled</option>
-          </select>
+    <div className="w-full space-y-6">
+      {/* Header com Estatísticas */}
+      <div className="bg-gradient-to-r from-amber-600/20 to-amber-500/20 backdrop-blur-sm border border-amber-500/30 rounded-2xl p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-white mb-2">
+              Painel de <span className="text-amber-400">Agendamentos</span>
+            </h1>
+            <p className="text-white/70">Gerencie todos os agendamentos em tempo real</p>
+          </div>
+          <div className="hidden md:flex items-center gap-2">
+            <button
+              onClick={fetchAll}
+              disabled={loading}
+              className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg border border-white/20 transition-all duration-200 disabled:opacity-50"
+            >
+              <RotateCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              {loading ? "Carregando..." : "Atualizar"}
+            </button>
+          </div>
         </div>
 
-        {/* Barbeiro */}
-        <div className="flex flex-col">
-          <label className="mb-1 text-white/80 text-sm">Barbeiro</label>
-          <select
-            value={barberFilter}
-            onChange={(e) => setBarberFilter(e.target.value)}
-            className="rounded-md bg-white text-[#1A1A1A] px-3 py-2 border border-white/20"
-          >
-            <option value="">Todos</option>
-            {barbers.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* De */}
-        <div className="flex flex-col">
-          <label className="mb-1 text-white/80 text-sm">De</label>
-          <input
-            type="date"
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-            className="rounded-md bg-white text-[#1A1A1A] px-3 py-2 border border-white/20"
+        {/* Cards de Estatísticas */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <StatsCard
+            icon={Calendar}
+            title="Total"
+            value={stats.total}
+            subtitle="agendamentos"
+            color="text-blue-500"
           />
-        </div>
-
-        {/* Até */}
-        <div className="flex flex-col">
-          <label className="mb-1 text-white/80 text-sm">Até</label>
-          <input
-            type="date"
-            value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
-            className="rounded-md bg-white text-[#1A1A1A] px-3 py-2 border border-white/20"
+          <StatsCard
+            icon={AlertTriangle}
+            title="Pendentes"
+            value={stats.pending}
+            subtitle="aguardando"
+            color="text-amber-500"
           />
-        </div>
-
-        {/* Ações */}
-        <div className="flex gap-2">
-          <button
-            onClick={fetchAll}
-            disabled={loading}
-            className="rounded-md bg-white/10 text-white px-3 py-2 border border-white/20 hover:bg-white/15 disabled:opacity-60"
-          >
-            {loading ? "Carregando…" : "Recarregar"}
-          </button>
-          <button
-            onClick={clearFilters}
-            className="rounded-md bg-white/10 text-white px-3 py-2 border border-white/20 hover:bg-white/15"
-          >
-            Limpar filtros
-          </button>
+          <StatsCard
+            icon={CheckCircle}
+            title="Confirmados"
+            value={stats.confirmed}
+            subtitle="aprovados"
+            color="text-green-500"
+          />
+          <StatsCard
+            icon={XCircle}
+            title="Cancelados"
+            value={stats.canceled}
+            subtitle="cancelados"
+            color="text-red-500"
+          />
+          <StatsCard
+            icon={Clock}
+            title="Hoje"
+            value={stats.todayBookings}
+            subtitle="agendamentos"
+            color="text-purple-500"
+          />
         </div>
       </div>
 
-      {/* Tabela — Desktop */}
-      <div className="hidden md:block overflow-x-auto rounded-xl border border-white/10 bg-white/5">
-        <table className="min-w-full text-sm">
-          <thead className="bg-white/10 text-white">
-            <tr>
-              <th className="px-4 py-3 text-left font-semibold">Data/Hora</th>
-              <th className="px-4 py-3 text-left font-semibold">Cliente</th>
-              <th className="px-4 py-3 text-left font-semibold">Telefone</th>
-              <th className="px-4 py-3 text-left font-semibold">Serviço</th>
-              <th className="px-4 py-3 text-left font-semibold">Barbeiro</th>
-              <th className="px-4 py-3 text-left font-semibold">Preço</th>
-              <th className="px-4 py-3 text-left font-semibold">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/10 text-white/90">
-            {filtered.map((r) => (
-              <tr key={r.id} className="hover:bg-white/5">
-                <td className="px-4 py-3">{fmtDateTimeBR(r.starts_at)}</td>
-                <td className="px-4 py-3">{r.customer_name ?? "—"}</td>
-                <td className="px-4 py-3">{fmtPhoneBR(r.phone)}</td>
-                <td className="px-4 py-3">{r.services?.name ?? "—"}</td>
-                <td className="px-4 py-3">{r.barbers?.name ?? "—"}</td>
-                <td className="px-4 py-3">{fmtPriceBR(r.price)}</td>
-                <td className="px-4 py-3">
-                  <select
-                    value={r.status}
-                    onChange={(e) => updateStatus(r.id, e.target.value as BookingStatus)}
-                    className="rounded-md bg-white text-[#1A1A1A] px-2 py-1 border border-white/20"
+      {/* Filtros Modernos */}
+      <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Filter className="w-5 h-5 text-white/70" />
+          <h2 className="text-lg font-semibold text-white">Filtros</h2>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          {/* Status */}
+          <div className="space-y-2">
+            <label className="text-white/80 text-sm font-medium">Status</label>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as any)}
+              className="w-full rounded-lg bg-white/10 border border-white/20 text-white px-3 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+            >
+              <option value="">Todos os status</option>
+              <option value="pending">Pendente</option>
+              <option value="confirmed">Confirmado</option>
+              <option value="canceled">Cancelado</option>
+            </select>
+          </div>
+
+          {/* Barbeiro */}
+          <div className="space-y-2">
+            <label className="text-white/80 text-sm font-medium">Barbeiro</label>
+            <select
+              value={barberFilter}
+              onChange={(e) => setBarberFilter(e.target.value)}
+              className="w-full rounded-lg bg-white/10 border border-white/20 text-white px-3 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+            >
+              <option value="">Todos os barbeiros</option>
+              {barbers.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Data De */}
+          <div className="space-y-2">
+            <label className="text-white/80 text-sm font-medium">Data Inicial</label>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="w-full rounded-lg bg-white/10 border border-white/20 text-white px-3 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+            />
+          </div>
+
+          {/* Data Até */}
+          <div className="space-y-2">
+            <label className="text-white/80 text-sm font-medium">Data Final</label>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="w-full rounded-lg bg-white/10 border border-white/20 text-white px-3 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+            />
+          </div>
+
+          {/* Ações */}
+          <div className="flex flex-col gap-2">
+            <label className="text-white/80 text-sm font-medium">Ações</label>
+            <div className="flex gap-2">
+              <button
+                onClick={fetchAll}
+                disabled={loading}
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <RotateCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">Atualizar</span>
+              </button>
+              <button
+                onClick={clearFilters}
+                className="flex items-center justify-center gap-2 px-3 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-lg border border-white/20 transition-all duration-200"
+              >
+                <X className="w-4 h-4" />
+                <span className="hidden sm:inline">Limpar</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabela Desktop Moderna */}
+      <div className="hidden md:block">
+        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead className="bg-gradient-to-r from-white/10 to-white/5">
+                <tr>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
+                    Data/Hora
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
+                    Cliente
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
+                    Contato
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
+                    Serviço
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
+                    Barbeiro
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
+                    Preço
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
+                    Status
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/10">
+                {filtered.map((r, index) => (
+                  <tr 
+                    key={r.id} 
+                    className="hover:bg-white/5 transition-all duration-200 group"
+                    style={{ animationDelay: `${index * 50}ms` }}
                   >
-                    <option value="pending">Pending</option>
-                    <option value="confirmed">Confirmed</option>
-                    <option value="canceled">Canceled</option>
-                  </select>
-                </td>
-              </tr>
-            ))}
-            {filtered.length === 0 && (
-              <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-white/60">
-                  Nenhum agendamento encontrado.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-white font-medium">
+                        {fmtDateTimeBR(r.starts_at)}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-white">{r.customer_name ?? "—"}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-white/80">{fmtPhoneBR(r.phone)}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-white">{r.services?.name ?? "—"}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-amber-500/20 rounded-full flex items-center justify-center">
+                          <Users className="w-4 h-4 text-amber-400" />
+                        </div>
+                        <span className="text-sm text-white">{r.barbers?.name ?? "—"}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-semibold text-amber-400">
+                        {fmtPriceBR(r.price)}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <select
+                        value={r.status}
+                        onChange={(e) => updateStatus(r.id, e.target.value as BookingStatus)}
+                        className="rounded-lg bg-white/10 border border-white/20 text-white px-3 py-1.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+                      >
+                        <option value="pending">Pendente</option>
+                        <option value="confirmed">Confirmado</option>
+                        <option value="canceled">Cancelado</option>
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-12 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <Calendar className="w-12 h-12 text-white/30" />
+                        <p className="text-white/60 text-lg">Nenhum agendamento encontrado</p>
+                        <p className="text-white/40 text-sm">Tente ajustar os filtros para ver mais resultados</p>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
-      {/* Lista — Mobile (cards) */}
-      <div className="md:hidden space-y-3">
-        {filtered.map((b) => (
-          <div key={b.id} className="rounded-xl border border-white/10 bg-white/5 p-4">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-white font-bold text-base">{fmtDateTimeBR(b.starts_at)}</div>
+      {/* Cards Mobile Modernos */}
+      <div className="md:hidden space-y-4">
+        {filtered.map((b, index) => (
+          <div 
+            key={b.id} 
+            className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-5 hover:bg-white/10 transition-all duration-200"
+            style={{ animationDelay: `${index * 100}ms` }}
+          >
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <Calendar className="w-4 h-4 text-amber-400" />
+                  <span className="text-white font-semibold text-base">
+                    {fmtDateTimeBR(b.starts_at)}
+                  </span>
+                </div>
+                <div className="text-white/60 text-sm">
+                  {b.customer_name ?? "Cliente não informado"}
+                </div>
+              </div>
               <select
                 value={b.status}
                 onChange={(e) => updateStatus(b.id, e.target.value as BookingStatus)}
-                className="rounded-md bg-white text-[#1A1A1A] text-xs px-2 py-1 border border-white/20"
+                className="rounded-lg bg-white/10 border border-white/20 text-white px-3 py-1.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
               >
-                <option value="pending">Pending</option>
-                <option value="confirmed">Confirmed</option>
-                <option value="canceled">Canceled</option>
+                <option value="pending">Pendente</option>
+                <option value="confirmed">Confirmado</option>
+                <option value="canceled">Cancelado</option>
               </select>
             </div>
 
-            <div className="space-y-1 text-sm">
-              <div className="text-white/90">
-                <span className="text-white/60">Cliente: </span>
-                {b.customer_name ?? "—"}
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-white/50" />
+                  <span className="text-white/60">Barbeiro:</span>
+                </div>
+                <div className="text-white font-medium ml-6">
+                  {b.barbers?.name ?? "—"}
+                </div>
               </div>
-              <div className="text-white/90">
-                <span className="text-white/60">Telefone: </span>
-                {fmtPhoneBR(b.phone)}
+              
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-white/60">Serviço:</span>
+                </div>
+                <div className="text-white font-medium">
+                  {b.services?.name ?? "—"}
+                </div>
               </div>
-              <div className="text-white/90">
-                <span className="text-white/60">Serviço: </span>
-                {b.services?.name ?? "—"}
+              
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-white/60">Telefone:</span>
+                </div>
+                <div className="text-white font-medium">
+                  {fmtPhoneBR(b.phone)}
+                </div>
               </div>
-              <div className="text-white/90">
-                <span className="text-white/60">Barbeiro: </span>
-                {b.barbers?.name ?? "—"}
-              </div>
-              <div className="text-white/90">
-                <span className="text-white/60">Preço: </span>
-                {fmtPriceBR(b.price)}
+              
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-white/60">Preço:</span>
+                </div>
+                <div className="text-amber-400 font-semibold">
+                  {fmtPriceBR(b.price)}
+                </div>
               </div>
             </div>
           </div>
         ))}
 
         {filtered.length === 0 && (
-          <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-center text-white/70">
-            Nenhum agendamento encontrado.
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-8 text-center">
+            <Calendar className="w-16 h-16 text-white/30 mx-auto mb-4" />
+            <h3 className="text-white/60 text-lg font-medium mb-2">
+              Nenhum agendamento encontrado
+            </h3>
+            <p className="text-white/40 text-sm">
+              Tente ajustar os filtros para ver mais resultados
+            </p>
           </div>
         )}
       </div>
     </div>
   );
 }
+  
