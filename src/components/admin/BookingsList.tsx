@@ -232,8 +232,8 @@ export default function BookingsList() {
     return list;
   }, [rows, statusFilter, barberFilter, dateFrom, dateTo]);
 
-  /** --------- estatísticas calculadas --------- */
-  const stats = useMemo(() => {
+  /** --------- estatísticas calculadas (dados originais) --------- */
+  const originalStats = useMemo(() => {
     const total = rows.length;
     const pending = rows.filter(r => r.status === 'pending').length;
     const confirmed = rows.filter(r => r.status === 'confirmed').length;
@@ -243,6 +243,23 @@ export default function BookingsList() {
     
     return { total, pending, confirmed, canceled, todayBookings };
   }, [rows]);
+
+  /** --------- estatísticas dos dados filtrados --------- */
+  const filteredStats = useMemo(() => {
+    const total = filtered.length;
+    const pending = filtered.filter(r => r.status === 'pending').length;
+    const confirmed = filtered.filter(r => r.status === 'confirmed').length;
+    const canceled = filtered.filter(r => r.status === 'canceled').length;
+    const today = new Date().toDateString();
+    const todayBookings = filtered.filter(r => new Date(r.starts_at).toDateString() === today).length;
+    
+    return { total, pending, confirmed, canceled, todayBookings };
+  }, [filtered]);
+
+  /** --------- verificar se há filtros ativos --------- */
+  const hasActiveFilters = useMemo(() => {
+    return statusFilter || barberFilter || dateFrom || dateTo;
+  }, [statusFilter, barberFilter, dateFrom, dateTo]);
 
   /** --------- limpar filtros --------- */
   function clearFilters() {
@@ -258,16 +275,29 @@ export default function BookingsList() {
       <div className="bg-gradient-to-r from-amber-600/20 to-amber-500/20 backdrop-blur-sm border border-amber-500/30 rounded-2xl p-6">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-white mb-2">
-              Painel de <span className="text-amber-400">Agendamentos</span>
-            </h1>
-            <p className="text-white/70">Gerencie todos os agendamentos em tempo real</p>
+            <div className="flex items-center gap-3 mb-2">
+              <h1 className="text-3xl font-bold text-white">
+                Painel de <span className="text-amber-400">Agendamentos</span>
+              </h1>
+              {hasActiveFilters && (
+                <div className="flex items-center gap-2 px-3 py-1 bg-amber-500/20 border border-amber-500/30 rounded-full">
+                  <Filter className="w-4 h-4 text-amber-400" />
+                  <span className="text-amber-400 text-sm font-medium">Filtros Ativos</span>
+                </div>
+              )}
+            </div>
+            <p className="text-white/70">
+              {hasActiveFilters 
+                ? `Mostrando ${filteredStats.total} de ${originalStats.total} agendamentos` 
+                : "Gerencie todos os agendamentos em tempo real"
+              }
+            </p>
           </div>
           <div className="hidden md:flex items-center gap-2">
             <button
               onClick={fetchAll}
               disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg border border-white/20 transition-all duration-200 disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
             >
               <RotateCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               {loading ? "Carregando..." : "Atualizar"}
@@ -280,35 +310,35 @@ export default function BookingsList() {
           <StatsCard
             icon={Calendar}
             title="Total"
-            value={stats.total}
-            subtitle="agendamentos"
+            value={hasActiveFilters ? filteredStats.total : originalStats.total}
+            subtitle={hasActiveFilters ? "filtrados" : "agendamentos"}
             color="text-blue-500"
           />
           <StatsCard
             icon={AlertTriangle}
             title="Pendentes"
-            value={stats.pending}
+            value={hasActiveFilters ? filteredStats.pending : originalStats.pending}
             subtitle="aguardando"
             color="text-amber-500"
           />
           <StatsCard
             icon={CheckCircle}
             title="Confirmados"
-            value={stats.confirmed}
+            value={hasActiveFilters ? filteredStats.confirmed : originalStats.confirmed}
             subtitle="aprovados"
             color="text-green-500"
           />
           <StatsCard
             icon={XCircle}
             title="Cancelados"
-            value={stats.canceled}
+            value={hasActiveFilters ? filteredStats.canceled : originalStats.canceled}
             subtitle="cancelados"
             color="text-red-500"
           />
           <StatsCard
             icon={Clock}
             title="Hoje"
-            value={stats.todayBookings}
+            value={hasActiveFilters ? filteredStats.todayBookings : originalStats.todayBookings}
             subtitle="agendamentos"
             color="text-purple-500"
           />
@@ -325,30 +355,50 @@ export default function BookingsList() {
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           {/* Status */}
           <div className="space-y-2">
-            <label className="text-white/80 text-sm font-medium">Status</label>
+            <div className="flex items-center gap-2">
+              <label className="text-white/80 text-sm font-medium">Status</label>
+              {statusFilter && (
+                <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
+              )}
+            </div>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as any)}
-              className="w-full rounded-lg bg-white/10 border border-white/20 text-white px-3 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+              className={`w-full rounded-lg border px-3 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200 ${
+                statusFilter 
+                  ? 'border-amber-500/50 bg-amber-500/10 text-white' 
+                  : 'border-white/20 bg-white/5 text-white'
+              }`}
+              style={{ colorScheme: 'dark' }}
             >
-              <option value="">Todos os status</option>
-              <option value="pending">Pendente</option>
-              <option value="confirmed">Confirmado</option>
-              <option value="canceled">Cancelado</option>
+              <option value="" className="bg-gray-800 text-white">Todos os status</option>
+              <option value="pending" className="bg-gray-800 text-white">Pendente</option>
+              <option value="confirmed" className="bg-gray-800 text-white">Confirmado</option>
+              <option value="canceled" className="bg-gray-800 text-white">Cancelado</option>
             </select>
           </div>
 
           {/* Barbeiro */}
           <div className="space-y-2">
-            <label className="text-white/80 text-sm font-medium">Barbeiro</label>
+            <div className="flex items-center gap-2">
+              <label className="text-white/80 text-sm font-medium">Barbeiro</label>
+              {barberFilter && (
+                <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
+              )}
+            </div>
             <select
               value={barberFilter}
               onChange={(e) => setBarberFilter(e.target.value)}
-              className="w-full rounded-lg bg-white/10 border border-white/20 text-white px-3 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+              className={`w-full rounded-lg border px-3 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200 ${
+                barberFilter 
+                  ? 'border-amber-500/50 bg-amber-500/10 text-white' 
+                  : 'border-white/20 bg-white/5 text-white'
+              }`}
+              style={{ colorScheme: 'dark' }}
             >
-              <option value="">Todos os barbeiros</option>
+              <option value="" className="bg-gray-800 text-white">Todos os barbeiros</option>
               {barbers.map((b) => (
-                <option key={b.id} value={b.id}>
+                <option key={b.id} value={b.id} className="bg-gray-800 text-white">
                   {b.name}
                 </option>
               ))}
@@ -357,23 +407,41 @@ export default function BookingsList() {
 
           {/* Data De */}
           <div className="space-y-2">
-            <label className="text-white/80 text-sm font-medium">Data Inicial</label>
+            <div className="flex items-center gap-2">
+              <label className="text-white/80 text-sm font-medium">Data Inicial</label>
+              {dateFrom && (
+                <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
+              )}
+            </div>
             <input
               type="date"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
-              className="w-full rounded-lg bg-white/10 border border-white/20 text-white px-3 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+              className={`w-full rounded-lg border px-3 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200 ${
+                dateFrom 
+                  ? 'border-amber-500/50 bg-amber-500/10 text-white' 
+                  : 'border-white/20 bg-white/5 text-white'
+              }`}
             />
           </div>
 
           {/* Data Até */}
           <div className="space-y-2">
-            <label className="text-white/80 text-sm font-medium">Data Final</label>
+            <div className="flex items-center gap-2">
+              <label className="text-white/80 text-sm font-medium">Data Final</label>
+              {dateTo && (
+                <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
+              )}
+            </div>
             <input
               type="date"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
-              className="w-full rounded-lg bg-white/10 border border-white/20 text-white px-3 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+              className={`w-full rounded-lg border px-3 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200 ${
+                dateTo 
+                  ? 'border-amber-500/50 bg-amber-500/10 text-white' 
+                  : 'border-white/20 bg-white/5 text-white'
+              }`}
             />
           </div>
 
@@ -384,7 +452,7 @@ export default function BookingsList() {
               <button
                 onClick={fetchAll}
                 disabled={loading}
-                className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
               >
                 <RotateCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                 <span className="hidden sm:inline">Atualizar</span>
@@ -404,6 +472,29 @@ export default function BookingsList() {
       {/* Tabela Desktop Moderna */}
       <div className="hidden md:block">
         <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl overflow-hidden">
+          {/* Contador de Resultados */}
+          <div className="px-6 py-4 border-b border-white/10 bg-white/5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-white/60" />
+                <span className="text-white/80 text-sm">
+                  {hasActiveFilters 
+                    ? `Mostrando ${filtered.length} de ${rows.length} agendamentos`
+                    : `${filtered.length} agendamentos`
+                  }
+                </span>
+              </div>
+              {hasActiveFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="flex items-center gap-1 px-2 py-1 text-xs text-amber-400 hover:text-amber-300 transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                  Limpar filtros
+                </button>
+              )}
+            </div>
+          </div>
           <div className="overflow-x-auto">
             <table className="min-w-full">
               <thead className="bg-gradient-to-r from-white/10 to-white/5">
@@ -469,11 +560,12 @@ export default function BookingsList() {
                       <select
                         value={r.status}
                         onChange={(e) => updateStatus(r.id, e.target.value as BookingStatus)}
-                        className="rounded-lg bg-white/10 border border-white/20 text-white px-3 py-1.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+                        className="rounded-lg bg-white/5 border border-white/20 text-white px-3 py-1.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+                        style={{ colorScheme: 'dark' }}
                       >
-                        <option value="pending">Pendente</option>
-                        <option value="confirmed">Confirmado</option>
-                        <option value="canceled">Cancelado</option>
+                        <option value="pending" className="bg-gray-800 text-white">Pendente</option>
+                        <option value="confirmed" className="bg-gray-800 text-white">Confirmado</option>
+                        <option value="canceled" className="bg-gray-800 text-white">Cancelado</option>
                       </select>
                     </td>
                   </tr>
@@ -497,6 +589,29 @@ export default function BookingsList() {
 
       {/* Cards Mobile Modernos */}
       <div className="md:hidden space-y-4">
+        {/* Contador de Resultados Mobile */}
+        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-white/60" />
+              <span className="text-white/80 text-sm">
+                {hasActiveFilters 
+                  ? `Mostrando ${filtered.length} de ${rows.length} agendamentos`
+                  : `${filtered.length} agendamentos`
+                }
+              </span>
+            </div>
+            {hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                className="flex items-center gap-1 px-2 py-1 text-xs text-amber-400 hover:text-amber-300 transition-colors"
+              >
+                <X className="w-3 h-3" />
+                Limpar
+              </button>
+            )}
+          </div>
+        </div>
         {filtered.map((b, index) => (
           <div 
             key={b.id} 
@@ -518,11 +633,12 @@ export default function BookingsList() {
               <select
                 value={b.status}
                 onChange={(e) => updateStatus(b.id, e.target.value as BookingStatus)}
-                className="rounded-lg bg-white/10 border border-white/20 text-white px-3 py-1.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+                className="rounded-lg bg-white/5 border border-white/20 text-white px-3 py-1.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+                style={{ colorScheme: 'dark' }}
               >
-                <option value="pending">Pendente</option>
-                <option value="confirmed">Confirmado</option>
-                <option value="canceled">Cancelado</option>
+                <option value="pending" className="bg-gray-800 text-white">Pendente</option>
+                <option value="confirmed" className="bg-gray-800 text-white">Confirmado</option>
+                <option value="canceled" className="bg-gray-800 text-white">Cancelado</option>
               </select>
             </div>
 
