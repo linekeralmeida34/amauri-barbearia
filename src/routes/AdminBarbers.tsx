@@ -161,18 +161,18 @@ export default function AdminBarbers() {
     color?: string;
   }) {
     return (
-      <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-4 hover:bg-white/10 transition-all duration-200">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-white/60 text-sm font-medium">{title}</p>
-            <p className="text-white text-2xl font-bold mt-1">{value}</p>
-            <p className="text-white/50 text-xs mt-1">{subtitle}</p>
-          </div>
-          <div className={`p-3 rounded-lg bg-white/10 ${color}`}>
-            <Icon className="w-6 h-6" />
-          </div>
+    <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 hover:from-slate-700/50 hover:to-slate-800/50 transition-all duration-200 hover:scale-105 hover:shadow-lg">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-slate-300 text-sm font-medium">{title}</p>
+          <p className="text-white text-2xl font-bold mt-1">{value}</p>
+          <p className="text-slate-400 text-xs mt-1">{subtitle}</p>
+        </div>
+        <div className={`p-3 rounded-lg bg-gradient-to-br from-slate-700/50 to-slate-800/50 ${color} shadow-lg`}>
+          <Icon className="w-6 h-6" />
         </div>
       </div>
+    </div>
     );
   }
 
@@ -192,7 +192,7 @@ export default function AdminBarbers() {
             <div className="flex items-center gap-2">
               <Button
                 asChild
-                className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark"
+                className="bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white shadow-lg hover:shadow-cyan-500/25"
               >
                 <Link to="/admin">← Painel</Link>
               </Button>
@@ -200,7 +200,7 @@ export default function AdminBarbers() {
               <Button
                 onClick={load}
                 disabled={loading}
-                className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark"
+                className="bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white shadow-lg hover:shadow-cyan-500/25"
               >
                 <RotateCcw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
                 {loading ? "Carregando..." : "Recarregar"}
@@ -212,18 +212,18 @@ export default function AdminBarbers() {
         {/* Conteúdo */}
         <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 space-y-6">
           {/* Header com Estatísticas */}
-          <div className="bg-gradient-to-r from-amber-600/20 to-amber-500/20 backdrop-blur-sm border border-amber-500/30 rounded-2xl p-6">
+          <div className="bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 backdrop-blur-sm border border-purple-500/30 rounded-2xl p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h1 className="text-3xl font-bold text-white mb-2">
-                  Gestão de <span className="text-amber-400">Barbeiros</span>
+                  Gestão de <span className="bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">Barbeiros</span>
                 </h1>
                 <p className="text-white/70">Gerencie a equipe de barbeiros e suas informações</p>
               </div>
               <div className="hidden md:flex items-center gap-2">
                 <Button
                   onClick={() => setShowAddModal(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark transition-all duration-200"
+                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white shadow-lg hover:shadow-cyan-500/25 transition-all duration-200"
                 >
                   <UserPlus className="w-4 h-4" />
                   Adicionar Barbeiro
@@ -238,38 +238,38 @@ export default function AdminBarbers() {
                 title="Total"
                 value={stats.total}
                 subtitle="barbeiros"
-                color="text-blue-500"
+                color="text-cyan-400"
               />
               <StatsCard
                 icon={CheckCircle}
                 title="Ativos"
                 value={stats.active}
                 subtitle="trabalhando"
-                color="text-green-500"
+                color="text-emerald-400"
               />
               <StatsCard
                 icon={XCircle}
                 title="Inativos"
                 value={stats.inactive}
                 subtitle="pausados"
-                color="text-red-500"
+                color="text-rose-400"
               />
               <StatsCard
                 icon={Star}
                 title="Avaliação"
                 value={stats.averageRating}
                 subtitle="média geral"
-                color="text-amber-500"
+                color="text-purple-400"
               />
             </div>
           </div>
 
           {/* Lista de Barbeiros - Desktop */}
           <div className="hidden md:block">
-            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl overflow-hidden">
+            <div className="bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden shadow-2xl">
               <div className="overflow-x-auto">
                 <table className="min-w-full">
-                  <thead className="bg-gradient-to-r from-white/10 to-white/5">
+                  <thead className="bg-gradient-to-r from-slate-800/60 to-slate-900/60">
                     <tr>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
                         Barbeiro
@@ -405,7 +405,7 @@ export default function AdminBarbers() {
             {rows.map((b, index) => (
               <div 
                 key={b.id} 
-                className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-5 hover:bg-white/10 transition-all duration-200"
+                className="bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-sm border border-slate-700/50 rounded-xl p-5 hover:from-slate-700/40 hover:to-slate-800/40 transition-all duration-200 shadow-lg hover:shadow-xl"
                 style={{ animationDelay: `${index * 100}ms` }}
               >
                 <div className="flex items-start gap-4 mb-4">
@@ -480,8 +480,8 @@ export default function AdminBarbers() {
             ))}
 
             {rows.length === 0 && (
-              <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-8 text-center">
-                <Users className="w-16 h-16 text-white/30 mx-auto mb-4" />
+              <div className="bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-sm border border-slate-700/50 rounded-xl p-8 text-center shadow-xl">
+                <Users className="w-16 h-16 text-cyan-400/50 mx-auto mb-4" />
                 <h3 className="text-white/60 text-lg font-medium mb-2">
                   Nenhum barbeiro cadastrado
                 </h3>
@@ -490,7 +490,7 @@ export default function AdminBarbers() {
                 </p>
                 <Button
                   onClick={() => setShowAddModal(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark transition-all duration-200"
+                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white shadow-lg hover:shadow-cyan-500/25 transition-all duration-200"
                 >
                   <UserPlus className="w-4 h-4" />
                   Adicionar Barbeiro
@@ -504,7 +504,7 @@ export default function AdminBarbers() {
       {/* Modal de Adicionar Barbeiro */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6 w-full max-w-md">
+          <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 w-full max-w-md shadow-2xl">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold text-white">Adicionar Barbeiro</h2>
               <button
@@ -588,14 +588,14 @@ export default function AdminBarbers() {
             <div className="flex gap-3 mt-6">
               <Button
                 onClick={() => setShowAddModal(false)}
-                className="flex-1 bg-white/10 hover:bg-white/20 text-white border border-white/20"
+                className="flex-1 bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white shadow-lg hover:shadow-cyan-500/25 font-medium"
               >
                 Cancelar
               </Button>
               <Button
                 onClick={addBarber}
                 disabled={!newBarber.name.trim() || addingBarber}
-                className="flex-1 bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark disabled:opacity-50"
+                className="flex-1 bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white shadow-lg hover:shadow-cyan-500/25 disabled:opacity-50"
               >
                 {addingBarber ? "Adicionando..." : "Adicionar"}
               </Button>
