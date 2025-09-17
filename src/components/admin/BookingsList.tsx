@@ -97,14 +97,14 @@ function StatsCard({ icon: Icon, title, value, subtitle, color = "text-blue-600"
   color?: string;
 }) {
   return (
-    <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 hover:from-slate-700/50 hover:to-slate-800/50 transition-all duration-200 hover:scale-105 hover:shadow-lg">
+    <div className="bg-gradient-to-br from-slate-700/50 to-slate-800/50 backdrop-blur-sm border border-slate-600/50 rounded-xl p-4 hover:from-slate-600/50 hover:to-slate-700/50 transition-all duration-200 hover:scale-105 hover:shadow-lg">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-slate-300 text-sm font-medium">{title}</p>
           <p className="text-white text-2xl font-bold mt-1">{value}</p>
           <p className="text-slate-400 text-xs mt-1">{subtitle}</p>
         </div>
-        <div className={`p-3 rounded-lg bg-gradient-to-br from-slate-700/50 to-slate-800/50 ${color} shadow-lg`}>
+        <div className={`p-3 rounded-lg bg-gradient-to-br from-slate-600/60 to-slate-700/60 ${color} shadow-lg`}>
           <Icon className="w-6 h-6" />
         </div>
       </div>
@@ -272,12 +272,12 @@ export default function BookingsList() {
   return (
     <div className="w-full space-y-6">
       {/* Header com Estatísticas */}
-      <div className="bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 backdrop-blur-sm border border-purple-500/30 rounded-2xl p-6 shadow-2xl">
+      <div className="bg-gradient-to-br from-slate-800/90 via-slate-900/95 to-black/90 backdrop-blur-sm border border-slate-600/40 rounded-2xl p-6 shadow-2xl">
         <div className="flex items-center justify-between mb-6">
           <div>
             <div className="flex items-center gap-3 mb-2">
               <h1 className="text-3xl font-bold text-white">
-                Painel de <span className="bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">Agendamentos</span>
+                Painel de <span className="bg-gradient-to-r from-barbershop-gold to-amber-300 bg-clip-text text-transparent">Agendamentos</span>
               </h1>
               {hasActiveFilters && (
                 <div className="flex items-center gap-2 px-3 py-1 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 border border-cyan-400/30 rounded-full">
@@ -297,7 +297,7 @@ export default function BookingsList() {
             <button
               onClick={fetchAll}
               disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-lg hover:shadow-cyan-500/25"
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-barbershop-gold to-amber-500 hover:from-amber-400 hover:to-barbershop-gold text-barbershop-dark rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-lg hover:shadow-amber-500/25"
             >
               <RotateCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               {loading ? "Carregando..." : "Atualizar"}
@@ -684,7 +684,7 @@ export default function BookingsList() {
         ))}
 
         {filtered.length === 0 && (
-          <div className="bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-sm border border-slate-700/50 rounded-xl p-8 text-center shadow-xl">
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-8 text-center">
             <Calendar className="w-16 h-16 text-white/30 mx-auto mb-4" />
             <h3 className="text-white/60 text-lg font-medium mb-2">
               Nenhum agendamento encontrado

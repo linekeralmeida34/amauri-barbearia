@@ -161,14 +161,14 @@ export default function AdminBarbers() {
     color?: string;
   }) {
     return (
-    <div className="bg-gradient-to-br from-barbershop-brown/50 to-amber-900/50 backdrop-blur-sm border border-amber-700/50 rounded-xl p-4 hover:from-amber-800/50 hover:to-barbershop-brown/50 transition-all duration-200 hover:scale-105 hover:shadow-lg">
+    <div className="bg-gradient-to-br from-slate-700/50 to-slate-800/50 backdrop-blur-sm border border-slate-600/50 rounded-xl p-4 hover:from-slate-600/50 hover:to-slate-700/50 transition-all duration-200 hover:scale-105 hover:shadow-lg">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-slate-300 text-sm font-medium">{title}</p>
           <p className="text-white text-2xl font-bold mt-1">{value}</p>
           <p className="text-slate-400 text-xs mt-1">{subtitle}</p>
         </div>
-        <div className={`p-3 rounded-lg bg-gradient-to-br from-amber-800/50 to-barbershop-brown/50 ${color} shadow-lg`}>
+        <div className={`p-3 rounded-lg bg-gradient-to-br from-slate-600/60 to-slate-700/60 ${color} shadow-lg`}>
           <Icon className="w-6 h-6" />
         </div>
       </div>
@@ -212,7 +212,7 @@ export default function AdminBarbers() {
         {/* Conteúdo */}
         <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 space-y-6">
           {/* Header com Estatísticas */}
-          <div className="bg-gradient-to-br from-barbershop-brown/90 via-amber-800/80 to-barbershop-dark/90 backdrop-blur-sm border border-amber-500/30 rounded-2xl p-6 shadow-2xl">
+          <div className="bg-gradient-to-br from-slate-800/90 via-slate-900/95 to-black/90 backdrop-blur-sm border border-slate-600/40 rounded-2xl p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h1 className="text-3xl font-bold text-white mb-2">
@@ -238,7 +238,7 @@ export default function AdminBarbers() {
                 title="Total"
                 value={stats.total}
                 subtitle="barbeiros"
-                color="text-barbershop-gold"
+                color="text-cyan-400"
               />
               <StatsCard
                 icon={CheckCircle}
@@ -259,7 +259,7 @@ export default function AdminBarbers() {
                 title="Avaliação"
                 value={stats.averageRating}
                 subtitle="média geral"
-                color="text-amber-400"
+                color="text-purple-400"
               />
             </div>
           </div>
