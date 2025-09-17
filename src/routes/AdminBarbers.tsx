@@ -161,14 +161,14 @@ export default function AdminBarbers() {
     color?: string;
   }) {
     return (
-    <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 hover:from-slate-700/50 hover:to-slate-800/50 transition-all duration-200 hover:scale-105 hover:shadow-lg">
+    <div className="bg-gradient-to-br from-barbershop-brown/50 to-amber-900/50 backdrop-blur-sm border border-amber-700/50 rounded-xl p-4 hover:from-amber-800/50 hover:to-barbershop-brown/50 transition-all duration-200 hover:scale-105 hover:shadow-lg">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-slate-300 text-sm font-medium">{title}</p>
           <p className="text-white text-2xl font-bold mt-1">{value}</p>
           <p className="text-slate-400 text-xs mt-1">{subtitle}</p>
         </div>
-        <div className={`p-3 rounded-lg bg-gradient-to-br from-slate-700/50 to-slate-800/50 ${color} shadow-lg`}>
+        <div className={`p-3 rounded-lg bg-gradient-to-br from-amber-800/50 to-barbershop-brown/50 ${color} shadow-lg`}>
           <Icon className="w-6 h-6" />
         </div>
       </div>
@@ -192,7 +192,7 @@ export default function AdminBarbers() {
             <div className="flex items-center gap-2">
               <Button
                 asChild
-                className="bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white shadow-lg hover:shadow-cyan-500/25"
+                className="bg-gradient-to-r from-barbershop-gold to-amber-500 hover:from-amber-400 hover:to-barbershop-gold text-barbershop-dark shadow-lg hover:shadow-amber-500/25"
               >
                 <Link to="/admin">← Painel</Link>
               </Button>
@@ -200,7 +200,7 @@ export default function AdminBarbers() {
               <Button
                 onClick={load}
                 disabled={loading}
-                className="bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white shadow-lg hover:shadow-cyan-500/25"
+                className="bg-gradient-to-r from-barbershop-gold to-amber-500 hover:from-amber-400 hover:to-barbershop-gold text-barbershop-dark shadow-lg hover:shadow-amber-500/25"
               >
                 <RotateCcw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
                 {loading ? "Carregando..." : "Recarregar"}
@@ -212,18 +212,18 @@ export default function AdminBarbers() {
         {/* Conteúdo */}
         <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 space-y-6">
           {/* Header com Estatísticas */}
-          <div className="bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 backdrop-blur-sm border border-purple-500/30 rounded-2xl p-6 shadow-2xl">
+          <div className="bg-gradient-to-br from-barbershop-brown/90 via-amber-800/80 to-barbershop-dark/90 backdrop-blur-sm border border-amber-500/30 rounded-2xl p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h1 className="text-3xl font-bold text-white mb-2">
-                  Gestão de <span className="bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">Barbeiros</span>
+                  Gestão de <span className="bg-gradient-to-r from-barbershop-gold to-amber-300 bg-clip-text text-transparent">Barbeiros</span>
                 </h1>
                 <p className="text-white/70">Gerencie a equipe de barbeiros e suas informações</p>
               </div>
               <div className="hidden md:flex items-center gap-2">
                 <Button
                   onClick={() => setShowAddModal(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white shadow-lg hover:shadow-cyan-500/25 transition-all duration-200"
+                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-barbershop-gold to-amber-500 hover:from-amber-400 hover:to-barbershop-gold text-barbershop-dark shadow-lg hover:shadow-amber-500/25 transition-all duration-200"
                 >
                   <UserPlus className="w-4 h-4" />
                   Adicionar Barbeiro
@@ -238,7 +238,7 @@ export default function AdminBarbers() {
                 title="Total"
                 value={stats.total}
                 subtitle="barbeiros"
-                color="text-cyan-400"
+                color="text-barbershop-gold"
               />
               <StatsCard
                 icon={CheckCircle}
@@ -259,7 +259,7 @@ export default function AdminBarbers() {
                 title="Avaliação"
                 value={stats.averageRating}
                 subtitle="média geral"
-                color="text-purple-400"
+                color="text-amber-400"
               />
             </div>
           </div>
@@ -490,7 +490,7 @@ export default function AdminBarbers() {
                 </p>
                 <Button
                   onClick={() => setShowAddModal(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white shadow-lg hover:shadow-cyan-500/25 transition-all duration-200"
+                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-barbershop-gold to-amber-500 hover:from-amber-400 hover:to-barbershop-gold text-barbershop-dark shadow-lg hover:shadow-amber-500/25 transition-all duration-200"
                 >
                   <UserPlus className="w-4 h-4" />
                   Adicionar Barbeiro
@@ -588,14 +588,14 @@ export default function AdminBarbers() {
             <div className="flex gap-3 mt-6">
               <Button
                 onClick={() => setShowAddModal(false)}
-                className="flex-1 bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white shadow-lg hover:shadow-cyan-500/25 font-medium"
+                className="flex-1 bg-gradient-to-r from-barbershop-gold to-amber-500 hover:from-amber-400 hover:to-barbershop-gold text-barbershop-dark shadow-lg hover:shadow-amber-500/25 font-medium"
               >
                 Cancelar
               </Button>
               <Button
                 onClick={addBarber}
                 disabled={!newBarber.name.trim() || addingBarber}
-                className="flex-1 bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white shadow-lg hover:shadow-cyan-500/25 disabled:opacity-50"
+                className="flex-1 bg-gradient-to-r from-barbershop-gold to-amber-500 hover:from-amber-400 hover:to-barbershop-gold text-barbershop-dark shadow-lg hover:shadow-amber-500/25 disabled:opacity-50"
               >
                 {addingBarber ? "Adicionando..." : "Adicionar"}
               </Button>

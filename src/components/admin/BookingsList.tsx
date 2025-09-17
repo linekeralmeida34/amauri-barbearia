@@ -685,7 +685,7 @@ export default function BookingsList() {
 
         {filtered.length === 0 && (
           <div className="bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-sm border border-slate-700/50 rounded-xl p-8 text-center shadow-xl">
-            <Calendar className="w-16 h-16 text-cyan-400/50 mx-auto mb-4" />
+            <Calendar className="w-16 h-16 text-white/30 mx-auto mb-4" />
             <h3 className="text-white/60 text-lg font-medium mb-2">
               Nenhum agendamento encontrado
             </h3>
