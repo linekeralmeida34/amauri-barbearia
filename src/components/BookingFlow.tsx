@@ -867,9 +867,9 @@ export const BookingFlow = () => {
 
               <div className="mt-2 p-4 bg-muted rounded-lg">
                 <p className="text-sm text-muted-foreground">
-                  <strong>Política de Cancelamento:</strong> Cancelamentos devem
-                  ser feitos com pelo menos 2 horas de antecedência. Cancelamentos
-                  em cima da hora podem ser cobrados.
+                  <strong>Política de Cancelamento:</strong> Em respeito a todos os nossos clientes, 
+                  atrasos serão tolerados até 10 minutos
+                  após o horário marcado, orientamos aviso com no mínimo 1h de antecedência.
                 </p>
               </div>
             </div>
