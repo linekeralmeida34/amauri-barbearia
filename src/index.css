@@ -188,4 +188,24 @@ html{ scroll-behavior:smooth; }
     align-self: flex-start;
     flex-shrink: 0;
   }
+  
+  /* Melhora responsividade do grid de estatísticas no mobile */
+  .grid.grid-cols-2.sm\\:grid-cols-3.md\\:grid-cols-6 {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+  
+  /* Ajusta para telas pequenas */
+  @media (min-width: 640px) and (max-width: 767px) {
+    .grid.grid-cols-2.sm\\:grid-cols-3.md\\:grid-cols-6 {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+  
+  /* Ajusta para telas médias e grandes */
+  @media (min-width: 768px) {
+    .grid.grid-cols-2.sm\\:grid-cols-3.md\\:grid-cols-6 {
+      grid-template-columns: repeat(6, 1fr);
+    }
+  }
 }

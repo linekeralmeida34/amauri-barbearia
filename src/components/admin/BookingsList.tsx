@@ -14,7 +14,8 @@ import {
   XCircle,
   CreditCard,
   Banknote,
-  Smartphone
+  Smartphone,
+  DollarSign
 } from "lucide-react";
 
 /** ---------- Tipos ---------- */
@@ -49,7 +50,12 @@ function fmtDateTimeBR(iso: string) {
 
 function fmtPriceBR(v: number | null | undefined) {
   if (v == null) return "—";
-  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return v.toLocaleString("pt-BR", { 
+    style: "currency", 
+    currency: "BRL",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  });
 }
 
 function fmtPhoneBR(raw: string | null | undefined) {
@@ -394,7 +400,12 @@ export default function BookingsList() {
     const today = new Date().toDateString();
     const todayBookings = rows.filter(r => new Date(r.starts_at).toDateString() === today).length;
     
-    return { total, pending, confirmed, canceled, todayBookings };
+    // Calcular receita total (apenas agendamentos confirmados)
+    const totalRevenue = rows
+      .filter(r => r.status === 'confirmed' && r.price)
+      .reduce((sum, r) => sum + (r.price || 0), 0);
+    
+    return { total, pending, confirmed, canceled, todayBookings, totalRevenue };
   }, [rows]);
 
   /** --------- estatísticas dos dados filtrados --------- */
@@ -406,7 +417,12 @@ export default function BookingsList() {
     const today = new Date().toDateString();
     const todayBookings = filtered.filter(r => new Date(r.starts_at).toDateString() === today).length;
     
-    return { total, pending, confirmed, canceled, todayBookings };
+    // Calcular receita total dos dados filtrados (apenas agendamentos confirmados)
+    const totalRevenue = filtered
+      .filter(r => r.status === 'confirmed' && r.price)
+      .reduce((sum, r) => sum + (r.price || 0), 0);
+    
+    return { total, pending, confirmed, canceled, todayBookings, totalRevenue };
   }, [filtered]);
 
   /** --------- verificar se há filtros ativos --------- */
@@ -480,7 +496,7 @@ export default function BookingsList() {
         </div>
 
         {/* Cards de Estatísticas */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4">
           <StatsCard
             icon={Calendar}
             title="Total"
@@ -515,6 +531,13 @@ export default function BookingsList() {
             value={hasActiveFilters ? filteredStats.todayBookings : originalStats.todayBookings}
             subtitle="agendamentos"
             color="text-purple-400"
+          />
+          <StatsCard
+            icon={DollarSign}
+            title="Receita"
+            value={fmtPriceBR(hasActiveFilters ? filteredStats.totalRevenue : originalStats.totalRevenue)}
+            subtitle={hasActiveFilters ? "filtrada" : "total"}
+            color="text-emerald-400"
           />
         </div>
       </div>
