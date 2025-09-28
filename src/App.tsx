@@ -1,11 +1,12 @@
 // src/App.tsx
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   HashRouter,
   Routes,
   Route,
   useLocation,
   useNavigate,
+  Link,
 } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -23,8 +24,9 @@ import { BookingFlow } from "@/components/BookingFlow";
 import AdminLogin from "./routes/AdminLogin";
 import AdminGuard from "./routes/AdminGuard"; // ← Deve renderizar <Outlet />
 import AdminBarbers from "./routes/AdminBarbers";
-import { Link } from "react-router-dom";
+import BarberLogin from "./routes/BarberLogin";
 import { Users } from "lucide-react";
+import { useBarberAuth } from "@/hooks/useBarberAuth";
 
 
 const queryClient = new QueryClient();
@@ -77,13 +79,32 @@ function AdminDevLink() {
 /** 🔒 Placeholder do painel com topbar no tema + botões e Sair */
 function AdminPanelPlaceholder() {
   const navigate = useNavigate();
+  const { barber, isAdmin, signOut } = useBarberAuth();
+  
+  // Verificar se é admin via email também (para lineker.dev@gmail.com)
+  const [isEmailAdmin, setIsEmailAdmin] = useState(false);
+  
+  useEffect(() => {
+    const checkEmailAdmin = async () => {
+      try {
+        const { data: session } = await supabase.auth.getSession();
+        if (session?.session?.user?.email === "lineker.dev@gmail.com") {
+          setIsEmailAdmin(true);
+        }
+      } catch (error) {
+        console.error("Erro ao verificar email admin:", error);
+      }
+    };
+    checkEmailAdmin();
+  }, []);
+  
+  const finalIsAdmin = isAdmin || isEmailAdmin;
 
   async function onSignOut() {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) console.error(error);
+      await signOut();
     } finally {
-      window.location.hash = "/admin/login?from=/admin";
+      window.location.hash = "/admin/login";
       setTimeout(() => window.location.reload(), 50);
     }
   }
@@ -102,19 +123,21 @@ function AdminPanelPlaceholder() {
             </a>
 
             <div className="flex items-center gap-2">
-              {/* NOVO botão: Barbeiros */}
-              <Button
-                asChild
-                className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark"
-              >
-                <Link to="/admin/barbeiros" aria-label="Gerenciar barbeiros">
-                  <Users className="h-4 w-4 mr-2" />
-                  Barbeiros
-                </Link>
-              </Button>
+              {/* Botão: Barbeiros - apenas para admin */}
+              {finalIsAdmin && (
+                <Button
+                  asChild
+                  className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark"
+                >
+                  <Link to="/admin/barbeiros" aria-label="Gerenciar barbeiros">
+                    <Users className="h-4 w-4 mr-2" />
+                    Barbeiros
+                  </Link>
+                </Button>
+              )}
 
               <span className="hidden sm:inline text-white/70 text-sm">
-                Painel Administrativo
+                {finalIsAdmin ? "Painel Administrativo" : `Painel - ${barber?.name}`}
               </span>
 
               <Button
@@ -139,8 +162,8 @@ function AdminPanelPlaceholder() {
               Abaixo estão os agendamentos em tempo real.
             </p>
 
-            {/* ✅ Lista de agendamentos (realtime) */}
-            <BookingsList />
+                    {/* ✅ Lista de agendamentos (realtime) */}
+                    <BookingsList />
           </div>
         </main>
       </div>
@@ -155,7 +178,12 @@ export default function App() {
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <HashRouter>
+        <HashRouter
+          future={{
+            v7_startTransition: true,
+            v7_relativeSplatPath: true
+          }}
+        >
           {/* Helpers de rolagem */}
           <ScrollToTop />
           <ScrollToAnchorFromSearch />
@@ -168,6 +196,7 @@ export default function App() {
             <Route path="/" element={<Index />} />
             <Route path="/agendar" element={<BookingFlow />} />
             <Route path="/admin/login" element={<AdminLogin />} />
+            <Route path="/barber/login" element={<BarberLogin />} />
 
             {/* 🔒 Tudo sob /admin protegido por AdminGuard (usa <Outlet />) */}
             <Route element={<AdminGuard />}>

@@ -128,7 +128,7 @@ export const BookingFlow = () => {
     (async () => {
       try {
         const dbServices = await fetchActiveServices();
-        if (dbServices.length) {
+        if (dbServices.length > 0) {
           setServices(
             dbServices.map((s: any) => ({
               id: s.id,
@@ -139,12 +139,14 @@ export const BookingFlow = () => {
             }))
           );
         }
-      } catch {
+      } catch (error) {
+        console.error("Erro ao carregar serviços do banco:", error);
         // fallback já está setado
       }
+      
       try {
         const dbBarbers = await fetchActiveBarbers();
-        if (dbBarbers.length) {
+        if (dbBarbers.length > 0) {
           setBarbers(
             dbBarbers.map((b: any) => ({
               id: b.id,
@@ -153,7 +155,8 @@ export const BookingFlow = () => {
             }))
           );
         }
-      } catch {
+      } catch (error) {
+        console.error("Erro ao carregar barbeiros do banco:", error);
         // fallback já está setado
       }
     })();

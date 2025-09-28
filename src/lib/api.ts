@@ -27,6 +27,8 @@ export type Barber = {
   specialties?: string[] | null;
 };
 
+export type PaymentMethod = "credit_card" | "debit_card" | "cash" | "pix";
+
 /* =========================
    Services
 ========================= */
@@ -111,6 +113,7 @@ export type CreateBookingInput = {
   starts_at_iso: string;       // ex.: new Date(...).toISOString()
   duration_min: number;
   price: number;
+  payment_method?: PaymentMethod; // Forma de pagamento opcional
 };
 
 export type CreateBookingResult =
@@ -157,6 +160,7 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
     status: "pending" as const,
     customer_name: input.customer_name.trim(),
     phone: normalizePhone(input.phone),
+    payment_method: input.payment_method || null,      // Forma de pagamento
   };
 
   // returning: "minimal" evita SELECT no retorno (útil quando RLS é mais restrita)

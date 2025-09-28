@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
+import { useBarberAuth } from "@/hooks/useBarberAuth";
 
 /**
  * AdminGuard com "modo relax" (DEV ?relax=1) e timeout seguro:
@@ -11,13 +12,19 @@ export default function AdminGuard() {
   const loc = useLocation();
   const search = useMemo(() => new URLSearchParams(loc.search), [loc.search]);
   const relax = import.meta.env.DEV && search.get("relax") === "1";
+  const { barber, isAuthenticated, loading: barberLoading } = useBarberAuth();
 
   const [checking, setChecking] = useState(true);
   const [authorized, setAuthorized] = useState(false);
 
   useEffect(() => {
+    // Se ainda está carregando dados do barbeiro, aguarda
+    if (barberLoading) return;
+
     let cancelled = false;
     let settled = false;
+    let timer: NodeJS.Timeout;
+    
     const settle = (ok: boolean) => {
       if (cancelled || settled) return;
       settled = true;
@@ -27,17 +34,26 @@ export default function AdminGuard() {
     };
 
     async function run() {
+      // Verificar se é barbeiro autenticado
+      if (isAuthenticated && barber) {
+        return settle(true);
+      }
+
+      // Verificar se é admin
       const { data: sessData, error: sessErr } = await supabase.auth.getSession();
       if (cancelled) return;
 
       if (sessErr) console.warn("[AdminGuard] getSession error:", sessErr);
       const session = sessData?.session ?? null;
-      console.log("[AdminGuard] session user id:", session?.user?.id);
 
       if (!session) return settle(false);
 
       if (relax) {
-        console.log("[AdminGuard] DEV relax=1 ATIVO → permitindo acesso com qualquer usuário autenticado");
+        return settle(true);
+      }
+
+      // Verificar se é o email específico do lineker.dev@gmail.com
+      if (session.user.email === "lineker.dev@gmail.com") {
         return settle(true);
       }
 
@@ -50,7 +66,6 @@ export default function AdminGuard() {
 
       if (cancelled) return;
 
-      console.log("[AdminGuard] admin_users select → data:", data, "error:", error);
       const isAdmin =
         !error && data && (data.role === "owner" || data.role === "admin");
 
@@ -60,7 +75,7 @@ export default function AdminGuard() {
     run();
 
     // Timeout de segurança — agora respeita "settled"
-    const timer = setTimeout(() => {
+    timer = setTimeout(() => {
       if (settled) return; // ✅ não faz nada se já resolvemos
       console.warn("[AdminGuard] timeout de segurança — assumindo não autorizado");
       settle(false);
@@ -70,7 +85,7 @@ export default function AdminGuard() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [relax]);
+  }, [relax, isAuthenticated, barber, barberLoading]);
 
   if (checking) {
     return (
@@ -82,7 +97,8 @@ export default function AdminGuard() {
 
   if (!authorized) {
     const from = encodeURIComponent(loc.pathname + loc.search);
-    return <Navigate to={`/admin/login?from=${from}`} replace />;
+    // Redirecionar para login de barbeiro se não for admin
+    return <Navigate to={`/barber/login?from=${from}`} replace />;
   }
 
   return <Outlet />;

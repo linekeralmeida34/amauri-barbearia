@@ -1,6 +1,7 @@
 // src/components/admin/BookingsList.tsx
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useBarberAuth } from "@/hooks/useBarberAuth";
 import { 
   Calendar, 
   Clock, 
@@ -10,11 +11,15 @@ import {
   X,
   CheckCircle,
   AlertTriangle,
-  XCircle
+  XCircle,
+  CreditCard,
+  Banknote,
+  Smartphone
 } from "lucide-react";
 
 /** ---------- Tipos ---------- */
 type BookingStatus = "pending" | "confirmed" | "canceled";
+type PaymentMethod = "credit_card" | "debit_card" | "cash" | "pix" | null;
 
 type BookingRow = {
   id: string;
@@ -23,6 +28,7 @@ type BookingRow = {
   customer_name: string | null;
   phone: string | null;
   price: number | null;
+  payment_method: PaymentMethod;
   services?: { name: string | null } | null;
   barbers?: { name: string | null; id?: string } | null;
 };
@@ -58,6 +64,17 @@ function fmtPhoneBR(raw: string | null | undefined) {
   return raw;
 }
 
+function fmtPaymentMethod(method: PaymentMethod): string {
+  const methods = {
+    credit_card: "Cartão de Crédito",
+    debit_card: "Cartão de Débito", 
+    cash: "Dinheiro",
+    pix: "PIX",
+    null: "—"
+  };
+  return methods[method || "null"];
+}
+
 /** ---------- Componente de Status Badge ---------- */
 function StatusBadge({ status }: { status: BookingStatus }) {
   const config = {
@@ -79,6 +96,46 @@ function StatusBadge({ status }: { status: BookingStatus }) {
   };
 
   const { icon: Icon, color, label } = config[status];
+
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${color}`}>
+      <Icon className="w-3 h-3" />
+      {label}
+    </span>
+  );
+}
+
+/** ---------- Componente de Forma de Pagamento Badge ---------- */
+function PaymentMethodBadge({ method }: { method: PaymentMethod }) {
+  const config = {
+    credit_card: { 
+      icon: CreditCard, 
+      color: "bg-blue-100 text-blue-800 border-blue-200", 
+      label: "Crédito" 
+    },
+    debit_card: { 
+      icon: CreditCard, 
+      color: "bg-indigo-100 text-indigo-800 border-indigo-200", 
+      label: "Débito" 
+    },
+    cash: { 
+      icon: Banknote, 
+      color: "bg-green-100 text-green-800 border-green-200", 
+      label: "Dinheiro" 
+    },
+    pix: { 
+      icon: Smartphone, 
+      color: "bg-purple-100 text-purple-800 border-purple-200", 
+      label: "PIX" 
+    },
+    null: { 
+      icon: X, 
+      color: "bg-gray-100 text-gray-800 border-gray-200", 
+      label: "—" 
+    }
+  };
+
+  const { icon: Icon, color, label } = config[method || "null"];
 
   return (
     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${color}`}>
@@ -114,6 +171,28 @@ function StatsCard({ icon: Icon, title, value, subtitle, color = "text-blue-600"
 
 /** ---------- Componente ---------- */
 export default function BookingsList() {
+  const { barber, isAdmin, canCancelBookings } = useBarberAuth();
+  
+  // Verificar se é admin via email também (para lineker.dev@gmail.com)
+  const [isEmailAdmin, setIsEmailAdmin] = useState(false);
+  
+  useEffect(() => {
+    const checkEmailAdmin = async () => {
+      try {
+        const { data: session } = await supabase.auth.getSession();
+        if (session?.session?.user?.email === "lineker.dev@gmail.com") {
+          setIsEmailAdmin(true);
+        }
+      } catch (error) {
+        console.error("Erro ao verificar email admin:", error);
+      }
+    };
+    checkEmailAdmin();
+  }, []);
+  
+  const finalIsAdmin = isAdmin || isEmailAdmin;
+  const finalCanCancel = canCancelBookings || isEmailAdmin;
+  
   /** dados crus */
   const [rows, setRows] = useState<BookingRow[]>([]);
   const [barbers, setBarbers] = useState<BarberLite[]>([]);
@@ -121,25 +200,58 @@ export default function BookingsList() {
   /** filtros */
   const [statusFilter, setStatusFilter] = useState<"" | BookingStatus>("");
   const [barberFilter, setBarberFilter] = useState<string>("");
+  const [paymentFilter, setPaymentFilter] = useState<"" | PaymentMethod>("");
   const [dateFrom, setDateFrom] = useState<string>(""); // yyyy-mm-dd
   const [dateTo, setDateTo] = useState<string>(""); // yyyy-mm-dd
+  const [todayOnly, setTodayOnly] = useState<boolean>(false);
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   /** --------- fetch inicial (bookings + barbers) --------- */
   async function fetchAll() {
     setLoading(true);
     try {
-      // Barbeiros para o filtro
-      const { data: barbs } = await supabase
-        .from("barbers")
-        .select("id,name")
-        .eq("is_active", true)
-        .order("name", { ascending: true });
-      setBarbers((barbs ?? []) as BarberLite[]);
+      // Barbeiros para o filtro (apenas se for admin)
+      if (finalIsAdmin) {
+        try {
+          // Primeiro, tentar com is_active
+          let { data: barbs, error: barbsError } = await supabase
+            .from("barbers")
+            .select("id,name")
+            .eq("is_active", true)
+            .order("name", { ascending: true });
+          
+          // Se der erro 400, tentar sem o filtro is_active
+          if (barbsError && barbsError.code === "400") {
+            console.warn("[BookingsList] Coluna is_active não encontrada, buscando todos os barbeiros");
+            const { data: allBarbs, error: allBarbsError } = await supabase
+              .from("barbers")
+              .select("id,name")
+              .order("name", { ascending: true });
+            
+            if (allBarbsError) {
+              console.error("[BookingsList] Erro ao buscar barbeiros:", allBarbsError);
+              setBarbers([]);
+            } else {
+              setBarbers((allBarbs ?? []) as BarberLite[]);
+            }
+          } else if (barbsError) {
+            console.error("[BookingsList] Erro ao buscar barbeiros:", barbsError);
+            setBarbers([]);
+          } else {
+            setBarbers((barbs ?? []) as BarberLite[]);
+          }
+        } catch (error) {
+          console.error("[BookingsList] Erro inesperado ao buscar barbeiros:", error);
+          setBarbers([]);
+        }
+      } else {
+        // Barbeiro comum só vê a si mesmo
+        setBarbers([{ id: barber?.id || "", name: barber?.name || "" }]);
+      }
 
-      // Bookings
-      const { data, error } = await supabase
+      // Bookings - filtrar por barbeiro se não for admin
+      let query = supabase
         .from("bookings")
         .select(
           `
@@ -149,13 +261,24 @@ export default function BookingsList() {
           customer_name,
           phone,
           price,
+          payment_method,
           services ( name ),
           barbers ( id, name )
         `
-        )
-        .order("starts_at", { ascending: true });
+        );
 
-      if (error) throw error;
+      // Se não for admin, filtrar apenas agendamentos do barbeiro logado
+      if (!finalIsAdmin && barber?.id) {
+        query = query.eq("barber_id", barber.id);
+      }
+
+      const { data, error } = await query.order("starts_at", { ascending: true });
+
+      if (error) {
+        console.error("[BookingsList] Erro ao buscar agendamentos:", error);
+        throw error;
+      }
+      
       setRows((data ?? []) as BookingRow[]);
     } finally {
       setLoading(false);
@@ -164,15 +287,32 @@ export default function BookingsList() {
 
   /** --------- update de status --------- */
   async function updateStatus(id: string, newStatus: BookingStatus) {
+    // Verificar se pode cancelar (apenas admin)
+    if (newStatus === "canceled" && !finalCanCancel) {
+      alert("Apenas o administrador pode cancelar agendamentos.");
+      return;
+    }
+
     const { error } = await supabase.from("bookings").update({ status: newStatus }).eq("id", id);
     if (!error) {
       setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status: newStatus } : r)));
     }
   }
 
+  /** --------- update de forma de pagamento --------- */
+  async function updatePaymentMethod(id: string, newMethod: PaymentMethod) {
+    const { error } = await supabase.from("bookings").update({ payment_method: newMethod }).eq("id", id);
+    if (!error) {
+      setRows((prev) => prev.map((r) => (r.id === id ? { ...r, payment_method: newMethod } : r)));
+    }
+  }
+
   /** --------- realtime --------- */
   useEffect(() => {
-    fetchAll();
+    // Só carrega os dados quando o barbeiro estiver definido
+    if (barber) {
+      fetchAll();
+    }
 
     const channel = supabase
       .channel("bookings-admin-realtime")
@@ -180,6 +320,12 @@ export default function BookingsList() {
         "postgres_changes",
         { event: "*", schema: "public", table: "bookings" },
         (payload) => {
+          // Só processa eventos se for admin ou se o agendamento for do barbeiro logado
+          const isRelevantBooking = finalIsAdmin || 
+            (barber?.id && (payload.new as any)?.barber_id === barber.id);
+          
+          if (!isRelevantBooking) return;
+
           if (payload.eventType === "INSERT") {
             setRows((prev) => {
               const next = [...prev, payload.new as BookingRow];
@@ -205,7 +351,7 @@ export default function BookingsList() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [barber, finalIsAdmin]);
 
   /** --------- aplicação dos filtros + ordenação garantida --------- */
   const filtered = useMemo(() => {
@@ -217,6 +363,9 @@ export default function BookingsList() {
     if (barberFilter) {
       list = list.filter((r) => String(r.barbers?.id ?? "") === barberFilter);
     }
+    if (paymentFilter) {
+      list = list.filter((r) => r.payment_method === paymentFilter);
+    }
     if (dateFrom) {
       const fromTs = new Date(dateFrom + "T00:00:00").getTime();
       list = list.filter((r) => new Date(r.starts_at).getTime() >= fromTs);
@@ -225,12 +374,16 @@ export default function BookingsList() {
       const toTs = new Date(dateTo + "T23:59:59").getTime();
       list = list.filter((r) => new Date(r.starts_at).getTime() <= toTs);
     }
+    if (todayOnly) {
+      const today = new Date().toDateString();
+      list = list.filter((r) => new Date(r.starts_at).toDateString() === today);
+    }
 
     list.sort(
       (a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()
     );
     return list;
-  }, [rows, statusFilter, barberFilter, dateFrom, dateTo]);
+  }, [rows, statusFilter, barberFilter, paymentFilter, dateFrom, dateTo, todayOnly]);
 
   /** --------- estatísticas calculadas (dados originais) --------- */
   const originalStats = useMemo(() => {
@@ -258,15 +411,29 @@ export default function BookingsList() {
 
   /** --------- verificar se há filtros ativos --------- */
   const hasActiveFilters = useMemo(() => {
-    return statusFilter || barberFilter || dateFrom || dateTo;
-  }, [statusFilter, barberFilter, dateFrom, dateTo]);
+    return statusFilter || barberFilter || paymentFilter || dateFrom || dateTo || todayOnly;
+  }, [statusFilter, barberFilter, paymentFilter, dateFrom, dateTo, todayOnly]);
 
   /** --------- limpar filtros --------- */
   function clearFilters() {
     setStatusFilter("");
     setBarberFilter("");
+    setPaymentFilter("");
     setDateFrom("");
     setDateTo("");
+    setTodayOnly(false);
+  }
+
+  // Mostrar loading se o barbeiro ainda não foi carregado
+  if (!barber) {
+    return (
+      <div className="w-full flex items-center justify-center min-h-[400px]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-barbershop-gold"></div>
+          <p className="text-white/70">Carregando dados do barbeiro...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -277,7 +444,11 @@ export default function BookingsList() {
           <div>
             <div className="flex items-center gap-3 mb-2">
               <h1 className="text-3xl font-bold text-white">
-                Painel de <span className="bg-gradient-to-r from-barbershop-gold to-amber-300 bg-clip-text text-transparent">Agendamentos</span>
+                {finalIsAdmin ? (
+                  <>Painel de <span className="bg-gradient-to-r from-barbershop-gold to-amber-300 bg-clip-text text-transparent">Agendamentos</span></>
+                ) : (
+                  <>Meus <span className="bg-gradient-to-r from-barbershop-gold to-amber-300 bg-clip-text text-transparent">Agendamentos</span></>
+                )}
               </h1>
               {hasActiveFilters && (
                 <div className="flex items-center gap-2 px-3 py-1 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 border border-cyan-400/30 rounded-full">
@@ -286,21 +457,24 @@ export default function BookingsList() {
                 </div>
               )}
             </div>
-            <p className="text-white/70">
-              {hasActiveFilters 
-                ? `Mostrando ${filteredStats.total} de ${originalStats.total} agendamentos` 
-                : "Gerencie todos os agendamentos em tempo real"
-              }
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-white/70">
+                {hasActiveFilters 
+                  ? `Mostrando ${filteredStats.total} de ${originalStats.total} agendamentos` 
+                  : `Bem-vindo, ${barber?.name}! Gerencie seus agendamentos`
+                }
+              </p>
+            </div>
           </div>
-          <div className="hidden md:flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <button
               onClick={fetchAll}
               disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-barbershop-gold to-amber-500 hover:from-amber-400 hover:to-barbershop-gold text-barbershop-dark rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-lg hover:shadow-amber-500/25"
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-gradient-to-r from-barbershop-gold to-amber-500 hover:from-amber-400 hover:to-barbershop-gold text-barbershop-dark rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-lg hover:shadow-amber-500/25 text-sm sm:text-base"
             >
               <RotateCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              {loading ? "Carregando..." : "Atualizar"}
+              <span className="hidden sm:inline">{loading ? "Carregando..." : "Atualizar"}</span>
+              <span className="sm:hidden">{loading ? "..." : "Atualizar"}</span>
             </button>
           </div>
         </div>
@@ -352,7 +526,7 @@ export default function BookingsList() {
           <h2 className="text-lg font-semibold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">Filtros</h2>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
           {/* Status */}
           <div className="space-y-2">
             <div className="flex items-center gap-2">
@@ -378,30 +552,58 @@ export default function BookingsList() {
             </select>
           </div>
 
-          {/* Barbeiro */}
+          {/* Barbeiro - apenas para admin */}
+          {finalIsAdmin && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <label className="text-white/80 text-sm font-medium">Barbeiro</label>
+                {barberFilter && (
+                  <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
+                )}
+              </div>
+              <select
+                value={barberFilter}
+                onChange={(e) => setBarberFilter(e.target.value)}
+                className={`w-full rounded-lg border px-3 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200 ${
+                  barberFilter 
+                    ? 'border-amber-500/50 bg-amber-500/10 text-white' 
+                    : 'border-white/20 bg-white/5 text-white'
+                }`}
+                style={{ colorScheme: 'dark' }}
+              >
+                <option value="" className="bg-gray-800 text-white">Todos os barbeiros</option>
+                {barbers.map((b) => (
+                  <option key={b.id} value={b.id} className="bg-gray-800 text-white">
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Forma de Pagamento */}
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <label className="text-white/80 text-sm font-medium">Barbeiro</label>
-              {barberFilter && (
+              <label className="text-white/80 text-sm font-medium">Pagamento</label>
+              {paymentFilter && (
                 <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
               )}
             </div>
             <select
-              value={barberFilter}
-              onChange={(e) => setBarberFilter(e.target.value)}
+              value={paymentFilter}
+              onChange={(e) => setPaymentFilter(e.target.value as any)}
               className={`w-full rounded-lg border px-3 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200 ${
-                barberFilter 
+                paymentFilter 
                   ? 'border-amber-500/50 bg-amber-500/10 text-white' 
                   : 'border-white/20 bg-white/5 text-white'
               }`}
               style={{ colorScheme: 'dark' }}
             >
-              <option value="" className="bg-gray-800 text-white">Todos os barbeiros</option>
-              {barbers.map((b) => (
-                <option key={b.id} value={b.id} className="bg-gray-800 text-white">
-                  {b.name}
-                </option>
-              ))}
+              <option value="" className="bg-gray-800 text-white">Todas as formas</option>
+              <option value="credit_card" className="bg-gray-800 text-white">Cartão de Crédito</option>
+              <option value="debit_card" className="bg-gray-800 text-white">Cartão de Débito</option>
+              <option value="cash" className="bg-gray-800 text-white">Dinheiro</option>
+              <option value="pix" className="bg-gray-800 text-white">PIX</option>
             </select>
           </div>
 
@@ -445,24 +647,38 @@ export default function BookingsList() {
             />
           </div>
 
+          {/* Apenas Hoje */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <label className="text-white/80 text-sm font-medium">Apenas Hoje</label>
+              {todayOnly && (
+                <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="todayOnly"
+                checked={todayOnly}
+                onChange={(e) => setTodayOnly(e.target.checked)}
+                className="w-4 h-4 text-amber-500 bg-white/5 border-white/20 rounded focus:ring-amber-500 focus:ring-2"
+              />
+              <label htmlFor="todayOnly" className="text-white/70 text-sm">
+                Mostrar apenas hoje
+              </label>
+            </div>
+          </div>
+
           {/* Ações */}
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 col-span-1 sm:col-span-2 lg:col-span-2">
             <label className="text-white/80 text-sm font-medium">Ações</label>
             <div className="flex gap-2">
               <button
-                onClick={fetchAll}
-                disabled={loading}
-                className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-lg hover:shadow-emerald-500/25"
-              >
-                <RotateCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                <span className="hidden sm:inline">Atualizar</span>
-              </button>
-              <button
                 onClick={clearFilters}
-                className="flex items-center justify-center gap-2 px-3 py-2.5 bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white rounded-lg transition-all duration-200 font-medium shadow-lg hover:shadow-rose-500/25"
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-lg transition-all duration-200 font-semibold shadow-lg hover:shadow-white/10"
               >
                 <X className="w-4 h-4" />
-                <span className="hidden sm:inline">Limpar</span>
+                Limpar Filtros
               </button>
             </div>
           </div>
@@ -518,6 +734,9 @@ export default function BookingsList() {
                     Preço
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
+                    Pagamento
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
                     Status
                   </th>
                 </tr>
@@ -558,6 +777,20 @@ export default function BookingsList() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <select
+                        value={r.payment_method || ""}
+                        onChange={(e) => updatePaymentMethod(r.id, e.target.value as PaymentMethod)}
+                        className="rounded-lg bg-white/5 border border-white/20 text-white px-3 py-1.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+                        style={{ colorScheme: 'dark' }}
+                      >
+                        <option value="" className="bg-gray-800 text-white">Selecionar</option>
+                        <option value="credit_card" className="bg-gray-800 text-white">Cartão de Crédito</option>
+                        <option value="debit_card" className="bg-gray-800 text-white">Cartão de Débito</option>
+                        <option value="cash" className="bg-gray-800 text-white">Dinheiro</option>
+                        <option value="pix" className="bg-gray-800 text-white">PIX</option>
+                      </select>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <select
                         value={r.status}
                         onChange={(e) => updateStatus(r.id, e.target.value as BookingStatus)}
                         className="rounded-lg bg-white/5 border border-white/20 text-white px-3 py-1.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
@@ -565,14 +798,16 @@ export default function BookingsList() {
                       >
                         <option value="pending" className="bg-gray-800 text-white">Pendente</option>
                         <option value="confirmed" className="bg-gray-800 text-white">Confirmado</option>
-                        <option value="canceled" className="bg-gray-800 text-white">Cancelado</option>
+                        {finalCanCancel && (
+                          <option value="canceled" className="bg-gray-800 text-white">Cancelado</option>
+                        )}
                       </select>
                     </td>
                   </tr>
                 ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center">
+                    <td colSpan={8} className="px-6 py-12 text-center">
                       <div className="flex flex-col items-center gap-3">
                         <Calendar className="w-12 h-12 text-white/30" />
                         <p className="text-white/60 text-lg">Nenhum agendamento encontrado</p>
@@ -638,7 +873,9 @@ export default function BookingsList() {
               >
                 <option value="pending" className="bg-gray-800 text-white">Pendente</option>
                 <option value="confirmed" className="bg-gray-800 text-white">Confirmado</option>
-                <option value="canceled" className="bg-gray-800 text-white">Cancelado</option>
+                {finalCanCancel && (
+                  <option value="canceled" className="bg-gray-800 text-white">Cancelado</option>
+                )}
               </select>
             </div>
 
@@ -678,6 +915,28 @@ export default function BookingsList() {
                 <div className="text-emerald-400 font-semibold">
                   {fmtPriceBR(b.price)}
                 </div>
+              </div>
+            </div>
+
+            {/* Forma de Pagamento Mobile */}
+            <div className="mt-4 pt-4 border-t border-white/10">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-white/50" />
+                  <span className="text-white/60 text-sm">Forma de Pagamento:</span>
+                </div>
+                <select
+                  value={b.payment_method || ""}
+                  onChange={(e) => updatePaymentMethod(b.id, e.target.value as PaymentMethod)}
+                  className="w-full rounded-lg bg-white/5 border border-white/20 text-white px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+                  style={{ colorScheme: 'dark' }}
+                >
+                  <option value="" className="bg-gray-800 text-white">Selecionar forma de pagamento</option>
+                  <option value="credit_card" className="bg-gray-800 text-white">Cartão de Crédito</option>
+                  <option value="debit_card" className="bg-gray-800 text-white">Cartão de Débito</option>
+                  <option value="cash" className="bg-gray-800 text-white">Dinheiro</option>
+                  <option value="pix" className="bg-gray-800 text-white">PIX</option>
+                </select>
               </div>
             </div>
           </div>
