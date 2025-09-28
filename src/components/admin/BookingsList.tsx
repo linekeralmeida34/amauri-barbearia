@@ -440,10 +440,10 @@ export default function BookingsList() {
     <div className="w-full space-y-6">
       {/* Header com Estatísticas */}
       <div className="bg-gradient-to-br from-slate-800/90 via-slate-900/95 to-black/90 backdrop-blur-sm border border-slate-600/40 rounded-2xl p-6 shadow-2xl">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-3xl font-bold text-white">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
+          <div className="flex-1">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-2">
+              <h1 className="text-2xl sm:text-3xl font-bold text-white">
                 {finalIsAdmin ? (
                   <>Painel de <span className="bg-gradient-to-r from-barbershop-gold to-amber-300 bg-clip-text text-transparent">Agendamentos</span></>
                 ) : (
@@ -451,14 +451,14 @@ export default function BookingsList() {
                 )}
               </h1>
               {hasActiveFilters && (
-                <div className="flex items-center gap-2 px-3 py-1 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 border border-cyan-400/30 rounded-full">
+                <div className="flex items-center gap-2 px-3 py-1 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 border border-cyan-400/30 rounded-full self-start">
                   <Filter className="w-4 h-4 text-cyan-400" />
                   <span className="text-cyan-400 text-sm font-medium">Filtros Ativos</span>
                 </div>
               )}
             </div>
             <div className="flex items-center justify-between">
-              <p className="text-white/70">
+              <p className="text-white/70 text-sm sm:text-base">
                 {hasActiveFilters 
                   ? `Mostrando ${filteredStats.total} de ${originalStats.total} agendamentos` 
                   : `Bem-vindo, ${barber?.name}! Gerencie seus agendamentos`
@@ -480,7 +480,7 @@ export default function BookingsList() {
         </div>
 
         {/* Cards de Estatísticas */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4">
           <StatsCard
             icon={Calendar}
             title="Total"
@@ -526,24 +526,27 @@ export default function BookingsList() {
           <h2 className="text-lg font-semibold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">Filtros</h2>
         </div>
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
           {/* Status */}
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <label className="text-white/80 text-sm font-medium">Status</label>
               {statusFilter && (
-                <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
+                <div className="w-2 h-2 bg-amber-400 rounded-full"></div>
               )}
             </div>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as any)}
-              className={`w-full rounded-lg border px-3 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200 ${
+              className={`w-full rounded-lg border px-3 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-transparent text-base ${
                 statusFilter 
                   ? 'border-amber-500/50 bg-amber-500/10 text-white' 
                   : 'border-white/20 bg-white/5 text-white'
               }`}
-              style={{ colorScheme: 'dark' }}
+              style={{ 
+                colorScheme: 'dark', 
+                fontSize: '16px'
+              }}
             >
               <option value="" className="bg-gray-800 text-white">Todos os status</option>
               <option value="pending" className="bg-gray-800 text-white">Pendente</option>
@@ -557,9 +560,9 @@ export default function BookingsList() {
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <label className="text-white/80 text-sm font-medium">Barbeiro</label>
-                {barberFilter && (
-                  <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
-                )}
+              {barberFilter && (
+                <div className="w-2 h-2 bg-amber-400 rounded-full"></div>
+              )}
               </div>
               <select
                 value={barberFilter}
@@ -569,7 +572,14 @@ export default function BookingsList() {
                     ? 'border-amber-500/50 bg-amber-500/10 text-white' 
                     : 'border-white/20 bg-white/5 text-white'
                 }`}
-                style={{ colorScheme: 'dark' }}
+                style={{ 
+                  colorScheme: 'dark',
+                  fontSize: '16px',
+                  transform: 'scale(1)',
+                  WebkitTextSizeAdjust: '100%',
+                  textSizeAdjust: '100%',
+                  minHeight: '44px'
+                }}
               >
                 <option value="" className="bg-gray-800 text-white">Todos os barbeiros</option>
                 {barbers.map((b) => (
@@ -586,18 +596,21 @@ export default function BookingsList() {
             <div className="flex items-center gap-2">
               <label className="text-white/80 text-sm font-medium">Pagamento</label>
               {paymentFilter && (
-                <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
+                <div className="w-2 h-2 bg-amber-400 rounded-full"></div>
               )}
             </div>
             <select
               value={paymentFilter}
               onChange={(e) => setPaymentFilter(e.target.value as any)}
-              className={`w-full rounded-lg border px-3 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200 ${
+              className={`w-full rounded-lg border px-3 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-transparent text-base ${
                 paymentFilter 
                   ? 'border-amber-500/50 bg-amber-500/10 text-white' 
                   : 'border-white/20 bg-white/5 text-white'
               }`}
-              style={{ colorScheme: 'dark' }}
+              style={{ 
+                colorScheme: 'dark', 
+                fontSize: '16px'
+              }}
             >
               <option value="" className="bg-gray-800 text-white">Todas as formas</option>
               <option value="credit_card" className="bg-gray-800 text-white">Cartão de Crédito</option>
@@ -612,18 +625,21 @@ export default function BookingsList() {
             <div className="flex items-center gap-2">
               <label className="text-white/80 text-sm font-medium">Data Inicial</label>
               {dateFrom && (
-                <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
+                <div className="w-2 h-2 bg-amber-400 rounded-full"></div>
               )}
             </div>
             <input
               type="date"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
-              className={`w-full rounded-lg border px-3 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200 ${
+              className={`w-full rounded-lg border px-3 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-transparent text-base ${
                 dateFrom 
                   ? 'border-amber-500/50 bg-amber-500/10 text-white' 
                   : 'border-white/20 bg-white/5 text-white'
               }`}
+              style={{ 
+                fontSize: '16px'
+              }}
             />
           </div>
 
@@ -632,18 +648,21 @@ export default function BookingsList() {
             <div className="flex items-center gap-2">
               <label className="text-white/80 text-sm font-medium">Data Final</label>
               {dateTo && (
-                <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
+                <div className="w-2 h-2 bg-amber-400 rounded-full"></div>
               )}
             </div>
             <input
               type="date"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
-              className={`w-full rounded-lg border px-3 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200 ${
+              className={`w-full rounded-lg border px-3 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-transparent text-base ${
                 dateTo 
                   ? 'border-amber-500/50 bg-amber-500/10 text-white' 
                   : 'border-white/20 bg-white/5 text-white'
               }`}
+              style={{ 
+                fontSize: '16px'
+              }}
             />
           </div>
 
@@ -652,7 +671,7 @@ export default function BookingsList() {
             <div className="flex items-center gap-2">
               <label className="text-white/80 text-sm font-medium">Apenas Hoje</label>
               {todayOnly && (
-                <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
+                <div className="w-2 h-2 bg-amber-400 rounded-full"></div>
               )}
             </div>
             <div className="flex items-center gap-2">
@@ -675,10 +694,11 @@ export default function BookingsList() {
             <div className="flex gap-2">
               <button
                 onClick={clearFilters}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-lg transition-all duration-200 font-semibold shadow-lg hover:shadow-white/10"
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-lg transition-all duration-200 font-semibold shadow-lg hover:shadow-white/10 text-sm"
               >
                 <X className="w-4 h-4" />
-                Limpar Filtros
+                <span className="hidden sm:inline">Limpar Filtros</span>
+                <span className="sm:hidden">Limpar</span>
               </button>
             </div>
           </div>
@@ -780,7 +800,10 @@ export default function BookingsList() {
                         value={r.payment_method || ""}
                         onChange={(e) => updatePaymentMethod(r.id, e.target.value as PaymentMethod)}
                         className="rounded-lg bg-white/5 border border-white/20 text-white px-3 py-1.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
-                        style={{ colorScheme: 'dark' }}
+                        style={{ 
+                          colorScheme: 'dark',
+                          fontSize: '16px'
+                        }}
                       >
                         <option value="" className="bg-gray-800 text-white">Selecionar</option>
                         <option value="credit_card" className="bg-gray-800 text-white">Cartão de Crédito</option>
@@ -794,7 +817,10 @@ export default function BookingsList() {
                         value={r.status}
                         onChange={(e) => updateStatus(r.id, e.target.value as BookingStatus)}
                         className="rounded-lg bg-white/5 border border-white/20 text-white px-3 py-1.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
-                        style={{ colorScheme: 'dark' }}
+                        style={{ 
+                          colorScheme: 'dark',
+                          fontSize: '16px'
+                        }}
                       >
                         <option value="pending" className="bg-gray-800 text-white">Pendente</option>
                         <option value="confirmed" className="bg-gray-800 text-white">Confirmado</option>
@@ -869,7 +895,14 @@ export default function BookingsList() {
                 value={b.status}
                 onChange={(e) => updateStatus(b.id, e.target.value as BookingStatus)}
                 className="rounded-lg bg-white/5 border border-white/20 text-white px-3 py-1.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
-                style={{ colorScheme: 'dark' }}
+                style={{ 
+                  colorScheme: 'dark',
+                  fontSize: '16px',
+                  transform: 'scale(1)',
+                  WebkitTextSizeAdjust: '100%',
+                  textSizeAdjust: '100%',
+                  minHeight: '44px'
+                }}
               >
                 <option value="pending" className="bg-gray-800 text-white">Pendente</option>
                 <option value="confirmed" className="bg-gray-800 text-white">Confirmado</option>
@@ -929,7 +962,14 @@ export default function BookingsList() {
                   value={b.payment_method || ""}
                   onChange={(e) => updatePaymentMethod(b.id, e.target.value as PaymentMethod)}
                   className="w-full rounded-lg bg-white/5 border border-white/20 text-white px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
-                  style={{ colorScheme: 'dark' }}
+                  style={{ 
+                    colorScheme: 'dark',
+                    fontSize: '16px',
+                    transform: 'scale(1)',
+                    WebkitTextSizeAdjust: '100%',
+                    textSizeAdjust: '100%',
+                    minHeight: '44px'
+                  }}
                 >
                   <option value="" className="bg-gray-800 text-white">Selecionar forma de pagamento</option>
                   <option value="credit_card" className="bg-gray-800 text-white">Cartão de Crédito</option>

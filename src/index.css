@@ -142,3 +142,50 @@ section[id] { scroll-margin-top: 96px; } /* ajuste 96px se seu header tiver outr
 
 /* rolagem suave (se ainda não tiver) */
 html{ scroll-behavior:smooth; }
+
+/* ---- Prevenção de zoom automático no mobile ---- */
+/* Força o tamanho da fonte para 16px em elementos de input/select no mobile */
+@media screen and (max-width: 768px) {
+  select, input, textarea {
+    font-size: 16px !important;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    transform: scale(1);
+    -webkit-transform: scale(1);
+  }
+  
+  /* Previne zoom ao focar em elementos de formulário */
+  input:focus, select:focus, textarea:focus {
+    font-size: 16px !important;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    transform: scale(1);
+    -webkit-transform: scale(1);
+  }
+  
+  /* Garante que o viewport não seja alterado */
+  body {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  /* Previne zoom em double-tap */
+  * {
+    touch-action: manipulation;
+  }
+  
+  /* Melhora responsividade do header no mobile */
+  .flex-col.sm\\:flex-row {
+    flex-direction: column;
+  }
+  
+  .flex-col.sm\\:flex-row > div {
+    width: 100%;
+  }
+  
+  /* Garante que o botão Filtros Ativos não quebre o layout */
+  .self-start {
+    align-self: flex-start;
+    flex-shrink: 0;
+  }
+}
