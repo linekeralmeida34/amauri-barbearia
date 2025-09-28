@@ -15,7 +15,9 @@ import {
   CreditCard,
   Banknote,
   Smartphone,
-  DollarSign
+  DollarSign,
+  Shield,
+  Lock
 } from "lucide-react";
 
 /** ---------- Tipos ---------- */
@@ -30,6 +32,7 @@ type BookingRow = {
   phone: string | null;
   price: number | null;
   payment_method: PaymentMethod;
+  canceled_by_admin: boolean;
   services?: { name: string | null } | null;
   barbers?: { name: string | null; id?: string } | null;
 };
@@ -82,32 +85,50 @@ function fmtPaymentMethod(method: PaymentMethod): string {
 }
 
 /** ---------- Componente de Status Badge ---------- */
-function StatusBadge({ status }: { status: BookingStatus }) {
+function StatusBadge({ status, canceledByAdmin = false }: { status: BookingStatus; canceledByAdmin?: boolean }) {
   const config = {
     pending: { 
       icon: AlertTriangle, 
       color: "bg-amber-100 text-amber-800 border-amber-200", 
-      label: "Pendente" 
+      label: "Pendente",
+      pulse: "animate-pulse"
     },
     confirmed: { 
       icon: CheckCircle, 
       color: "bg-green-100 text-green-800 border-green-200", 
-      label: "Confirmado" 
+      label: "Confirmado",
+      pulse: "animate-pulse"
     },
     canceled: { 
       icon: XCircle, 
-      color: "bg-red-100 text-red-800 border-red-200", 
-      label: "Cancelado" 
+      color: canceledByAdmin 
+        ? "bg-red-200 text-red-900 border-red-300 shadow-lg" 
+        : "bg-red-100 text-red-800 border-red-200", 
+      label: canceledByAdmin ? "Cancelado (Admin)" : "Cancelado",
+      pulse: canceledByAdmin ? "animate-bounce" : ""
     }
   };
 
-  const { icon: Icon, color, label } = config[status];
+  const { icon: Icon, color, label, pulse } = config[status];
 
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${color}`}>
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${color} ${pulse}`}>
       <Icon className="w-3 h-3" />
       {label}
     </span>
+  );
+}
+
+/** ---------- Componente de Informação de Cancelamento pelo Admin ---------- */
+function AdminCancelInfo({ canceledByAdmin }: { canceledByAdmin: boolean }) {
+  if (!canceledByAdmin) return null;
+  
+  return (
+    <div className="flex items-center gap-2 px-3 py-2 bg-red-900/30 border border-red-500/50 rounded-lg">
+      <Shield className="w-4 h-4 text-red-400" />
+      <span className="text-red-300 text-sm font-medium">Cancelado pelo Administrador</span>
+      <Lock className="w-3 h-3 text-red-400" />
+    </div>
   );
 }
 
@@ -268,6 +289,7 @@ export default function BookingsList() {
           phone,
           price,
           payment_method,
+          canceled_by_admin,
           services ( name ),
           barbers ( id, name )
         `
@@ -285,6 +307,7 @@ export default function BookingsList() {
         throw error;
       }
       
+      
       setRows((data ?? []) as BookingRow[]);
     } finally {
       setLoading(false);
@@ -293,15 +316,36 @@ export default function BookingsList() {
 
   /** --------- update de status --------- */
   async function updateStatus(id: string, newStatus: BookingStatus) {
+    // Buscar o agendamento atual para verificar se foi cancelado pelo admin
+    const currentBooking = rows.find(r => r.id === id);
+    
     // Verificar se pode cancelar (apenas admin)
     if (newStatus === "canceled" && !finalCanCancel) {
       alert("Apenas o administrador pode cancelar agendamentos.");
       return;
     }
 
-    const { error } = await supabase.from("bookings").update({ status: newStatus }).eq("id", id);
+    // Verificar se o agendamento foi cancelado pelo admin e não permitir alteração por barbeiros
+    if (currentBooking?.canceled_by_admin && !finalIsAdmin) {
+      alert("Este agendamento foi cancelado pelo administrador e não pode ser alterado.");
+      return;
+    }
+
+    // Preparar dados para atualização
+    const updateData: any = { status: newStatus };
+    
+    // Se for admin cancelando, marcar como cancelado pelo admin
+    if (newStatus === "canceled" && finalIsAdmin) {
+      updateData.canceled_by_admin = true;
+    }
+    // Se for admin alterando para outro status, desmarcar canceled_by_admin
+    else if (finalIsAdmin && newStatus !== "canceled") {
+      updateData.canceled_by_admin = false;
+    }
+
+    const { error } = await supabase.from("bookings").update(updateData).eq("id", id);
     if (!error) {
-      setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status: newStatus } : r)));
+      setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...updateData } : r)));
     }
   }
 
@@ -519,13 +563,6 @@ export default function BookingsList() {
             color="text-emerald-400"
           />
           <StatsCard
-            icon={XCircle}
-            title="Cancelados"
-            value={hasActiveFilters ? filteredStats.canceled : originalStats.canceled}
-            subtitle="cancelados"
-            color="text-rose-400"
-          />
-          <StatsCard
             icon={Clock}
             title="Hoje"
             value={hasActiveFilters ? filteredStats.todayBookings : originalStats.todayBookings}
@@ -538,6 +575,13 @@ export default function BookingsList() {
             value={fmtPriceBR(hasActiveFilters ? filteredStats.totalRevenue : originalStats.totalRevenue)}
             subtitle={hasActiveFilters ? "filtrada" : "total"}
             color="text-emerald-400"
+          />
+          <StatsCard
+            icon={XCircle}
+            title="Cancelados"
+            value={hasActiveFilters ? filteredStats.canceled : originalStats.canceled}
+            subtitle="cancelados"
+            color="text-red-400"
           />
         </div>
       </div>
@@ -785,12 +829,31 @@ export default function BookingsList() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/10">
-                {filtered.map((r, index) => (
-                  <tr 
-                    key={r.id} 
-                    className="hover:bg-white/5 transition-all duration-200 group"
-                    style={{ animationDelay: `${index * 50}ms` }}
-                  >
+                {filtered.map((r, index) => {
+                  // Definir classes baseadas no status
+                  const getRowClasses = () => {
+                    const baseClasses = "hover:bg-white/5 transition-all duration-200 group";
+                    
+                    // Se foi cancelado pelo admin, sempre mostrar como cancelado
+                    if (r.canceled_by_admin) {
+                      return `${baseClasses} bg-gradient-to-r from-red-900/30 to-rose-900/30 border-l-4 border-red-500 opacity-75`;
+                    } else if (r.status === "confirmed") {
+                      return `${baseClasses} bg-gradient-to-r from-green-900/20 to-emerald-900/20 border-l-4 border-green-500`;
+                    } else if (r.status === "canceled") {
+                      return `${baseClasses} bg-gradient-to-r from-red-900/20 to-rose-900/20 border-l-4 border-red-400`;
+                    } else if (r.status === "pending") {
+                      return `${baseClasses} bg-gradient-to-r from-amber-900/20 to-yellow-900/20 border-l-4 border-amber-500`;
+                    }
+                    
+                    return baseClasses;
+                  };
+
+                  return (
+                    <tr 
+                      key={r.id} 
+                      className={getRowClasses()}
+                      style={{ animationDelay: `${index * 50}ms` }}
+                    >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-white font-medium">
                         {fmtDateTimeBR(r.starts_at)}
@@ -836,24 +899,32 @@ export default function BookingsList() {
                       </select>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <select
-                        value={r.status}
-                        onChange={(e) => updateStatus(r.id, e.target.value as BookingStatus)}
-                        className="rounded-lg bg-white/5 border border-white/20 text-white px-3 py-1.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
-                        style={{ 
-                          colorScheme: 'dark',
-                          fontSize: '16px'
-                        }}
-                      >
-                        <option value="pending" className="bg-gray-800 text-white">Pendente</option>
-                        <option value="confirmed" className="bg-gray-800 text-white">Confirmado</option>
-                        {finalCanCancel && (
-                          <option value="canceled" className="bg-gray-800 text-white">Cancelado</option>
-                        )}
-                      </select>
+                      {r.status === "canceled" && !finalIsAdmin ? (
+                        <div className="flex items-center gap-2">
+                          <StatusBadge status="canceled" canceledByAdmin={r.canceled_by_admin} />
+                          <span className="text-xs text-red-400">(Bloqueado pelo Admin)</span>
+                        </div>
+                      ) : (
+                        <select
+                          value={r.status}
+                          onChange={(e) => updateStatus(r.id, e.target.value as BookingStatus)}
+                          className="rounded-lg bg-white/5 border border-white/20 text-white px-3 py-1.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+                          style={{ 
+                            colorScheme: 'dark',
+                            fontSize: '16px'
+                          }}
+                        >
+                          <option value="pending" className="bg-gray-800 text-white">Pendente</option>
+                          <option value="confirmed" className="bg-gray-800 text-white">Confirmado</option>
+                          {finalCanCancel && (
+                            <option value="canceled" className="bg-gray-800 text-white">Cancelado</option>
+                          )}
+                        </select>
+                      )}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
                 {filtered.length === 0 && (
                   <tr>
                     <td colSpan={8} className="px-6 py-12 text-center">
@@ -896,12 +967,31 @@ export default function BookingsList() {
             )}
           </div>
         </div>
-        {filtered.map((b, index) => (
-          <div 
-            key={b.id} 
-            className="bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-sm border border-slate-700/50 rounded-xl p-5 hover:from-slate-700/40 hover:to-slate-800/40 transition-all duration-200 shadow-lg hover:shadow-xl"
-            style={{ animationDelay: `${index * 100}ms` }}
-          >
+        {filtered.map((b, index) => {
+          // Definir classes baseadas no status para mobile
+          const getCardClasses = () => {
+            const baseClasses = "backdrop-blur-sm border rounded-xl p-5 transition-all duration-200 shadow-lg hover:shadow-xl";
+            
+            // Se foi cancelado pelo admin, sempre mostrar como cancelado
+            if (b.canceled_by_admin) {
+              return `${baseClasses} bg-gradient-to-br from-red-900/50 to-rose-900/50 border-red-500/50 hover:from-red-800/50 hover:to-rose-800/50 opacity-75`;
+            } else if (b.status === "confirmed") {
+              return `${baseClasses} bg-gradient-to-br from-green-900/40 to-emerald-900/40 border-green-500/50 hover:from-green-800/40 hover:to-emerald-800/40`;
+            } else if (b.status === "canceled") {
+              return `${baseClasses} bg-gradient-to-br from-red-900/40 to-rose-900/40 border-red-400/50 hover:from-red-800/40 hover:to-rose-800/40`;
+            } else if (b.status === "pending") {
+              return `${baseClasses} bg-gradient-to-br from-amber-900/40 to-yellow-900/40 border-amber-500/50 hover:from-amber-800/40 hover:to-yellow-800/40`;
+            }
+            
+            return `${baseClasses} bg-gradient-to-br from-slate-800/40 to-slate-900/40 border-slate-700/50 hover:from-slate-700/40 hover:to-slate-800/40`;
+          };
+
+          return (
+            <div 
+              key={b.id} 
+              className={getCardClasses()}
+              style={{ animationDelay: `${index * 100}ms` }}
+            >
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
@@ -914,26 +1004,36 @@ export default function BookingsList() {
                   {b.customer_name ?? "Cliente não informado"}
                 </div>
               </div>
-              <select
-                value={b.status}
-                onChange={(e) => updateStatus(b.id, e.target.value as BookingStatus)}
-                className="rounded-lg bg-white/5 border border-white/20 text-white px-3 py-1.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
-                style={{ 
-                  colorScheme: 'dark',
-                  fontSize: '16px',
-                  transform: 'scale(1)',
-                  WebkitTextSizeAdjust: '100%',
-                  textSizeAdjust: '100%',
-                  minHeight: '44px'
-                }}
-              >
-                <option value="pending" className="bg-gray-800 text-white">Pendente</option>
-                <option value="confirmed" className="bg-gray-800 text-white">Confirmado</option>
-                {finalCanCancel && (
-                  <option value="canceled" className="bg-gray-800 text-white">Cancelado</option>
-                )}
-              </select>
+              {b.status === "canceled" && !finalIsAdmin ? (
+                <div className="flex flex-col items-end gap-1">
+                  <StatusBadge status="canceled" canceledByAdmin={b.canceled_by_admin} />
+                  <span className="text-xs text-red-400">(Bloqueado pelo Admin)</span>
+                </div>
+              ) : (
+                <select
+                  value={b.status}
+                  onChange={(e) => updateStatus(b.id, e.target.value as BookingStatus)}
+                  className="rounded-lg bg-white/5 border border-white/20 text-white px-3 py-1.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+                  style={{ 
+                    colorScheme: 'dark',
+                    fontSize: '16px',
+                    transform: 'scale(1)',
+                    WebkitTextSizeAdjust: '100%',
+                    textSizeAdjust: '100%',
+                    minHeight: '44px'
+                  }}
+                >
+                  <option value="pending" className="bg-gray-800 text-white">Pendente</option>
+                  <option value="confirmed" className="bg-gray-800 text-white">Confirmado</option>
+                  {finalCanCancel && (
+                    <option value="canceled" className="bg-gray-800 text-white">Cancelado</option>
+                  )}
+                </select>
+              )}
             </div>
+
+            {/* Informação de cancelamento pelo admin */}
+            <AdminCancelInfo canceledByAdmin={b.canceled_by_admin} />
 
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div className="space-y-2">
@@ -1003,7 +1103,8 @@ export default function BookingsList() {
               </div>
             </div>
           </div>
-        ))}
+          );
+        })}
 
         {filtered.length === 0 && (
           <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-8 text-center">
