@@ -13,6 +13,7 @@ export type Service = {
   category: string | null;
   popular: boolean;
   is_active: boolean;
+  deleted_at: string | null;
 };
 
 export type Barber = {
@@ -25,6 +26,7 @@ export type Barber = {
   is_active: boolean;
   instagram?: string | null;
   specialties?: string[] | null;
+  deleted_at: string | null;
 };
 
 export type PaymentMethod = "credit_card" | "debit_card" | "cash" | "pix";
@@ -35,8 +37,9 @@ export type PaymentMethod = "credit_card" | "debit_card" | "cash" | "pix";
 export async function fetchActiveServices(): Promise<Service[]> {
   const { data, error } = await supabase
     .from("services")
-    .select("id,name,description,duration_min,price,category,popular,is_active")
+    .select("id,name,description,duration_min,price,category,popular,is_active,deleted_at")
     .eq("is_active", true)
+    .is("deleted_at", null)
     .order("name", { ascending: true });
 
   if (error) throw error;
@@ -50,6 +53,7 @@ export async function fetchActiveServices(): Promise<Service[]> {
     category: s.category ?? null,
     popular: !!s.popular,
     is_active: !!s.is_active,
+    deleted_at: s.deleted_at ?? null,
   })) as Service[];
 }
 
@@ -60,9 +64,10 @@ export async function fetchActiveBarbers(): Promise<Barber[]> {
   const { data, error } = await supabase
     .from("barbers")
     .select(
-      "id,name,photo_url,bio,rating,reviews,is_active,instagram,specialties"
+      "id,name,photo_url,bio,rating,reviews,is_active,instagram,specialties,deleted_at"
     )
     .eq("is_active", true)
+    .is("deleted_at", null)
     .order("name", { ascending: true });
 
   if (error) throw error;
@@ -77,6 +82,7 @@ export async function fetchActiveBarbers(): Promise<Barber[]> {
     is_active: !!b.is_active,
     instagram: b.instagram ?? null,
     specialties: Array.isArray(b.specialties) ? b.specialties : null,
+    deleted_at: b.deleted_at ?? null,
   })) as Barber[];
 }
 

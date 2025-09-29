@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Clock, Scissors, Sparkles, Star } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Clock, Scissors, Sparkles, Star, Search } from "lucide-react";
 import { Link } from "react-router-dom"; // << novo
 import { supabase } from "@/lib/supabase"; // << novo
 
@@ -85,14 +86,17 @@ type LocalService = typeof services[number];
 export const ServicesSection = () => {
   // dados vindos do banco (se nulo, usa o array original sem mudar layout)
   const [dbServices, setDbServices] = useState<LocalService[] | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filteredServices, setFilteredServices] = useState<LocalService[]>([]);
 
   // carrega do Supabase e mapeia pro MESMO shape do array original
   useEffect(() => {
     (async () => {
       const { data, error } = await supabase
         .from("services")
-        .select("id,name,description,duration_min,price,category,popular,is_active")
+        .select("id,name,description,duration_min,price,category,popular,is_active,deleted_at")
         .eq("is_active", true)
+        .is("deleted_at", null)
         .order("name", { ascending: true });
 
       if (!error && data) {
@@ -107,13 +111,31 @@ export const ServicesSection = () => {
           icon: pickIcon(s.name, s.category) // mantém o mesmo padrão visual
         }));
         // se vier vazio, mantém seus 6; se vier banco, usa só banco
-        setDbServices(mapped.length ? mapped : services);
+        const servicesList = mapped.length ? mapped : services;
+        setDbServices(servicesList);
+        setFilteredServices(servicesList);
       }
     })();
   }, []);
 
+  // Função de filtro
+  const filterServices = (term: string) => {
+    if (!term.trim()) {
+      setFilteredServices(dbServices ?? services);
+      return;
+    }
+
+    const list = dbServices ?? services;
+    const filtered = list.filter((service) =>
+      service.name.toLowerCase().includes(term.toLowerCase()) ||
+      service.description.toLowerCase().includes(term.toLowerCase()) ||
+      service.category.toLowerCase().includes(term.toLowerCase())
+    );
+    setFilteredServices(filtered);
+  };
+
   // a lista que o JSX renderiza (NÃO muda layout/markup/classes)
-  const list = dbServices ?? services;
+  const list = filteredServices;
 
   return (
     <section className="py-20 bg-barbershop-cream">
@@ -122,14 +144,42 @@ export const ServicesSection = () => {
           <h2 className="text-4xl lg:text-5xl font-bold text-barbershop-dark mb-4">
             Nossos Serviços
           </h2>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
             Oferecemos uma gama completa de serviços para o homem moderno, 
             sempre com a qualidade e atenção aos detalhes que você merece.
           </p>
+          
+          {/* Search Input */}
+          <div className="max-w-md mx-auto">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-barbershop-brown/60 w-4 h-4" />
+              <Input
+                type="text"
+                placeholder="Pesquisar serviços..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  filterServices(e.target.value);
+                }}
+                className="pl-10 bg-white border-barbershop-brown/20 text-barbershop-dark placeholder:text-barbershop-brown/60 focus:border-barbershop-gold focus:ring-barbershop-gold/20"
+              />
+            </div>
+          </div>
         </div>
         
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {list.map((service) => {
+        {list.length === 0 ? (
+          <div className="text-center py-12">
+            <Search className="w-16 h-16 text-barbershop-brown/30 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-barbershop-dark mb-2">
+              Nenhum serviço encontrado
+            </h3>
+            <p className="text-barbershop-brown/70">
+              Tente pesquisar com outros termos
+            </p>
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {list.map((service) => {
             const IconComponent = service.icon;
             return (
               <Card
@@ -186,7 +236,8 @@ export const ServicesSection = () => {
               </Card>
             );
           })}
-        </div>
+          </div>
+        )}
       </div>
     </section>
   );

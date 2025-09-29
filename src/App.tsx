@@ -24,8 +24,9 @@ import { BookingFlow } from "@/components/BookingFlow";
 import AdminLogin from "./routes/AdminLogin";
 import AdminGuard from "./routes/AdminGuard"; // ← Deve renderizar <Outlet />
 import AdminBarbers from "./routes/AdminBarbers";
+import AdminServices from "./routes/AdminServices";
 import BarberLogin from "./routes/BarberLogin";
-import { Users } from "lucide-react";
+import { Users, Scissors } from "lucide-react";
 import { useBarberAuth } from "@/hooks/useBarberAuth";
 
 
@@ -122,21 +123,35 @@ function AdminPanelPlaceholder() {
               <span className="text-barbershop-gold">Barbearia</span>
             </a>
 
-            <div className="flex items-center gap-2">
-              {/* Botão: Barbeiros - apenas para admin */}
+            <div className="flex items-center gap-1 sm:gap-2">
+              {/* Botões de navegação - apenas para admin */}
               {finalIsAdmin && (
-                <Button
-                  asChild
-                  className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark"
-                >
-                  <Link to="/admin/barbeiros" aria-label="Gerenciar barbeiros">
-                    <Users className="h-4 w-4 mr-2" />
-                    Barbeiros
-                  </Link>
-                </Button>
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <Button
+                    asChild
+                    size="sm"
+                    className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark text-xs sm:text-sm px-2 sm:px-3"
+                  >
+                    <Link to="/admin/barbeiros" aria-label="Gerenciar barbeiros">
+                      <Users className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Barbeiros</span>
+                    </Link>
+                  </Button>
+
+                  <Button
+                    asChild
+                    size="sm"
+                    className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark text-xs sm:text-sm px-2 sm:px-3"
+                  >
+                    <Link to="/admin/servicos" aria-label="Gerenciar serviços">
+                      <Scissors className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Serviços</span>
+                    </Link>
+                  </Button>
+                </div>
               )}
 
-              <span className="hidden sm:inline text-white/70 text-sm">
+              <span className="hidden lg:inline text-white/70 text-sm">
                 {finalIsAdmin ? "Painel Administrativo" : `Painel - ${barber?.name}`}
               </span>
 
@@ -146,7 +161,7 @@ function AdminPanelPlaceholder() {
                 className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark"
                 size="sm"
               >
-                Sair
+                <span className="text-xs sm:text-sm">Sair</span>
               </Button>
             </div>
           </div>
@@ -202,6 +217,7 @@ export default function App() {
             <Route element={<AdminGuard />}>
               <Route path="/admin" element={<AdminPanelPlaceholder />} />
               <Route path="/admin/barbeiros" element={<AdminBarbers />} />
+              <Route path="/admin/servicos" element={<AdminServices />} />
             </Route>
 
             {/* 404 */}

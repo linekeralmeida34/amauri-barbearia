@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Clock, ArrowLeft, ArrowRight, Check } from "lucide-react";
+import { Clock, ArrowLeft, ArrowRight, Check, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -93,6 +93,10 @@ export const BookingFlow = () => {
   const [services, setServices] = useState<LocalService[]>(
     fallbackServices as LocalService[]
   );
+  const [filteredServices, setFilteredServices] = useState<LocalService[]>(
+    fallbackServices as LocalService[]
+  );
+  const [serviceSearchTerm, setServiceSearchTerm] = useState("");
   const [barbers, setBarbers] = useState<LocalBarber[]>(fallbackBarbers);
 
   // Seleções do usuário
@@ -123,21 +127,34 @@ export const BookingFlow = () => {
 
   const [searchParams, setSearchParams] = useSearchParams();
 
+  // Função de filtro de serviços
+  const filterServices = (term: string) => {
+    if (!term.trim()) {
+      setFilteredServices(services);
+      return;
+    }
+
+    const filtered = services.filter((service) =>
+      service.name.toLowerCase().includes(term.toLowerCase())
+    );
+    setFilteredServices(filtered);
+  };
+
   // Carrega do Supabase
   useEffect(() => {
     (async () => {
       try {
         const dbServices = await fetchActiveServices();
         if (dbServices.length > 0) {
-          setServices(
-            dbServices.map((s: any) => ({
-              id: s.id,
-              name: s.name,
-              duration: s.duration_min,
-              price: s.price,
-              popular: s.popular,
-            }))
-          );
+          const mappedServices = dbServices.map((s: any) => ({
+            id: s.id,
+            name: s.name,
+            duration: s.duration_min,
+            price: s.price,
+            popular: s.popular,
+          }));
+          setServices(mappedServices);
+          setFilteredServices(mappedServices);
         }
       } catch (error) {
         console.error("Erro ao carregar serviços do banco:", error);
@@ -161,6 +178,11 @@ export const BookingFlow = () => {
       }
     })();
   }, []);
+
+  // Sincroniza filteredServices quando services mudar
+  useEffect(() => {
+    setFilteredServices(services);
+  }, [services]);
 
   // Pré-seleção via query (?servico=<id>) e pular para barbeiro
   useEffect(() => {
@@ -372,8 +394,37 @@ export const BookingFlow = () => {
             <h3 className="font-bold text-barbershop-dark mb-6 text-2xl">
               Escolha seu serviço
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-              {services.map((service) => (
+            
+            {/* Search Input */}
+            <div className="mb-6">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-barbershop-brown/60 w-4 h-4" />
+                <Input
+                  type="text"
+                  placeholder="Pesquisar serviços..."
+                  value={serviceSearchTerm}
+                  onChange={(e) => {
+                    setServiceSearchTerm(e.target.value);
+                    filterServices(e.target.value);
+                  }}
+                  className="pl-10 bg-white border-barbershop-brown/20 text-barbershop-dark placeholder:text-barbershop-brown/60 focus:border-barbershop-gold focus:ring-barbershop-gold/20"
+                />
+              </div>
+            </div>
+
+            {filteredServices.length === 0 ? (
+              <div className="text-center py-12">
+                <Search className="w-16 h-16 text-barbershop-brown/30 mx-auto mb-4" />
+                <h4 className="text-lg font-semibold text-barbershop-dark mb-2">
+                  Nenhum serviço encontrado
+                </h4>
+                <p className="text-barbershop-brown/70">
+                  Tente pesquisar com outros termos
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                {filteredServices.map((service) => (
                 <Card
                   key={String(service.id)}
                   className={`cursor-pointer transition-all hover:shadow-md ${
@@ -408,7 +459,8 @@ export const BookingFlow = () => {
                   </CardContent>
                 </Card>
               ))}
-            </div>
+              </div>
+            )}
           </div>
         );
 

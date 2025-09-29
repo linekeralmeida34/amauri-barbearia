@@ -26,6 +26,7 @@ type BarberRow = {
   instagram: string | null;
   specialties: string[] | null;
   is_active: boolean;
+  deleted_at: string | null;
 };
 
 type NewBarber = {
@@ -41,6 +42,8 @@ export default function AdminBarbers() {
   const [rows, setRows] = useState<BarberRow[]>([]);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [barberToDelete, setBarberToDelete] = useState<BarberRow | null>(null);
   const [newBarber, setNewBarber] = useState<NewBarber>({
     name: "",
     photo_url: "",
@@ -49,13 +52,15 @@ export default function AdminBarbers() {
     specialties: []
   });
   const [addingBarber, setAddingBarber] = useState(false);
+  const [deletingBarber, setDeletingBarber] = useState(false);
 
   async function load() {
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from("barbers")
-        .select("id,name,photo_url,bio,rating,reviews,instagram,specialties,is_active")
+        .select("id,name,photo_url,bio,rating,reviews,instagram,specialties,is_active,deleted_at")
+        .is("deleted_at", null)
         .order("name", { ascending: true });
 
       if (error) throw error;
@@ -136,6 +141,32 @@ export default function AdminBarbers() {
     } finally {
       setAddingBarber(false);
     }
+  }
+
+  async function deleteBarber(barber: BarberRow) {
+    setDeletingBarber(true);
+    try {
+      const { error } = await supabase
+        .from("barbers")
+        .update({ deleted_at: new Date().toISOString() })
+        .eq("id", barber.id);
+
+      if (error) throw error;
+
+      // Remove o barbeiro da lista local
+      setRows((prev) => prev.filter((b) => b.id !== barber.id));
+      setShowDeleteModal(false);
+      setBarberToDelete(null);
+    } catch (err) {
+      console.error("[AdminBarbers] deleteBarber error:", err);
+    } finally {
+      setDeletingBarber(false);
+    }
+  }
+
+  function handleDeleteClick(barber: BarberRow) {
+    setBarberToDelete(barber);
+    setShowDeleteModal(true);
   }
 
   // Estatísticas calculadas
@@ -366,20 +397,29 @@ export default function AdminBarbers() {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <button
-                            disabled={savingId === b.id}
-                            onClick={() => toggleActive(b)}
-                            className={`relative inline-flex h-6 w-12 items-center rounded-full transition-all duration-200 ${
-                              b.is_active ? "bg-amber-500" : "bg-white/20"
-                            } ${savingId === b.id ? "opacity-60" : "hover:scale-105"}`}
-                            aria-label="Alternar status"
-                          >
-                            <span
-                              className={`inline-block h-5 w-5 transform rounded-full bg-white transition-all duration-200 ${
-                                b.is_active ? "translate-x-6" : "translate-x-1"
-                              }`}
-                            />
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              disabled={savingId === b.id}
+                              onClick={() => toggleActive(b)}
+                              className={`relative inline-flex h-6 w-12 items-center rounded-full transition-all duration-200 ${
+                                b.is_active ? "bg-amber-500" : "bg-white/20"
+                              } ${savingId === b.id ? "opacity-60" : "hover:scale-105"}`}
+                              aria-label="Alternar status"
+                            >
+                              <span
+                                className={`inline-block h-5 w-5 transform rounded-full bg-white transition-all duration-200 ${
+                                  b.is_active ? "translate-x-6" : "translate-x-1"
+                                }`}
+                              />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteClick(b)}
+                              className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded-md transition-colors"
+                              aria-label="Excluir barbeiro"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -461,20 +501,29 @@ export default function AdminBarbers() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-white/60">Status:</span>
-                  <button
-                    disabled={savingId === b.id}
-                    onClick={() => toggleActive(b)}
-                    className={`relative inline-flex h-6 w-12 items-center rounded-full transition-all duration-200 ${
-                      b.is_active ? "bg-amber-500" : "bg-white/20"
-                    } ${savingId === b.id ? "opacity-60" : ""}`}
-                    aria-label="Alternar status"
-                  >
-                    <span
-                      className={`inline-block h-5 w-5 transform rounded-full bg-white transition-all duration-200 ${
-                        b.is_active ? "translate-x-6" : "translate-x-1"
-                      }`}
-                    />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      disabled={savingId === b.id}
+                      onClick={() => toggleActive(b)}
+                      className={`relative inline-flex h-6 w-12 items-center rounded-full transition-all duration-200 ${
+                        b.is_active ? "bg-amber-500" : "bg-white/20"
+                      } ${savingId === b.id ? "opacity-60" : ""}`}
+                      aria-label="Alternar status"
+                    >
+                      <span
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-all duration-200 ${
+                          b.is_active ? "translate-x-6" : "translate-x-1"
+                        }`}
+                      />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteClick(b)}
+                      className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded-md transition-colors"
+                      aria-label="Excluir barbeiro"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -500,6 +549,49 @@ export default function AdminBarbers() {
           </div>
         </main>
       </div>
+
+      {/* Modal de Exclusão */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-sm border border-red-500/30 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-red-400 text-xl font-bold">Confirmar Exclusão</h3>
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="text-white/60 hover:text-white transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="mb-6">
+              <p className="text-white/80 mb-2">
+                Tem certeza que deseja excluir o barbeiro <strong>"{barberToDelete?.name}"</strong>?
+              </p>
+              <p className="text-white/60 text-sm">
+                Esta ação não pode ser desfeita. O barbeiro será removido da lista, mas os dados permanecerão no banco de dados.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="flex-1 px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => barberToDelete && deleteBarber(barberToDelete)}
+                disabled={deletingBarber}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                {deletingBarber ? "Excluindo..." : "Excluir"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de Adicionar Barbeiro */}
       {showAddModal && (
