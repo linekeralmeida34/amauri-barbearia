@@ -541,13 +541,19 @@ export default function AdminServices() {
                     <Input
                       id="duration"
                       type="number"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       value={newService.duration_min || ""}
-                      onChange={(e) =>
-                        setNewService((prev) => ({
-                          ...prev,
-                          duration_min: e.target.value === "" ? 0 : parseInt(e.target.value) || 0,
-                        }))
-                      }
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // Permite apenas números
+                        if (value === "" || /^\d+$/.test(value)) {
+                          setNewService((prev) => ({
+                            ...prev,
+                            duration_min: value === "" ? 0 : parseInt(value) || 0,
+                          }));
+                        }
+                      }}
                       className="bg-white/10 border-white/30 text-white"
                     />
                   </div>
@@ -560,13 +566,19 @@ export default function AdminServices() {
                       id="price"
                       type="number"
                       step="0.01"
+                      inputMode="decimal"
+                      pattern="[0-9]*[.,]?[0-9]*"
                       value={newService.price || ""}
-                      onChange={(e) =>
-                        setNewService((prev) => ({
-                          ...prev,
-                          price: e.target.value === "" ? 0 : parseFloat(e.target.value) || 0,
-                        }))
-                      }
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // Permite apenas números, vírgula e ponto
+                        if (value === "" || /^[0-9]+([.,][0-9]+)?$/.test(value)) {
+                          setNewService((prev) => ({
+                            ...prev,
+                            price: value === "" ? 0 : parseFloat(value.replace(",", ".")) || 0,
+                          }));
+                        }
+                      }}
                       className="bg-white/10 border-white/30 text-white"
                     />
                   </div>
