@@ -541,11 +541,11 @@ export default function AdminServices() {
                     <Input
                       id="duration"
                       type="number"
-                      value={newService.duration_min}
+                      value={newService.duration_min || ""}
                       onChange={(e) =>
                         setNewService((prev) => ({
                           ...prev,
-                          duration_min: parseInt(e.target.value) || 0,
+                          duration_min: e.target.value === "" ? 0 : parseInt(e.target.value) || 0,
                         }))
                       }
                       className="bg-white/10 border-white/30 text-white"
@@ -560,11 +560,11 @@ export default function AdminServices() {
                       id="price"
                       type="number"
                       step="0.01"
-                      value={newService.price}
+                      value={newService.price || ""}
                       onChange={(e) =>
                         setNewService((prev) => ({
                           ...prev,
-                          price: parseFloat(e.target.value) || 0,
+                          price: e.target.value === "" ? 0 : parseFloat(e.target.value) || 0,
                         }))
                       }
                       className="bg-white/10 border-white/30 text-white"
