@@ -14,6 +14,7 @@ export type Service = {
   popular: boolean;
   is_active: boolean;
   deleted_at: string | null;
+  commission_percentage: number;
 };
 
 export type Barber = {
@@ -37,12 +38,38 @@ export type PaymentMethod = "credit_card" | "debit_card" | "cash" | "pix";
 export async function fetchActiveServices(): Promise<Service[]> {
   const { data, error } = await supabase
     .from("services")
-    .select("id,name,description,duration_min,price,category,popular,is_active,deleted_at")
+    .select("id,name,description,duration_min,price,category,popular,is_active,deleted_at,commission_percentage")
     .eq("is_active", true)
     .is("deleted_at", null)
     .order("name", { ascending: true });
 
-  if (error) throw error;
+  if (error) {
+    // Se der erro por causa da coluna commission_percentage, tenta sem ela
+    if (error.message?.includes("commission_percentage")) {
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from("services")
+        .select("id,name,description,duration_min,price,category,popular,is_active,deleted_at")
+        .eq("is_active", true)
+        .is("deleted_at", null)
+        .order("name", { ascending: true });
+
+      if (fallbackError) throw fallbackError;
+
+      return (fallbackData ?? []).map((s: any) => ({
+        id: String(s.id),
+        name: s.name ?? "",
+        description: s.description ?? null,
+        duration_min: Number(s.duration_min ?? 0),
+        price: Number(s.price ?? 0),
+        category: s.category ?? null,
+        popular: !!s.popular,
+        is_active: !!s.is_active,
+        deleted_at: s.deleted_at ?? null,
+        commission_percentage: 100, // valor padrão
+      })) as Service[];
+    }
+    throw error;
+  }
 
   return (data ?? []).map((s: any) => ({
     id: String(s.id),
@@ -54,6 +81,7 @@ export async function fetchActiveServices(): Promise<Service[]> {
     popular: !!s.popular,
     is_active: !!s.is_active,
     deleted_at: s.deleted_at ?? null,
+    commission_percentage: Number(s.commission_percentage ?? 100),
   })) as Service[];
 }
 

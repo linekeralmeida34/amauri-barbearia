@@ -10,6 +10,7 @@ export const services = [
     price: 35,
     category: "Cortes",
     popular: false,
+    commission_percentage: 100,
     icon: Scissors,
   },
   {
@@ -20,6 +21,7 @@ export const services = [
     price: 55,
     category: "Combos",
     popular: true,
+    commission_percentage: 100,
     icon: Sparkles,
   },
   {
@@ -30,6 +32,7 @@ export const services = [
     price: 25,
     category: "Barba",
     popular: false,
+    commission_percentage: 100,
     icon: Scissors,
   },
   {
@@ -40,6 +43,7 @@ export const services = [
     price: 75,
     category: "Premium",
     popular: false,
+    commission_percentage: 100,
     icon: Star,
   },
   {
@@ -50,6 +54,7 @@ export const services = [
     price: 45,
     category: "Tratamentos",
     popular: false,
+    commission_percentage: 100,
     icon: Sparkles,
   },
   {
@@ -60,6 +65,7 @@ export const services = [
     price: 120,
     category: "Especiais",
     popular: false,
+    commission_percentage: 100,
     icon: Star,
   },
 ];

@@ -32,6 +32,7 @@ type LocalService = {
   duration: number;
   price: number;
   popular?: boolean;
+  commission_percentage: number;
 };
 
 type LocalBarber = {
@@ -152,6 +153,7 @@ export const BookingFlow = () => {
             duration: s.duration_min,
             price: s.price,
             popular: s.popular,
+            commission_percentage: s.commission_percentage || 100,
           }));
           setServices(mappedServices);
           setFilteredServices(mappedServices);

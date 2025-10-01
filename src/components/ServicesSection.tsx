@@ -94,7 +94,7 @@ export const ServicesSection = () => {
     (async () => {
       const { data, error } = await supabase
         .from("services")
-        .select("id,name,description,duration_min,price,category,popular,is_active,deleted_at")
+        .select("id,name,description,duration_min,price,category,popular,is_active,deleted_at,commission_percentage")
         .eq("is_active", true)
         .is("deleted_at", null)
         .order("name", { ascending: true });
@@ -108,12 +108,38 @@ export const ServicesSection = () => {
           price: Number(s.price ?? 0),
           category: s.category ?? "",
           popular: !!s.popular,
+          commission_percentage: Number(s.commission_percentage ?? 100),
           icon: pickIcon(s.name, s.category) // mantém o mesmo padrão visual
         }));
         // se vier vazio, mantém seus 6; se vier banco, usa só banco
         const servicesList = mapped.length ? mapped : services;
         setDbServices(servicesList);
         setFilteredServices(servicesList);
+      } else if (error && error.message?.includes("commission_percentage")) {
+        // Fallback se a coluna commission_percentage não existir
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from("services")
+          .select("id,name,description,duration_min,price,category,popular,is_active,deleted_at")
+          .eq("is_active", true)
+          .is("deleted_at", null)
+          .order("name", { ascending: true });
+
+        if (!fallbackError && fallbackData) {
+          const mapped: LocalService[] = fallbackData.map((s: any) => ({
+            id: s.id,
+            name: s.name ?? "",
+            description: s.description ?? "",
+            duration: Number(s.duration_min ?? 0),
+            price: Number(s.price ?? 0),
+            category: s.category ?? "",
+            popular: !!s.popular,
+            commission_percentage: 100, // valor padrão
+            icon: pickIcon(s.name, s.category)
+          }));
+          const servicesList = mapped.length ? mapped : services;
+          setDbServices(servicesList);
+          setFilteredServices(servicesList);
+        }
       }
     })();
   }, []);
