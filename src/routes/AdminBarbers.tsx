@@ -251,13 +251,14 @@ export default function AdminBarbers() {
                 </h1>
                 <p className="text-white/70">Gerencie a equipe de barbeiros e suas informações</p>
               </div>
-              <div className="hidden md:flex items-center gap-2">
+              <div className="flex items-center gap-2">
                 <Button
                   onClick={() => setShowAddModal(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-barbershop-gold to-amber-500 hover:from-amber-400 hover:to-barbershop-gold text-barbershop-dark shadow-lg hover:shadow-amber-500/25 transition-all duration-200"
+                  className="flex items-center gap-2 px-3 py-2 sm:px-4 bg-gradient-to-r from-barbershop-gold to-amber-500 hover:from-amber-400 hover:to-barbershop-gold text-barbershop-dark shadow-lg hover:shadow-amber-500/25 transition-all duration-200 text-sm"
                 >
                   <UserPlus className="w-4 h-4" />
-                  Adicionar Barbeiro
+                  <span className="hidden sm:inline">Adicionar Barbeiro</span>
+                  <span className="sm:hidden">Adicionar</span>
                 </Button>
               </div>
             </div>
