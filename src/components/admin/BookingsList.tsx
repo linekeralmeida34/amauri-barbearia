@@ -104,8 +104,8 @@ function StatusBadge({ status, canceledByAdmin = false }: { status: BookingStatu
       color: canceledByAdmin 
         ? "bg-red-200 text-red-900 border-red-300 shadow-lg" 
         : "bg-red-100 text-red-800 border-red-200", 
-      label: canceledByAdmin ? "Cancelado (Admin)" : "Cancelado",
-      pulse: canceledByAdmin ? "animate-bounce" : ""
+      label: "Cancelado",
+      pulse: ""
     }
   };
 
@@ -540,7 +540,7 @@ export default function BookingsList() {
         </div>
 
         {/* Cards de Estatísticas */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
           <StatsCard
             icon={Calendar}
             title="Total"
@@ -776,7 +776,7 @@ export default function BookingsList() {
       <div className="hidden md:block">
         <div className="bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden shadow-2xl">
           {/* Contador de Resultados */}
-          <div className="px-6 py-4 border-b border-slate-700/50 bg-gradient-to-r from-slate-800/50 to-slate-900/50">
+          <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-slate-700/50 bg-gradient-to-r from-slate-800/50 to-slate-900/50">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-cyan-400" />
@@ -802,28 +802,28 @@ export default function BookingsList() {
             <table className="min-w-full">
               <thead className="bg-gradient-to-r from-slate-800/60 to-slate-900/60">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
                     Data/Hora
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
                     Cliente
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
                     Contato
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
                     Serviço
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
                     Barbeiro
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
                     Preço
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
                     Pagamento
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
                     Status
                   </th>
                 </tr>
@@ -854,21 +854,21 @@ export default function BookingsList() {
                       className={getRowClasses()}
                       style={{ animationDelay: `${index * 50}ms` }}
                     >
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                       <div className="text-sm text-white font-medium">
                         {fmtDateTimeBR(r.starts_at)}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                       <div className="text-sm text-white">{r.customer_name ?? "—"}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                       <div className="text-sm text-white/80">{fmtPhoneBR(r.phone)}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                       <div className="text-sm text-white">{r.services?.name ?? "—"}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">
                         <div className="w-8 h-8 bg-amber-500/20 rounded-full flex items-center justify-center">
                           <Users className="w-4 h-4 text-amber-400" />
@@ -876,12 +876,12 @@ export default function BookingsList() {
                         <span className="text-sm text-white">{r.barbers?.name ?? "—"}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                       <div className="text-sm font-semibold text-amber-400">
                         {fmtPriceBR(r.price)}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                       <select
                         value={r.payment_method || ""}
                         onChange={(e) => updatePaymentMethod(r.id, e.target.value as PaymentMethod)}
@@ -898,11 +898,10 @@ export default function BookingsList() {
                         <option value="pix" className="bg-gray-800 text-white">PIX</option>
                       </select>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                       {r.status === "canceled" && !finalIsAdmin ? (
                         <div className="flex items-center gap-2">
                           <StatusBadge status="canceled" canceledByAdmin={r.canceled_by_admin} />
-                          <span className="text-xs text-red-400">(Bloqueado pelo Admin)</span>
                         </div>
                       ) : (
                         <select
@@ -970,7 +969,7 @@ export default function BookingsList() {
         {filtered.map((b, index) => {
           // Definir classes baseadas no status para mobile
           const getCardClasses = () => {
-            const baseClasses = "backdrop-blur-sm border rounded-xl p-5 transition-all duration-200 shadow-lg hover:shadow-xl";
+            const baseClasses = "backdrop-blur-sm border rounded-xl p-4 sm:p-5 transition-all duration-200 shadow-lg hover:shadow-xl";
             
             // Se foi cancelado pelo admin, sempre mostrar como cancelado
             if (b.canceled_by_admin) {
@@ -1007,7 +1006,6 @@ export default function BookingsList() {
               {b.status === "canceled" && !finalIsAdmin ? (
                 <div className="flex flex-col items-end gap-1">
                   <StatusBadge status="canceled" canceledByAdmin={b.canceled_by_admin} />
-                  <span className="text-xs text-red-400">(Bloqueado pelo Admin)</span>
                 </div>
               ) : (
                 <select

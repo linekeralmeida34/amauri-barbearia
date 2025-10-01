@@ -168,17 +168,19 @@ function AdminPanelPlaceholder() {
         </header>
 
         {/* Corpo */}
-        <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 text-white">
-          <div className="grid gap-6">
-            <h1 className="text-3xl md:text-4xl font-bold">
-              Bem-vindo ao <span className="text-barbershop-gold">Painel</span>
-            </h1>
-            <p className="text-white/80 max-w-2xl">
-              Abaixo estão os agendamentos em tempo real.
-            </p>
+        <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 sm:py-10 text-white">
+          <div className="space-y-6">
+            <div className="text-center sm:text-left">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2">
+                Bem-vindo ao <span className="text-barbershop-gold">Painel</span>
+              </h1>
+              <p className="text-white/80 text-sm sm:text-base max-w-2xl mx-auto sm:mx-0">
+                Abaixo estão os agendamentos em tempo real.
+              </p>
+            </div>
 
-                    {/* ✅ Lista de agendamentos (realtime) */}
-                    <BookingsList />
+            {/* ✅ Lista de agendamentos (realtime) */}
+            <BookingsList />
           </div>
         </main>
       </div>
