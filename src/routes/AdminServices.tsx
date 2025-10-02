@@ -982,18 +982,18 @@ export default function AdminServices() {
                     </Label>
                   </div>
 
-                  <div className="flex gap-3 pt-4">
+                  <div className="flex flex-col sm:flex-row gap-3 pt-4">
                     <button
                       type="button"
                       onClick={() => setShowEditModal(false)}
-                      className="flex-1 px-4 py-2 bg-gray-800/50 text-gray-200 rounded-lg hover:bg-gray-600 hover:text-white transition-colors"
+                      className="flex-1 px-4 py-2 bg-gray-800/50 text-gray-200 rounded-lg hover:bg-gray-600 hover:text-white transition-colors order-2 sm:order-1"
                     >
                       Cancelar
                     </button>
                     <button
                       type="submit"
                       disabled={editingService}
-                      className="flex-1 px-4 py-2 bg-barbershop-gold text-barbershop-dark rounded-lg hover:bg-barbershop-gold/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                      className="flex-1 px-4 py-2 bg-barbershop-gold text-barbershop-dark rounded-lg hover:bg-barbershop-gold/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2 order-1 sm:order-2"
                     >
                       <Save className="w-4 h-4" />
                       {editingService ? "Salvando..." : "Salvar Alterações"}
@@ -1174,12 +1174,12 @@ export default function AdminServices() {
                 </div>
               </div>
 
-              <DialogFooter>
+              <DialogFooter className="flex flex-col sm:flex-row gap-3 sm:gap-2">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setShowAddModal(false)}
-                  className="border-gray-400 text-gray-200 hover:bg-gray-600 hover:text-white bg-gray-800/50"
+                  className="border-gray-400 text-gray-200 hover:bg-gray-600 hover:text-white bg-gray-800/50 w-full sm:w-auto order-2 sm:order-1"
                 >
                   <X className="w-4 h-4 mr-2" />
                   Cancelar
@@ -1187,7 +1187,7 @@ export default function AdminServices() {
                 <Button
                   onClick={addService}
                   disabled={addingService || !newService.name.trim()}
-                  className="bg-gradient-to-r from-barbershop-gold to-amber-500 hover:from-amber-400 hover:to-barbershop-gold text-barbershop-dark shadow-lg hover:shadow-amber-500/25"
+                  className="bg-gradient-to-r from-barbershop-gold to-amber-500 hover:from-amber-400 hover:to-barbershop-gold text-barbershop-dark shadow-lg hover:shadow-amber-500/25 w-full sm:w-auto order-1 sm:order-2"
                 >
                   <Save className="w-4 h-4 mr-2" />
                   {addingService ? "Adicionando..." : "Adicionar"}

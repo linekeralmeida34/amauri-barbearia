@@ -605,7 +605,7 @@ export default function BookingsList() {
         
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
           {/* Status */}
-          <div className="space-y-2">
+          <div className="space-y-2 min-w-0 w-full">
             <div className="flex items-center gap-2">
               <label className="text-white/80 text-sm font-medium">Status</label>
               {statusFilter && (
@@ -634,7 +634,7 @@ export default function BookingsList() {
 
           {/* Barbeiro - apenas para admin */}
           {finalIsAdmin && (
-            <div className="space-y-2">
+            <div className="space-y-2 min-w-0 w-full">
               <div className="flex items-center gap-2">
                 <label className="text-white/80 text-sm font-medium">Barbeiro</label>
               {barberFilter && (
@@ -669,7 +669,7 @@ export default function BookingsList() {
           )}
 
           {/* Forma de Pagamento */}
-          <div className="space-y-2">
+          <div className="space-y-2 min-w-0 w-full">
             <div className="flex items-center gap-2">
               <label className="text-white/80 text-sm font-medium">Pagamento</label>
               {paymentFilter && (
@@ -698,7 +698,7 @@ export default function BookingsList() {
           </div>
 
           {/* Data De */}
-          <div className="space-y-2">
+          <div className="space-y-2 min-w-0 w-full">
             <div className="flex items-center gap-2">
               <label className="text-white/80 text-sm font-medium">Data Inicial</label>
               {dateFrom && (
@@ -721,7 +721,7 @@ export default function BookingsList() {
           </div>
 
           {/* Data Até */}
-          <div className="space-y-2">
+          <div className="space-y-2 min-w-0 w-full">
             <div className="flex items-center gap-2">
               <label className="text-white/80 text-sm font-medium">Data Final</label>
               {dateTo && (
@@ -744,7 +744,7 @@ export default function BookingsList() {
           </div>
 
           {/* Apenas Hoje */}
-          <div className="space-y-2">
+          <div className="space-y-2 min-w-0 w-full">
             <div className="flex items-center gap-2">
               <label className="text-white/80 text-sm font-medium">Apenas Hoje</label>
               {todayOnly && (
@@ -809,31 +809,31 @@ export default function BookingsList() {
             </div>
           </div>
           <div className="overflow-x-auto">
-            <table className="min-w-full">
+            <table className="w-full table-fixed">
               <thead className="bg-gradient-to-r from-slate-800/60 to-slate-900/60">
                 <tr>
-                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
+                  <th className="w-32 px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
                     Data/Hora
                   </th>
-                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
+                  <th className="w-24 px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
                     Cliente
                   </th>
-                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
+                  <th className="w-28 px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-semibold text-white/80 uppercase tracking-wider hidden sm:table-cell">
                     Contato
                   </th>
-                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
+                  <th className="w-24 px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
                     Serviço
                   </th>
-                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
+                  <th className="w-20 px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-semibold text-white/80 uppercase tracking-wider hidden md:table-cell">
                     Barbeiro
                   </th>
-                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
+                  <th className="w-16 px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
                     Preço
                   </th>
-                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
+                  <th className="w-24 px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-semibold text-white/80 uppercase tracking-wider hidden lg:table-cell">
                     Pagamento
                   </th>
-                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
+                  <th className="w-20 px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
                     Status
                   </th>
                 </tr>
@@ -864,41 +864,41 @@ export default function BookingsList() {
                       className={getRowClasses()}
                       style={{ animationDelay: `${index * 50}ms` }}
                     >
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
-                      <div className="text-sm text-white font-medium">
+                    <td className="px-2 sm:px-3 py-2 sm:py-3">
+                      <div className="text-xs sm:text-sm text-white font-medium truncate">
                         {fmtDateTimeBR(r.starts_at)}
                       </div>
                     </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
-                      <div className="text-sm text-white">{r.customer_name ?? "—"}</div>
+                    <td className="px-2 sm:px-3 py-2 sm:py-3">
+                      <div className="text-xs sm:text-sm text-white truncate">{r.customer_name ?? "—"}</div>
                     </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
-                      <div className="text-sm text-white/80">{fmtPhoneBR(r.phone)}</div>
+                    <td className="px-2 sm:px-3 py-2 sm:py-3 hidden sm:table-cell">
+                      <div className="text-xs sm:text-sm text-white/80 truncate">{fmtPhoneBR(r.phone)}</div>
                     </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
-                      <div className="text-sm text-white">{r.services?.name ?? "—"}</div>
+                    <td className="px-2 sm:px-3 py-2 sm:py-3">
+                      <div className="text-xs sm:text-sm text-white truncate">{r.services?.name ?? "—"}</div>
                     </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-amber-500/20 rounded-full flex items-center justify-center">
-                          <Users className="w-4 h-4 text-amber-400" />
+                    <td className="px-2 sm:px-3 py-2 sm:py-3 hidden md:table-cell">
+                      <div className="flex items-center gap-1">
+                        <div className="w-6 h-6 bg-amber-500/20 rounded-full flex items-center justify-center">
+                          <Users className="w-3 h-3 text-amber-400" />
                         </div>
-                        <span className="text-sm text-white">{r.barbers?.name ?? "—"}</span>
+                        <span className="text-xs sm:text-sm text-white truncate">{r.barbers?.name ?? "—"}</span>
                       </div>
                     </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
-                      <div className="text-sm font-semibold text-amber-400">
+                    <td className="px-2 sm:px-3 py-2 sm:py-3">
+                      <div className="text-xs sm:text-sm font-semibold text-amber-400">
                         {fmtPriceBR(r.price)}
                       </div>
                     </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                    <td className="px-2 sm:px-3 py-2 sm:py-3 hidden lg:table-cell">
                       <select
                         value={r.payment_method || ""}
                         onChange={(e) => updatePaymentMethod(r.id, e.target.value as PaymentMethod)}
-                        className="rounded-lg bg-white/5 border border-white/20 text-white px-3 py-1.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+                        className="rounded-lg bg-white/5 border border-white/20 text-white px-2 py-1 text-xs focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200 w-full"
                         style={{ 
                           colorScheme: 'dark',
-                          fontSize: '16px'
+                          fontSize: '14px'
                         }}
                       >
                         <option value="" className="bg-gray-800 text-white">Selecionar</option>
@@ -908,19 +908,19 @@ export default function BookingsList() {
                         <option value="pix" className="bg-gray-800 text-white">PIX</option>
                       </select>
                     </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                    <td className="px-2 sm:px-3 py-2 sm:py-3">
                       {r.status === "canceled" && !finalIsAdmin ? (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1">
                           <StatusBadge status="canceled" canceledByAdmin={r.canceled_by_admin} />
                         </div>
                       ) : (
                         <select
                           value={r.status}
                           onChange={(e) => updateStatus(r.id, e.target.value as BookingStatus)}
-                          className="rounded-lg bg-white/5 border border-white/20 text-white px-3 py-1.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+                          className="rounded-lg bg-white/5 border border-white/20 text-white px-2 py-1 text-xs focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200 w-full"
                           style={{ 
                             colorScheme: 'dark',
-                            fontSize: '16px'
+                            fontSize: '14px'
                           }}
                         >
                           <option value="pending" className="bg-gray-800 text-white">Pendente</option>
@@ -936,7 +936,7 @@ export default function BookingsList() {
                 })}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-6 py-12 text-center">
+                    <td colSpan={8} className="px-2 sm:px-3 py-12 text-center">
                       <div className="flex flex-col items-center gap-3">
                         <Calendar className="w-12 h-12 text-white/30" />
                         <p className="text-white/60 text-lg">Nenhum agendamento encontrado</p>
