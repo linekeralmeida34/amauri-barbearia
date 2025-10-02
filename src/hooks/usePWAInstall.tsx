@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -21,7 +20,6 @@ interface PWAInstallState {
 }
 
 export const usePWAInstall = (): PWAInstallState => {
-  const location = useLocation();
   const [isInstallable, setIsInstallable] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
@@ -75,42 +73,7 @@ export const usePWAInstall = (): PWAInstallState => {
     };
   }, []);
 
-  // Force manifest update when route changes - but don't interfere with ManifestManager
-  useEffect(() => {
-    // Only run on client side
-    if (typeof window === 'undefined') return;
-
-    const isAdminRoute = location.pathname.startsWith('/admin') || 
-                        location.pathname.includes('admin') ||
-                        location.hash.includes('admin');
-    
-    console.log('🔄 Route changed, isAdminRoute:', isAdminRoute, 'pathname:', location.pathname, 'hash:', location.hash);
-    
-    // Only update if ManifestManager hasn't already set a data URL
-    const manifestLink = document.getElementById('pwa-manifest') as HTMLLinkElement;
-    if (manifestLink && !manifestLink.href.startsWith('data:')) {
-      const manifestPath = isAdminRoute ? '/manifest-admin.json' : '/manifest-client.json';
-      
-      if (manifestLink.href !== `${window.location.origin}${manifestPath}`) {
-        console.log('📋 Updating manifest to:', manifestPath);
-        manifestLink.href = manifestPath;
-        
-        // Force reload the manifest
-        const newLink = document.createElement('link');
-        newLink.rel = 'manifest';
-        newLink.href = manifestPath;
-        newLink.id = 'pwa-manifest';
-        
-        const oldLink = document.getElementById('pwa-manifest');
-        if (oldLink) {
-          document.head.removeChild(oldLink);
-        }
-        document.head.appendChild(newLink);
-      }
-    } else {
-      console.log('📋 Manifest already managed by ManifestManager (data URL)');
-    }
-  }, [location.pathname, location.hash]);
+  // Manifest switching is now handled by useManifestForRoute hook
 
   const install = async () => {
     console.log('Install function called', { installPrompt: !!installPrompt, isIOS, isInstallable });

@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/card";
 import heroImage from "@/assets/barbershop-hero.jpg";
 import { Calendar } from "lucide-react";
-import { PWAInstallButton } from "@/components/PWAInstallButton";
 
 export default function AdminLogin() {
   const nav = useNavigate();
@@ -136,10 +135,6 @@ export default function AdminLogin() {
                     {loading ? "Entrando…" : "Entrar"}
                   </Button>
 
-                  {/* Botão de instalação PWA Admin - sutil */}
-                  <div className="pt-2 text-center">
-                    <PWAInstallButton variant="admin" subtle={true} />
-                  </div>
 
                   <p className="text-xs text-white/80 text-center">
                     Esqueceu a senha? Fale com o proprietário para redefinição.

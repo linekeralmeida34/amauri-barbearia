@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Download, Smartphone, Share, Plus } from 'lucide-react';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
-import { ManifestManager } from '@/utils/manifestManager';
 
 interface PWAInstallButtonProps {
   variant?: 'client' | 'admin';
@@ -29,62 +28,8 @@ export const PWAInstallButton = ({ variant = 'client', className = '', subtle = 
       installPrompt: !!installPrompt,
       variant,
       appName,
-      currentUrl: window.location.href,
-      userAgent: navigator.userAgent
+      currentUrl: window.location.href
     });
-    
-    // Force clear all manifests first
-    const allManifests = document.querySelectorAll('link[rel="manifest"]');
-    allManifests.forEach(link => link.remove());
-    console.log('🧹 Cleared all existing manifests');
-    
-    // Use ManifestManager to switch manifest
-    const manifestManager = ManifestManager.getInstance();
-    const manifestPath = variant === 'admin' ? '/manifest-admin.json' : '/manifest-client.json';
-    
-    console.log('📋 Switching to manifest:', manifestPath, 'for variant:', variant);
-    
-    try {
-      await manifestManager.switchToManifest(manifestPath);
-      
-      // Wait for manifest to load
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      console.log('✅ Manifest switched, current manifest:', manifestManager.getCurrentManifest());
-      
-      // Force clear service worker cache if possible
-      if ('serviceWorker' in navigator) {
-        try {
-          const registrations = await navigator.serviceWorker.getRegistrations();
-          for (const registration of registrations) {
-            await registration.unregister();
-            console.log('🧹 Service worker unregistered');
-          }
-        } catch (error) {
-          console.log('⚠️ Could not clear service worker:', error);
-        }
-      }
-      
-      // Log the actual manifest content
-      const manifestLink = document.getElementById('pwa-manifest') as HTMLLinkElement;
-      if (manifestLink) {
-        console.log('🔗 Current manifest link href:', manifestLink.href);
-        
-        // If it's a data URL, decode and log the content
-        if (manifestLink.href.startsWith('data:')) {
-          try {
-            const base64Data = manifestLink.href.split(',')[1];
-            const manifestContent = JSON.parse(atob(base64Data));
-            console.log('📄 Manifest content:', manifestContent);
-            console.log('🎯 Expected start_url:', manifestContent.start_url);
-          } catch (error) {
-            console.error('Error decoding manifest:', error);
-          }
-        }
-      }
-    } catch (error) {
-      console.error('❌ Error switching manifest:', error);
-    }
     
     // For mobile, always show instructions first
     if (isIOS || !installPrompt) {
@@ -134,6 +79,18 @@ export const PWAInstallButton = ({ variant = 'client', className = '', subtle = 
             <div className="space-y-4">
               {isIOS ? (
                 <>
+                  {variant === 'admin' && (
+                    <div className="rounded-lg bg-blue-50 p-4 mb-4">
+                      <div className="flex items-center gap-2">
+                        <Share className="h-4 w-4 text-blue-600" />
+                        <span className="text-sm font-medium text-blue-800">Importante:</span>
+                      </div>
+                      <p className="mt-1 text-sm text-blue-700">
+                        Certifique-se de que a URL mostra "admin/login" antes de compartilhar!
+                      </p>
+                    </div>
+                  )}
+                  
                   <div className="flex items-start gap-3">
                     <div className="flex-shrink-0 w-8 h-8 bg-barbershop-gold text-barbershop-dark rounded-full flex items-center justify-center font-bold text-sm">
                       1
@@ -167,7 +124,7 @@ export const PWAInstallButton = ({ variant = 'client', className = '', subtle = 
                     <div>
                       <p className="font-medium">Toque em "Adicionar"</p>
                       <p className="text-sm text-muted-foreground">
-                        O app aparecerá na sua tela inicial
+                        O app {appName} aparecerá na sua tela inicial
                       </p>
                     </div>
                   </div>
@@ -269,6 +226,18 @@ export const PWAInstallButton = ({ variant = 'client', className = '', subtle = 
           <div className="space-y-4">
             {isIOS ? (
               <>
+                {variant === 'admin' && (
+                  <div className="rounded-lg bg-blue-50 p-4 mb-4">
+                    <div className="flex items-center gap-2">
+                      <Share className="h-4 w-4 text-blue-600" />
+                      <span className="text-sm font-medium text-blue-800">Importante:</span>
+                    </div>
+                    <p className="mt-1 text-sm text-blue-700">
+                      Certifique-se de que a URL mostra "admin/login" antes de compartilhar!
+                    </p>
+                  </div>
+                )}
+                
                 <div className="flex items-start gap-3">
                   <div className="flex-shrink-0 w-8 h-8 bg-barbershop-gold text-barbershop-dark rounded-full flex items-center justify-center font-bold text-sm">
                     1
@@ -302,7 +271,7 @@ export const PWAInstallButton = ({ variant = 'client', className = '', subtle = 
                   <div>
                     <p className="font-medium">Toque em "Adicionar"</p>
                     <p className="text-sm text-muted-foreground">
-                      O app aparecerá na sua tela inicial
+                      O app {appName} aparecerá na sua tela inicial
                     </p>
                   </div>
                 </div>

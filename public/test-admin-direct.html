@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Teste Admin Direto</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Amauri Admin">
+</head>
+<body>
+    <h1>Teste Admin Direto</h1>
+    
+    <div id="status">Aguardando...</div>
+    
+    <button onclick="forceAdminManifest()">Forçar Manifest Admin</button>
+    <button onclick="installPWA()">Instalar PWA</button>
+    
+    <div id="result"></div>
+    
+    <script>
+        let deferredPrompt;
+        
+        // Listen for beforeinstallprompt event
+        window.addEventListener('beforeinstallprompt', (e) => {
+            console.log('beforeinstallprompt event fired');
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('status').innerHTML = '✅ PWA pode ser instalado!';
+        });
+        
+        function forceAdminManifest() {
+            // Clear everything first
+            const allManifests = document.querySelectorAll('link[rel="manifest"]');
+            allManifests.forEach(link => link.remove());
+            
+            // Clear service workers
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(registrations => {
+                    registrations.forEach(registration => registration.unregister());
+                });
+            }
+            
+            // Clear caches
+            if ('caches' in window) {
+                caches.keys().then(cacheNames => {
+                    cacheNames.forEach(cacheName => {
+                        if (cacheName.includes('manifest') || cacheName.includes('pwa')) {
+                            caches.delete(cacheName);
+                        }
+                    });
+                });
+            }
+            
+            // Create admin manifest with absolute URL
+            const baseUrl = window.location.origin;
+            const adminManifest = {
+                name: "Amauri Barbearia - Admin",
+                short_name: "Amauri Admin",
+                description: "Painel administrativo da Amauri Barbearia",
+                start_url: `${baseUrl}/#/admin/login`,
+                display: "standalone",
+                background_color: "#1a1a1a",
+                theme_color: "#ffffff",
+                orientation: "portrait-primary",
+                scope: `${baseUrl}/`,
+                icons: [
+                    {
+                        src: `${baseUrl}/amauri-logo.png`,
+                        sizes: "192x192",
+                        type: "image/png"
+                    },
+                    {
+                        src: `${baseUrl}/amauri-logo.png`,
+                        sizes: "512x512",
+                        type: "image/png"
+                    }
+                ],
+                categories: ["business", "productivity"],
+                lang: "pt-BR"
+            };
+            
+            // Create data URL
+            const dataUrl = 'data:application/json;base64,' + btoa(JSON.stringify(adminManifest, null, 2));
+            
+            // Add manifest
+            const link = document.createElement('link');
+            link.rel = 'manifest';
+            link.href = dataUrl;
+            link.id = 'pwa-manifest';
+            document.head.appendChild(link);
+            
+            // Update page title and URL
+            document.title = 'Amauri Barbearia - Admin';
+            window.history.replaceState(null, '', `${baseUrl}/#/admin/login`);
+            
+            document.getElementById('result').innerHTML = `
+                <h3>✅ Manifest Admin Forçado:</h3>
+                <p><strong>Start URL:</strong> ${adminManifest.start_url}</p>
+                <p><strong>Scope:</strong> ${adminManifest.scope}</p>
+                <p><strong>Name:</strong> ${adminManifest.name}</p>
+                <p><strong>Short Name:</strong> ${adminManifest.short_name}</p>
+                <p><strong>Current URL:</strong> ${window.location.href}</p>
+            `;
+            
+            console.log('Admin manifest forced:', adminManifest);
+        }
+        
+        function installPWA() {
+            if (!deferredPrompt) {
+                document.getElementById('result').innerHTML = '❌ PWA não pode ser instalado neste momento';
+                return;
+            }
+            
+            deferredPrompt.prompt();
+            deferredPrompt.userChoice.then((choiceResult) => {
+                if (choiceResult.outcome === 'accepted') {
+                    console.log('PWA installed successfully');
+                    document.getElementById('result').innerHTML = '✅ PWA Admin instalado! Verifique se abre em /#/admin/login';
+                } else {
+                    console.log('PWA installation dismissed');
+                    document.getElementById('result').innerHTML = '❌ Instalação cancelada';
+                }
+                deferredPrompt = null;
+            });
+        }
+        
+        // Auto-apply admin manifest on load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                forceAdminManifest();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

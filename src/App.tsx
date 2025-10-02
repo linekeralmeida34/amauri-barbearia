@@ -28,7 +28,6 @@ import AdminServices from "./routes/AdminServices";
 import BarberLogin from "./routes/BarberLogin";
 import { Users, Scissors } from "lucide-react";
 import { useBarberAuth } from "@/hooks/useBarberAuth";
-import { useManifestSwitcher } from "@/hooks/useManifestSwitcher";
 import { PWAInstallButton } from "@/components/PWAInstallButton";
 
 
@@ -60,7 +59,6 @@ function ScrollToAnchorFromSearch() {
 
 /** Manifest switcher para PWA */
 function ManifestSwitcher() {
-  useManifestSwitcher();
   return null;
 }
 
