@@ -33,7 +33,7 @@ type BookingRow = {
   price: number | null;
   payment_method: PaymentMethod;
   canceled_by_admin: boolean;
-  services?: { name: string | null } | null;
+  services?: { name: string | null; commission_percentage: number | null } | null;
   barbers?: { name: string | null; id?: string } | null;
 };
 
@@ -290,7 +290,7 @@ export default function BookingsList() {
           price,
           payment_method,
           canceled_by_admin,
-          services ( name ),
+          services ( name, commission_percentage ),
           barbers ( id, name )
         `
         );
@@ -444,10 +444,15 @@ export default function BookingsList() {
     const today = new Date().toDateString();
     const todayBookings = rows.filter(r => new Date(r.starts_at).toDateString() === today).length;
     
-    // Calcular receita total (apenas agendamentos confirmados)
+    // Calcular receita total considerando comissão (apenas agendamentos confirmados)
     const totalRevenue = rows
       .filter(r => r.status === 'confirmed' && r.price)
-      .reduce((sum, r) => sum + (r.price || 0), 0);
+      .reduce((sum, r) => {
+        const servicePrice = r.price || 0;
+        const commissionPercentage = r.services?.commission_percentage || 100; // 100% se não tiver comissão definida
+        const barberEarnings = servicePrice * (commissionPercentage / 100);
+        return sum + barberEarnings;
+      }, 0);
     
     return { total, pending, confirmed, canceled, todayBookings, totalRevenue };
   }, [rows]);
@@ -461,10 +466,15 @@ export default function BookingsList() {
     const today = new Date().toDateString();
     const todayBookings = filtered.filter(r => new Date(r.starts_at).toDateString() === today).length;
     
-    // Calcular receita total dos dados filtrados (apenas agendamentos confirmados)
+    // Calcular receita total dos dados filtrados considerando comissão (apenas agendamentos confirmados)
     const totalRevenue = filtered
       .filter(r => r.status === 'confirmed' && r.price)
-      .reduce((sum, r) => sum + (r.price || 0), 0);
+      .reduce((sum, r) => {
+        const servicePrice = r.price || 0;
+        const commissionPercentage = r.services?.commission_percentage || 100; // 100% se não tiver comissão definida
+        const barberEarnings = servicePrice * (commissionPercentage / 100);
+        return sum + barberEarnings;
+      }, 0);
     
     return { total, pending, confirmed, canceled, todayBookings, totalRevenue };
   }, [filtered]);
@@ -571,9 +581,9 @@ export default function BookingsList() {
           />
           <StatsCard
             icon={DollarSign}
-            title="Receita"
+            title="Receita Líquida"
             value={fmtPriceBR(hasActiveFilters ? filteredStats.totalRevenue : originalStats.totalRevenue)}
-            subtitle={hasActiveFilters ? "filtrada" : "total"}
+            subtitle={hasActiveFilters ? "filtrada" : "do barbeiro"}
             color="text-emerald-400"
           />
           <StatsCard

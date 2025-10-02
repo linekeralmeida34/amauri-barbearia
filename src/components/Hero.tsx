@@ -34,7 +34,7 @@ export const Hero = () => {
               <Button
                 asChild
                 size="lg"
-                className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark
+                className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-gray-700
                            font-semibold text-lg px-6 py-4 md:px-8 md:py-6 shadow-glow
                            transition-all duration-300 hover:scale-105"
               >
@@ -49,12 +49,12 @@ export const Hero = () => {
                 asChild
                 size="lg"
                 className="
-                  bg-white text-neutral-900 border-2 border-neutral-900
+                  bg-white text-gray-600 border-0 sm:border-2 sm:border-neutral-900
                   font-semibold text-lg px-6 py-4 md:px-8 md:py-6
                   transform-gpu transition-transform duration-200 ease-out
                   hover:scale-[1.03] active:scale-[0.98] hover:bg-neutral-100
                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2
-                  dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200
+                  dark:bg-white dark:text-gray-600 dark:hover:bg-neutral-200
                 "
               >
                 <Link to="/?a=barbeiros" aria-label="Ir para a seção de barbeiros">
