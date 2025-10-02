@@ -11,6 +11,9 @@ export class ManifestManager {
   }
 
   async switchToManifest(manifestPath: string): Promise<void> {
+    // Only run on client side
+    if (typeof window === 'undefined') return;
+
     if (this.currentManifest === manifestPath) {
       console.log('Manifest already set to:', manifestPath);
       return;

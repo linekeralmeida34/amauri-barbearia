@@ -16,25 +16,9 @@ export default defineConfig(({ mode }) => ({
     VitePWA({
       registerType: 'autoUpdate',
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'supabase-cache',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365 // <== 365 days
-              },
-              cacheKeyWillBeUsed: async ({ request }) => {
-                return `${request.url}?v=${Date.now()}`;
-              }
-            }
-          }
-        ]
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,json}']
       },
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+      includeAssets: ['favicon.ico', 'amauri-logo.png'],
       manifest: {
         name: 'Amauri Barbearia',
         short_name: 'Amauri',
@@ -42,7 +26,6 @@ export default defineConfig(({ mode }) => ({
         theme_color: '#ffffff',
         background_color: '#1a1a1a',
         display: 'standalone',
-        orientation: 'portrait-primary',
         scope: '/',
         start_url: '/',
         icons: [

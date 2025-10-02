@@ -5,6 +5,9 @@ export const useManifestSwitcher = () => {
   const location = useLocation();
 
   useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') return;
+
     // Aguarda um pouco para não interferir com a instalação PWA
     const timeoutId = setTimeout(() => {
       const manifestLink = document.getElementById('pwa-manifest') as HTMLLinkElement;

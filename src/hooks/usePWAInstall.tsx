@@ -29,6 +29,9 @@ export const usePWAInstall = (): PWAInstallState => {
   const [showIOSInstructions, setShowIOSInstructions] = useState(false);
 
   useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') return;
+
     // Detect iOS
     const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
     setIsIOS(iOS);
@@ -74,6 +77,9 @@ export const usePWAInstall = (): PWAInstallState => {
 
   // Force manifest update when route changes - but don't interfere with ManifestManager
   useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') return;
+
     const isAdminRoute = location.pathname.startsWith('/admin') || 
                         location.pathname.includes('admin') ||
                         location.hash.includes('admin');
