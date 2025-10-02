@@ -27,8 +27,34 @@
     <link rel="icon" type="image/png" href="/amauri-logo.png">
     <link rel="apple-touch-icon" href="/amauri-logo.png" />
     
-    <!-- Manifest (será alternado dinamicamente) -->
-    <link rel="manifest" id="pwa-manifest" href="/manifest-client.json">
+    <!-- Manifest (controlado dinamicamente para cliente/admin) -->
+    <script>
+      (function() {
+        function setManifestForLocation() {
+          try {
+            var isAdmin = location.hash === '#/admin/login' || location.href.includes('/admin/login');
+            var existing = document.querySelector('link[rel="manifest"][data-dynamic="true"]');
+            if (existing) existing.parentNode.removeChild(existing);
+
+            var link = document.createElement('link');
+            link.rel = 'manifest';
+            link.setAttribute('data-dynamic', 'true');
+            link.href = isAdmin ? '/manifest-admin.json' : '/manifest-client.json';
+            document.head.appendChild(link);
+          } catch (e) {
+            console.error('Failed to set manifest dynamically', e);
+          }
+        }
+
+        // Initial set asap
+        setManifestForLocation();
+
+        // Observe hash changes (HashRouter)
+        window.addEventListener('hashchange', setManifestForLocation);
+        // Also run after DOM ready just in case
+        document.addEventListener('DOMContentLoaded', setManifestForLocation);
+      })();
+    </script>
 </head>
 
   <body>

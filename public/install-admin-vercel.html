@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Instalar App Admin - Amauri Barbearia</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Amauri Admin">
+    
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            color: white;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+        
+        .container {
+            max-width: 400px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        h1 {
+            color: #d4af37;
+            margin-bottom: 10px;
+            font-size: 24px;
+        }
+        
+        .subtitle {
+            color: #ccc;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+        
+        .install-btn {
+            background: linear-gradient(135deg, #d4af37 0%, #f4d03f 100%);
+            color: #1a1a1a;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px;
+            min-width: 200px;
+        }
+        
+        .install-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(212, 175, 55, 0.3);
+        }
+        
+        .install-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .success {
+            background: rgba(76, 175, 80, 0.2);
+            border: 1px solid #4caf50;
+        }
+        
+        .error {
+            background: rgba(244, 67, 54, 0.2);
+            border: 1px solid #f44336;
+        }
+        
+        .info {
+            background: rgba(33, 150, 243, 0.2);
+            border: 1px solid #2196f3;
+        }
+        
+        .instructions {
+            margin-top: 20px;
+            text-align: left;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 14px;
+        }
+        
+        .step {
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+        }
+        
+        .step-number {
+            background: #d4af37;
+            color: #1a1a1a;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 10px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📱 Amauri Admin</h1>
+        <p class="subtitle">Instale o app administrativo</p>
+        
+        <button id="installBtn" class="install-btn" onclick="installApp()">
+            📲 Instalar App Admin
+        </button>
+        
+        <div id="status" class="status info" style="display: none;">
+            <div id="statusText">Preparando instalação...</div>
+        </div>
+        
+        <div id="instructions" class="instructions" style="display: none;">
+            <h3>📋 Instruções de Instalação:</h3>
+            <div class="step">
+                <div class="step-number">1</div>
+                <div>Clique no botão "Instalar" que apareceu</div>
+            </div>
+            <div class="step">
+                <div class="step-number">2</div>
+                <div>Confirme a instalação</div>
+            </div>
+            <div class="step">
+                <div class="step-number">3</div>
+                <div>O app será instalado e abrirá automaticamente</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let deferredPrompt;
+        const vercelUrl = 'https://amauri-barbearia-fawn.vercel.app';
+        
+        // Listen for beforeinstallprompt event
+        window.addEventListener('beforeinstallprompt', (e) => {
+            console.log('beforeinstallprompt event fired');
+            e.preventDefault();
+            deferredPrompt = e;
+            showStatus('✅ App pode ser instalado! Clique no botão para instalar.', 'success');
+        });
+        
+        // Listen for app installed event
+        window.addEventListener('appinstalled', () => {
+            console.log('PWA was installed');
+            showStatus('🎉 App instalado com sucesso! Abrindo...', 'success');
+            
+            // Redirect to Vercel admin after installation
+            setTimeout(() => {
+                window.location.href = `${vercelUrl}/#/admin/login`;
+            }, 2000);
+        });
+        
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            const statusText = document.getElementById('statusText');
+            const instructions = document.getElementById('instructions');
+            
+            statusText.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+            
+            if (type === 'info') {
+                instructions.style.display = 'block';
+            }
+        }
+        
+        function installApp() {
+            // First, set up the admin manifest
+            setupAdminManifest();
+            
+            if (!deferredPrompt) {
+                showStatus('❌ App não pode ser instalado neste momento. Tente novamente em alguns segundos.', 'error');
+                return;
+            }
+            
+            // Show the install prompt
+            deferredPrompt.prompt();
+            
+            // Wait for the user to respond to the prompt
+            deferredPrompt.userChoice.then((choiceResult) => {
+                if (choiceResult.outcome === 'accepted') {
+                    console.log('User accepted the install prompt');
+                    showStatus('✅ Instalação iniciada! Aguarde...', 'success');
+                } else {
+                    console.log('User dismissed the install prompt');
+                    showStatus('❌ Instalação cancelada', 'error');
+                }
+                deferredPrompt = null;
+            });
+        }
+        
+        function setupAdminManifest() {
+            // Clear existing manifests
+            const allManifests = document.querySelectorAll('link[rel="manifest"]');
+            allManifests.forEach(link => link.remove());
+            
+            // Create admin manifest for Vercel
+            const adminManifest = {
+                name: "Amauri Barbearia - Admin",
+                short_name: "Amauri Admin",
+                description: "Painel administrativo da Amauri Barbearia",
+                start_url: `${vercelUrl}/#/admin/login`,
+                display: "standalone",
+                background_color: "#1a1a1a",
+                theme_color: "#ffffff",
+                orientation: "portrait-primary",
+                scope: `${vercelUrl}/`,
+                icons: [
+                    {
+                        src: `${vercelUrl}/amauri-logo.png`,
+                        sizes: "192x192",
+                        type: "image/png"
+                    },
+                    {
+                        src: `${vercelUrl}/amauri-logo.png`,
+                        sizes: "512x512",
+                        type: "image/png"
+                    }
+                ],
+                categories: ["business", "productivity"],
+                lang: "pt-BR"
+            };
+            
+            // Create data URL
+            const dataUrl = 'data:application/json;base64,' + btoa(JSON.stringify(adminManifest, null, 2));
+            
+            // Add manifest
+            const link = document.createElement('link');
+            link.rel = 'manifest';
+            link.href = dataUrl;
+            link.id = 'pwa-manifest';
+            document.head.appendChild(link);
+            
+            console.log('Admin manifest set up for Vercel:', adminManifest);
+        }
+        
+        // Auto-setup on load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                setupAdminManifest();
+                showStatus('📱 Preparando instalação do app admin...', 'info');
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

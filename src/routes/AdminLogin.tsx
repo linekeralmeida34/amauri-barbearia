@@ -11,6 +11,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
+import { PWAInstallButton } from "@/components/PWAInstallButton";
 import heroImage from "@/assets/barbershop-hero.jpg";
 import { Calendar } from "lucide-react";
 
@@ -39,7 +40,7 @@ export default function AdminLogin() {
 
   return (
     <section
-      className="relative min-h-[90svh] sm:min-h-screen flex items-center justify-center overflow-hidden pt-safe pb-safe"
+      className="relative min-h-[100svh] sm:min-h-screen flex items-center justify-center overflow-hidden pt-safe pb-safe"
       aria-label="Login Administrativo"
     >
       {/* Fundo com mesma vibe do Hero */}
@@ -135,6 +136,12 @@ export default function AdminLogin() {
                     {loading ? "Entrando…" : "Entrar"}
                   </Button>
 
+                  {/* Botão de instalação PWA Admin (centralizado) */}
+                  <div className="mt-4 pt-4 border-t border-white/20">
+                    <div className="w-full flex justify-center">
+                      <PWAInstallButton variant="admin" subtle={true} />
+                    </div>
+                  </div>
 
                   <p className="text-xs text-white/80 text-center">
                     Esqueceu a senha? Fale com o proprietário para redefinição.
@@ -146,12 +153,7 @@ export default function AdminLogin() {
         </div>
       </div>
 
-      {/* Indicador central como no Hero */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-white/80">
-        <div className="w-6 h-10 border-2 border-white/40 rounded-full flex justify-center">
-          <div className="w-1 h-3 bg-white/50 rounded-full mt-2 animate-pulse"></div>
-        </div>
-      </div>
+      {/* Indicador de rolagem removido por pedido */}
 
     </section>
   );

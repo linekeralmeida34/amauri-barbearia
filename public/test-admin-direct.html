@@ -53,8 +53,8 @@
                 });
             }
             
-            // Create admin manifest with absolute URL
-            const baseUrl = window.location.origin;
+            // Create admin manifest with Vercel production URL
+            const baseUrl = 'https://amauri-barbearia-fawn.vercel.app';
             const adminManifest = {
                 name: "Amauri Barbearia - Admin",
                 short_name: "Amauri Admin",
@@ -91,7 +91,7 @@
             link.id = 'pwa-manifest';
             document.head.appendChild(link);
             
-            // Update page title and URL
+            // Update page title and URL to Vercel production
             document.title = 'Amauri Barbearia - Admin';
             window.history.replaceState(null, '', `${baseUrl}/#/admin/login`);
             

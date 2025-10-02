@@ -14,33 +14,14 @@ export default defineConfig(({ mode }) => ({
     react(), 
     mode === "development" && componentTagger(),
     VitePWA({
+      // We'll control the manifest manually (client/admin) via index.html
+      manifest: false,
       registerType: 'autoUpdate',
+      injectRegister: 'auto',
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,json}']
       },
-      includeAssets: ['favicon.ico', 'amauri-logo.png'],
-      manifest: {
-        name: 'Amauri Barbearia',
-        short_name: 'Amauri',
-        description: 'Barbearia premium em João Pessoa',
-        theme_color: '#ffffff',
-        background_color: '#1a1a1a',
-        display: 'standalone',
-        scope: '/',
-        start_url: '/',
-        icons: [
-          {
-            src: '/amauri-logo.png',
-            sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: '/amauri-logo.png',
-            sizes: '512x512',
-            type: 'image/png'
-          }
-        ]
-      }
+      includeAssets: ['favicon.ico', 'amauri-logo.png']
     })
   ].filter(Boolean),
   resolve: {

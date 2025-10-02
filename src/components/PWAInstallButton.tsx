@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Download, Smartphone, Share, Plus } from 'lucide-react';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
+import { useManifestForRoute } from '@/hooks/useManifestForRoute';
 
 interface PWAInstallButtonProps {
   variant?: 'client' | 'admin';
@@ -13,6 +14,9 @@ interface PWAInstallButtonProps {
 export const PWAInstallButton = ({ variant = 'client', className = '', subtle = false }: PWAInstallButtonProps) => {
   const { isInstallable, isInstalled, isIOS, installPrompt, install, showIOSInstructions, setShowIOSInstructions } = usePWAInstall();
   const [showInstructions, setShowInstructions] = useState(false);
+  
+  // Use manifest hook to set correct manifest based on route
+  useManifestForRoute();
 
   if (isInstalled) {
     return null; // Não mostra o botão se já estiver instalado
