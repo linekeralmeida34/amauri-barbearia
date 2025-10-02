@@ -1,13 +1,13 @@
 version: "3.9"
 services:
   web:
-    image: node:20-alpine
-    working_dir: /app
+    build: .
     ports:
-      - "5173:5173"
+      - "8080:8080"
     environment:
       - CHOKIDAR_USEPOLLING=true   # garante hot-reload no Windows
+      - VITE_SHOW_ADMIN_LINK=true  # mostra link admin em dev
     volumes:
       - ./:/app
       - /app/node_modules          # evita sobrescrever node_modules
-    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0 --port 5173"
+    command: npm run dev -- --host 0.0.0.0 --port 8080

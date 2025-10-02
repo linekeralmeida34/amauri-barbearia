@@ -5,6 +5,7 @@ import { BarbersSection } from "@/components/BarbersSection";
 import { Button } from "@/components/ui/button";
 import { MapPin, Phone, Clock, Instagram, MessageCircle } from "lucide-react";
 import { Link, NavLink } from "react-router-dom";
+import { PWAInstallButton } from "@/components/PWAInstallButton";
 
 const WHATSAPP_URL = "https://wa.me/message/FVJDVARVMA2XE1";
 
@@ -152,7 +153,7 @@ const Index = () => {
                 </div>
               </div>
 
-              <div className="mt-8">
+              <div className="mt-8 space-y-3">
                 {/* Footer CTA -> mesma página de agendamento */}
                 <Button asChild className="w-full bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark font-semibold">
                   <Link to="/agendar" aria-label="Ir para a página de agendamento">
@@ -160,6 +161,9 @@ const Index = () => {
                     Agendar Agora
                   </Link>
                 </Button>
+                
+                {/* Botão de instalação PWA para mobile */}
+                <PWAInstallButton variant="client" subtle={true} className="w-full sm:hidden" />
               </div>
             </div>
           </div>

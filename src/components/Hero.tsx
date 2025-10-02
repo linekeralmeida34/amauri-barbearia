@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar, Clock, Scissors, Users } from "lucide-react";
 import heroImage from "@/assets/barbershop-hero.jpg";
 import { Link } from "react-router-dom";
+import { PWAInstallButton } from "@/components/PWAInstallButton";
 
 export const Hero = () => {
   return (
@@ -62,6 +63,11 @@ export const Hero = () => {
                   Nossos Barbeiros
                 </Link>
               </Button>
+            </div>
+
+            {/* Botão de instalação PWA - mais visível no mobile */}
+            <div className="mt-4 text-center lg:text-left">
+              <PWAInstallButton variant="client" subtle={true} />
             </div>
           </div>
 

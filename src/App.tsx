@@ -28,6 +28,8 @@ import AdminServices from "./routes/AdminServices";
 import BarberLogin from "./routes/BarberLogin";
 import { Users, Scissors } from "lucide-react";
 import { useBarberAuth } from "@/hooks/useBarberAuth";
+import { useManifestSwitcher } from "@/hooks/useManifestSwitcher";
+import { PWAInstallButton } from "@/components/PWAInstallButton";
 
 
 const queryClient = new QueryClient();
@@ -56,7 +58,13 @@ function ScrollToAnchorFromSearch() {
   return null;
 }
 
-/** Link “Admin (dev)” controlado por flag de ambiente */
+/** Manifest switcher para PWA */
+function ManifestSwitcher() {
+  useManifestSwitcher();
+  return null;
+}
+
+/** Link "Admin (dev)" controlado por flag de ambiente */
 function AdminDevLink() {
   const { pathname } = useLocation();
   const show =
@@ -151,6 +159,11 @@ function AdminPanelPlaceholder() {
                 </div>
               )}
 
+              {/* Botão de instalação PWA Admin */}
+              {finalIsAdmin && (
+                <PWAInstallButton variant="admin" subtle={true} className="hidden sm:flex text-xs sm:text-sm px-2 sm:px-3" />
+              )}
+
               <span className="hidden lg:inline text-white/70 text-sm">
                 {finalIsAdmin ? "Painel Administrativo" : `Painel - ${barber?.name}`}
               </span>
@@ -177,6 +190,13 @@ function AdminPanelPlaceholder() {
               <p className="text-white/80 text-sm sm:text-base max-w-2xl mx-auto sm:mx-0">
                 Abaixo estão os agendamentos em tempo real.
               </p>
+              
+              {/* Botão de instalação PWA Admin para mobile */}
+              {finalIsAdmin && (
+                <div className="mt-4 sm:hidden text-center">
+                  <PWAInstallButton variant="admin" subtle={true} />
+                </div>
+              )}
             </div>
 
             {/* ✅ Lista de agendamentos (realtime) */}
@@ -204,8 +224,11 @@ export default function App() {
           {/* Helpers de rolagem */}
           <ScrollToTop />
           <ScrollToAnchorFromSearch />
+          
+          {/* Manifest switcher para PWA */}
+          <ManifestSwitcher />
 
-          {/* “Admin (dev)” apenas na home */}
+          {/* "Admin (dev)" apenas na home */}
           <AdminDevLink />
 
           <Routes>
