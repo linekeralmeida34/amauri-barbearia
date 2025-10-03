@@ -425,42 +425,44 @@ export const BookingFlow = () => {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-                {filteredServices.map((service) => (
-                <Card
-                  key={String(service.id)}
-                  className={`cursor-pointer transition-all hover:shadow-md ${
-                    selectedService?.id === service.id
-                      ? "ring-2 ring-barbershop-gold border-barbershop-gold"
-                      : ""
-                  }`}
-                  onClick={() => handleSelectService(service)}
-                >
-                  <CardHeader className="p-4 sm:p-5 md:p-6">
-                    <div className="flex justify-between items-start">
-                      <CardTitle className="text-base sm:text-lg md:text-xl">
-                        {service.name}
-                      </CardTitle>
-                      {service.popular && (
-                        <Badge className="bg-barbershop-gold text-barbershop-dark">
-                          Popular
-                        </Badge>
-                      )}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-4 sm:p-5 md:p-6 pt-0">
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center text-muted-foreground text-xs sm:text-sm">
-                        <Clock className="h-4 w-4 mr-1" />
-                        {service.duration}min
+              <div className="max-h-[480px] overflow-y-auto md:max-h-none md:overflow-visible pr-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                  {filteredServices.map((service) => (
+                  <Card
+                    key={String(service.id)}
+                    className={`cursor-pointer transition-all hover:shadow-md ${
+                      selectedService?.id === service.id
+                        ? "ring-2 ring-barbershop-gold border-barbershop-gold"
+                        : ""
+                    }`}
+                    onClick={() => handleSelectService(service)}
+                  >
+                    <CardHeader className="p-4 sm:p-5 md:p-6">
+                      <div className="flex justify-between items-start">
+                        <CardTitle className="text-base sm:text-lg md:text-xl">
+                          {service.name}
+                        </CardTitle>
+                        {service.popular && (
+                          <Badge className="bg-barbershop-gold text-barbershop-dark">
+                            Popular
+                          </Badge>
+                        )}
                       </div>
-                      <div className="font-bold text-barbershop-brown text-lg sm:text-xl">
-                        R$ {service.price}
+                    </CardHeader>
+                    <CardContent className="p-4 sm:p-5 md:p-6 pt-0">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center text-muted-foreground text-xs sm:text-sm">
+                          <Clock className="h-4 w-4 mr-1" />
+                          {service.duration}min
+                        </div>
+                        <div className="font-bold text-barbershop-brown text-lg sm:text-xl">
+                          R$ {service.price}
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                ))}
+                </div>
               </div>
             )}
           </div>
