@@ -164,13 +164,13 @@ export const ServicesSection = () => {
   const list = filteredServices;
 
   return (
-    <section className="py-20 bg-barbershop-cream">
+    <section className="py-12 sm:py-20 bg-barbershop-cream">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl lg:text-5xl font-bold text-barbershop-dark mb-4">
+        <div className="text-center mb-8 sm:mb-16">
+          <h2 className="text-2xl sm:text-4xl lg:text-5xl font-bold text-barbershop-dark mb-4">
             Nossos Serviços
           </h2>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
+          <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-4 sm:mb-8">
             Oferecemos uma gama completa de serviços para o homem moderno, 
             sempre com a qualidade e atenção aos detalhes que você merece.
           </p>
@@ -204,8 +204,9 @@ export const ServicesSection = () => {
             </p>
           </div>
         ) : (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {list.map((service) => {
+          <div className="max-h-[300px] overflow-y-auto md:max-h-none md:overflow-visible pr-2">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
+              {list.map((service) => {
             const IconComponent = service.icon;
             return (
               <Card
@@ -262,6 +263,7 @@ export const ServicesSection = () => {
               </Card>
             );
           })}
+            </div>
           </div>
         )}
       </div>
