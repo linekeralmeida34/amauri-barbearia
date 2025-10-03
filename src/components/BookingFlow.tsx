@@ -393,12 +393,12 @@ export const BookingFlow = () => {
       case "service":
         return (
           <div>
-            <h3 className="font-bold text-barbershop-dark mb-6 text-2xl">
+            <h3 className="font-bold text-barbershop-dark mb-4 text-xl sm:text-2xl">
               Escolha seu serviço
             </h3>
             
             {/* Search Input */}
-            <div className="mb-6">
+            <div className="mb-4">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-barbershop-brown/60 w-4 h-4" />
                 <Input
@@ -425,8 +425,8 @@ export const BookingFlow = () => {
                 </p>
               </div>
             ) : (
-              <div className="max-h-[480px] overflow-y-auto md:max-h-none md:overflow-visible pr-2">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+              <div className="max-h-[320px] overflow-y-auto md:max-h-none md:overflow-visible pr-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4">
                   {filteredServices.map((service) => (
                   <Card
                     key={String(service.id)}
@@ -437,7 +437,7 @@ export const BookingFlow = () => {
                     }`}
                     onClick={() => handleSelectService(service)}
                   >
-                    <CardHeader className="p-4 sm:p-5 md:p-6">
+                    <CardHeader className="p-3 sm:p-5 md:p-6">
                       <div className="flex justify-between items-start">
                         <CardTitle className="text-base sm:text-lg md:text-xl">
                           {service.name}
@@ -449,13 +449,13 @@ export const BookingFlow = () => {
                         )}
                       </div>
                     </CardHeader>
-                    <CardContent className="p-4 sm:p-5 md:p-6 pt-0">
+                    <CardContent className="p-3 sm:p-5 md:p-6 pt-0">
                       <div className="flex justify-between items-center">
                         <div className="flex items-center text-muted-foreground text-xs sm:text-sm">
-                          <Clock className="h-4 w-4 mr-1" />
+                          <Clock className="h-3 w-3 mr-1" />
                           {service.duration}min
                         </div>
-                        <div className="font-bold text-barbershop-brown text-lg sm:text-xl">
+                        <div className="font-bold text-barbershop-brown text-base sm:text-xl">
                           R$ {service.price}
                         </div>
                       </div>
@@ -727,12 +727,12 @@ export const BookingFlow = () => {
   };
 
   return (
-    <section className="py-20 bg-background">
+    <section className="py-12 sm:py-20 bg-background">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Título */}
-        <div className="text-center mb-10 sm:mb-12">
+        <div className="text-center mb-6 sm:mb-12">
           <h2 className="font-bold text-barbershop-dark mb-4 text-3xl sm:text-4xl md:text-5xl">
-            Agendar na Amauri Barbearia
+            Amauri Barbearia
           </h2>
           <p className="text-muted-foreground text-base sm:text-lg md:text-xl">
             Simples, rápido e conveniente
@@ -747,7 +747,7 @@ export const BookingFlow = () => {
         )}
 
         {/* STEPS */}
-        <div className="mb-10 sm:mb-12 px-2">
+        <div className="mb-6 sm:mb-12 px-2">
           <div className="flex items-center justify-center gap-4">
             {["Serviço", "Barbeiro", "Data/Hora", "Dados", "Confirmação"].map(
               (step, index) => {
@@ -793,8 +793,8 @@ export const BookingFlow = () => {
         </div>
 
         {/* Conteúdo */}
-        <Card className="mb-8">
-          <CardContent className="p-5 sm:p-8">{renderStepContent()}</CardContent>
+        <Card className="mb-6 sm:mb-8">
+          <CardContent className="p-4 sm:p-8">{renderStepContent()}</CardContent>
         </Card>
 
         {/* Navegação */}
