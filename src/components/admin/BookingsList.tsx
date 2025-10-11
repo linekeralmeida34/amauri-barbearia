@@ -57,8 +57,8 @@ function fmtPriceBR(v: number | null | undefined) {
   return v.toLocaleString("pt-BR", { 
     style: "currency", 
     currency: "BRL",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
   });
 }
 
@@ -180,19 +180,20 @@ function PaymentMethodBadge({ method }: { method: PaymentMethod }) {
 }
 
 /** ---------- Componente de Estatísticas ---------- */
-function StatsCard({ icon: Icon, title, value, subtitle, color = "text-blue-600" }: {
+function StatsCard({ icon: Icon, title, value, subtitle, color = "text-blue-600", valueSize = "text-2xl" }: {
   icon: any;
   title: string;
   value: string | number;
   subtitle: string;
   color?: string;
+  valueSize?: string;
 }) {
   return (
     <div className="bg-gradient-to-br from-slate-700/50 to-slate-800/50 backdrop-blur-sm border border-slate-600/50 rounded-xl p-4 hover:from-slate-600/50 hover:to-slate-700/50 transition-all duration-200 hover:scale-105 hover:shadow-lg">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-slate-300 text-sm font-medium">{title}</p>
-          <p className="text-white text-2xl font-bold mt-1">{value}</p>
+          <p className={`text-white ${valueSize} font-bold mt-1`}>{value}</p>
           <p className="text-slate-400 text-xs mt-1">{subtitle}</p>
         </div>
         <div className={`p-3 rounded-lg bg-gradient-to-br from-slate-600/60 to-slate-700/60 ${color} shadow-lg`}>
@@ -543,17 +544,32 @@ export default function BookingsList() {
       updateData.canceled_by_admin = false;
     }
 
+    // Atualizar estado local imediatamente para feedback visual
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...updateData } : r)));
+
+    // Atualizar no banco
     const { error } = await supabase.from("bookings").update(updateData).eq("id", id);
-    if (!error) {
-      setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...updateData } : r)));
+    if (error) {
+      // Se der erro, reverter a mudança local
+      setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status: currentBooking?.status || "pending", canceled_by_admin: currentBooking?.canceled_by_admin || false } : r)));
+      console.error("Erro ao atualizar status:", error);
     }
   }
 
   /** --------- update de forma de pagamento --------- */
   async function updatePaymentMethod(id: string, newMethod: PaymentMethod) {
+    // Buscar o agendamento atual para reverter em caso de erro
+    const currentBooking = rows.find(r => r.id === id);
+    
+    // Atualizar estado local imediatamente para feedback visual
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, payment_method: newMethod } : r)));
+
+    // Atualizar no banco
     const { error } = await supabase.from("bookings").update({ payment_method: newMethod }).eq("id", id);
-    if (!error) {
-      setRows((prev) => prev.map((r) => (r.id === id ? { ...r, payment_method: newMethod } : r)));
+    if (error) {
+      // Se der erro, reverter a mudança local
+      setRows((prev) => prev.map((r) => (r.id === id ? { ...r, payment_method: currentBooking?.payment_method || null } : r)));
+      console.error("Erro ao atualizar método de pagamento:", error);
     }
   }
 
@@ -785,6 +801,7 @@ export default function BookingsList() {
             value={fmtPriceBR(hasActiveFilters ? filteredStats.totalRevenue : originalStats.totalRevenue)}
             subtitle={hasActiveFilters ? "filtrada" : "do barbeiro"}
             color="text-emerald-400"
+            valueSize="text-lg"
           />
           <StatsCard
             icon={XCircle}
