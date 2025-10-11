@@ -30,7 +30,7 @@ export type Barber = {
   deleted_at: string | null;
 };
 
-export type PaymentMethod = "credit_card" | "debit_card" | "cash" | "pix";
+export type PaymentMethod = "credit_card" | "debit_card" | "cash" | "pix" | "voucher";
 
 /* =========================
    Services

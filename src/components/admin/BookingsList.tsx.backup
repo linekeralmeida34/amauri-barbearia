@@ -203,183 +203,6 @@ function StatsCard({ icon: Icon, title, value, subtitle, color = "text-blue-600"
   );
 }
 
-/** ---------- Componente de Lista Compacta Mobile ---------- */
-function MobileListItem({ 
-  booking, 
-  isExpanded, 
-  onToggle, 
-  onStatusChange, 
-  onPaymentMethodChange,
-  canCancel,
-  isAdmin 
-}: {
-  booking: BookingRow;
-  isExpanded: boolean;
-  onToggle: (id: string) => void;
-  onStatusChange: (id: string, status: BookingStatus) => void;
-  onPaymentMethodChange: (id: string, method: PaymentMethod) => void;
-  canCancel: boolean;
-  isAdmin: boolean;
-}) {
-  const getStatusColor = (status: BookingStatus, canceledByAdmin: boolean) => {
-    if (canceledByAdmin) return "text-red-400";
-    if (status === "confirmed") return "text-green-400";
-    if (status === "canceled") return "text-red-400";
-    if (status === "pending") return "text-amber-400";
-    return "text-gray-400";
-  };
-
-  const getStatusText = (status: BookingStatus, canceledByAdmin: boolean) => {
-    if (canceledByAdmin) return "Cancelado (Admin)";
-    if (status === "confirmed") return "Confirmado";
-    if (status === "canceled") return "Cancelado";
-    if (status === "pending") return "Pendente";
-    return "—";
-  };
-
-  return (
-    <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg overflow-hidden">
-      {/* Item da lista compacta */}
-      <div 
-        className="p-4 cursor-pointer hover:bg-white/5 transition-colors"
-        onClick={() => onToggle(booking.id)}
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <Calendar className="w-4 h-4 text-cyan-400 flex-shrink-0" />
-              <span className="text-white font-medium text-sm">
-                {fmtDateTimeBR(booking.starts_at)}
-              </span>
-            </div>
-            <div className="text-white/80 text-sm font-medium truncate">
-              {booking.customer_name ?? "Cliente não informado"}
-            </div>
-            <div className="text-white/60 text-xs truncate">
-              {booking.services?.name ?? "—"}
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2 ml-2">
-            <span className={`text-xs font-medium ${getStatusColor(booking.status, booking.canceled_by_admin)}`}>
-              {getStatusText(booking.status, booking.canceled_by_admin)}
-            </span>
-            <div className={`transform transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
-              <svg className="w-4 h-4 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Card expandido */}
-      {isExpanded && (
-        <div className="border-t border-white/10 p-4 space-y-4">
-          {/* Status e ações */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <StatusBadge status={booking.status} canceledByAdmin={booking.canceled_by_admin} />
-              {booking.canceled_by_admin && (
-                <div className="flex items-center gap-1 text-red-400 text-xs">
-                  <Lock className="w-3 h-3" />
-                  <span>Admin</span>
-                </div>
-              )}
-            </div>
-            
-            {booking.status !== "canceled" || isAdmin ? (
-              <select
-                value={booking.status}
-                onChange={(e) => onStatusChange(booking.id, e.target.value as BookingStatus)}
-                className="rounded-lg bg-white/5 border border-white/20 text-white px-3 py-1.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
-                style={{ 
-                  colorScheme: 'dark',
-                  fontSize: '16px',
-                  minHeight: '44px'
-                }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <option value="pending" className="bg-gray-800 text-white">Pendente</option>
-                <option value="confirmed" className="bg-gray-800 text-white">Confirmado</option>
-                {canCancel && (
-                  <option value="canceled" className="bg-gray-800 text-white">Cancelado</option>
-                )}
-              </select>
-            ) : null}
-          </div>
-
-          {/* Informações detalhadas */}
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-white/50" />
-                <span className="text-white/60">Barbeiro:</span>
-              </div>
-              <div className="text-white font-medium ml-6">
-                {booking.barbers?.name ?? "—"}
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="text-white/60">Serviço:</span>
-              </div>
-              <div className="text-white font-medium">
-                {booking.services?.name ?? "—"}
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="text-white/60">Telefone:</span>
-              </div>
-              <div className="text-white font-medium">
-                {fmtPhoneBR(booking.phone)}
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="text-white/60">Preço:</span>
-              </div>
-              <div className="text-emerald-400 font-semibold">
-                {fmtPriceBR(booking.price)}
-              </div>
-            </div>
-          </div>
-
-          {/* Forma de Pagamento */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <CreditCard className="w-4 h-4 text-white/50" />
-              <span className="text-white/60 text-sm">Forma de Pagamento:</span>
-            </div>
-            <select
-              value={booking.payment_method || ""}
-              onChange={(e) => onPaymentMethodChange(booking.id, e.target.value as PaymentMethod)}
-              className="w-full rounded-lg bg-white/5 border border-white/20 text-white px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
-              style={{ 
-                colorScheme: 'dark',
-                fontSize: '16px',
-                minHeight: '44px'
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <option value="" className="bg-gray-800 text-white">Selecionar forma de pagamento</option>
-              <option value="credit_card" className="bg-gray-800 text-white">Cartão de Crédito</option>
-              <option value="debit_card" className="bg-gray-800 text-white">Cartão de Débito</option>
-              <option value="cash" className="bg-gray-800 text-white">Dinheiro</option>
-              <option value="pix" className="bg-gray-800 text-white">PIX</option>
-              <option value="voucher" className="bg-gray-800 text-white">Voucher</option>
-            </select>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 /** ---------- Componente ---------- */
 export default function BookingsList() {
   const { barber, isAdmin, canCancelBookings } = useBarberAuth();
@@ -417,22 +240,6 @@ export default function BookingsList() {
   const [todayOnly, setTodayOnly] = useState<boolean>(false);
 
   const [loading, setLoading] = useState(true);
-  
-  /** estado para controlar itens expandidos na visualização mobile */
-  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
-  
-  /** toggle para expandir/colapsar item na visualização mobile */
-  const toggleExpanded = (bookingId: string) => {
-    setExpandedItems(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(bookingId)) {
-        newSet.delete(bookingId);
-      } else {
-        newSet.add(bookingId);
-      }
-      return newSet;
-    });
-  };
 
   /** --------- fetch inicial (bookings + barbers) --------- */
   async function fetchAll() {
@@ -1178,18 +985,144 @@ export default function BookingsList() {
             )}
           </div>
         </div>
-        {filtered.map((b, index) => (
-          <MobileListItem
-            key={b.id}
-            booking={b}
-            isExpanded={expandedItems.has(b.id)}
-            onToggle={toggleExpanded}
-            onStatusChange={updateStatus}
-            onPaymentMethodChange={updatePaymentMethod}
-            canCancel={finalCanCancel}
-            isAdmin={finalIsAdmin}
-          />
-        ))}
+        {filtered.map((b, index) => {
+          // Definir classes baseadas no status para mobile
+          const getCardClasses = () => {
+            const baseClasses = "backdrop-blur-sm border rounded-xl p-4 sm:p-5 transition-all duration-200 shadow-lg hover:shadow-xl";
+            
+            // Se foi cancelado pelo admin, sempre mostrar como cancelado
+            if (b.canceled_by_admin) {
+              return `${baseClasses} bg-gradient-to-br from-red-900/50 to-rose-900/50 border-red-500/50 hover:from-red-800/50 hover:to-rose-800/50 opacity-75`;
+            } else if (b.status === "confirmed") {
+              return `${baseClasses} bg-gradient-to-br from-green-900/40 to-emerald-900/40 border-green-500/50 hover:from-green-800/40 hover:to-emerald-800/40`;
+            } else if (b.status === "canceled") {
+              return `${baseClasses} bg-gradient-to-br from-red-900/40 to-rose-900/40 border-red-400/50 hover:from-red-800/40 hover:to-rose-800/40`;
+            } else if (b.status === "pending") {
+              return `${baseClasses} bg-gradient-to-br from-amber-900/40 to-yellow-900/40 border-amber-500/50 hover:from-amber-800/40 hover:to-yellow-800/40`;
+            }
+            
+            return `${baseClasses} bg-gradient-to-br from-slate-800/40 to-slate-900/40 border-slate-700/50 hover:from-slate-700/40 hover:to-slate-800/40`;
+          };
+
+          return (
+            <div 
+              key={b.id} 
+              className={getCardClasses()}
+              style={{ animationDelay: `${index * 100}ms` }}
+            >
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <Calendar className="w-4 h-4 text-cyan-400" />
+                  <span className="text-white font-semibold text-base">
+                    {fmtDateTimeBR(b.starts_at)}
+                  </span>
+                </div>
+                <div className="text-white/60 text-sm">
+                  {b.customer_name ?? "Cliente não informado"}
+                </div>
+              </div>
+              {b.status === "canceled" && !finalIsAdmin ? (
+                <div className="flex flex-col items-end gap-1">
+                  <StatusBadge status="canceled" canceledByAdmin={b.canceled_by_admin} />
+                </div>
+              ) : (
+                <select
+                  value={b.status}
+                  onChange={(e) => updateStatus(b.id, e.target.value as BookingStatus)}
+                  className="rounded-lg bg-white/5 border border-white/20 text-white px-3 py-1.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+                  style={{ 
+                    colorScheme: 'dark',
+                    fontSize: '16px',
+                    transform: 'scale(1)',
+                    WebkitTextSizeAdjust: '100%',
+                    textSizeAdjust: '100%',
+                    minHeight: '44px'
+                  }}
+                >
+                  <option value="pending" className="bg-gray-800 text-white">Pendente</option>
+                  <option value="confirmed" className="bg-gray-800 text-white">Confirmado</option>
+                  {finalCanCancel && (
+                    <option value="canceled" className="bg-gray-800 text-white">Cancelado</option>
+                  )}
+                </select>
+              )}
+            </div>
+
+            {/* Informação de cancelamento pelo admin */}
+            <AdminCancelInfo canceledByAdmin={b.canceled_by_admin} />
+
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-white/50" />
+                  <span className="text-white/60">Barbeiro:</span>
+                </div>
+                <div className="text-white font-medium ml-6">
+                  {b.barbers?.name ?? "—"}
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-white/60">Serviço:</span>
+                </div>
+                <div className="text-white font-medium">
+                  {b.services?.name ?? "—"}
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-white/60">Telefone:</span>
+                </div>
+                <div className="text-white font-medium">
+                  {fmtPhoneBR(b.phone)}
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-white/60">Preço:</span>
+                </div>
+                <div className="text-emerald-400 font-semibold">
+                  {fmtPriceBR(b.price)}
+                </div>
+              </div>
+            </div>
+
+            {/* Forma de Pagamento Mobile */}
+            <div className="mt-4 pt-4 border-t border-white/10">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-white/50" />
+                  <span className="text-white/60 text-sm">Forma de Pagamento:</span>
+                </div>
+                <select
+                  value={b.payment_method || ""}
+                  onChange={(e) => updatePaymentMethod(b.id, e.target.value as PaymentMethod)}
+                  className="w-full rounded-lg bg-white/5 border border-white/20 text-white px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+                  style={{ 
+                    colorScheme: 'dark',
+                    fontSize: '16px',
+                    transform: 'scale(1)',
+                    WebkitTextSizeAdjust: '100%',
+                    textSizeAdjust: '100%',
+                    minHeight: '44px'
+                  }}
+                >
+                  <option value="" className="bg-gray-800 text-white">Selecionar forma de pagamento</option>
+                  <option value="credit_card" className="bg-gray-800 text-white">Cartão de Crédito</option>
+                  <option value="debit_card" className="bg-gray-800 text-white">Cartão de Débito</option>
+                  <option value="cash" className="bg-gray-800 text-white">Dinheiro</option>
+                  <option value="pix" className="bg-gray-800 text-white">PIX</option>
+                  <option value="voucher" className="bg-gray-800 text-white">Voucher</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          );
+        })}
 
         {filtered.length === 0 && (
           <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-8 text-center">
