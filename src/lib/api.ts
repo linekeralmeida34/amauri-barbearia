@@ -263,12 +263,14 @@ export type AdminBarber = {
   name: string;
   photo_url: string | null;
   is_active: boolean;
+  can_cancel_bookings?: boolean;
+  can_create_bookings?: boolean;
 };
 
 export async function adminFetchAllBarbers(): Promise<AdminBarber[]> {
   const { data, error } = await supabase
     .from("barbers")
-    .select("id,name,photo_url,is_active")
+    .select("id,name,photo_url,is_active,can_cancel_bookings,can_create_bookings")
     .order("name", { ascending: true });
 
   if (error) throw error;
@@ -277,6 +279,8 @@ export async function adminFetchAllBarbers(): Promise<AdminBarber[]> {
     name: b.name ?? "",
     photo_url: b.photo_url ?? null,
     is_active: !!b.is_active,
+    can_cancel_bookings: b.can_cancel_bookings ?? false,
+    can_create_bookings: b.can_create_bookings ?? false,
   }));
 }
 
@@ -284,6 +288,22 @@ export async function adminSetBarberActive(barberId: string, isActive: boolean) 
   const { error } = await supabase
     .from("barbers")
     .update({ is_active: isActive })
+    .eq("id", barberId);
+
+  if (error) throw error;
+}
+
+export async function adminSetBarberPermissions(
+  barberId: string, 
+  canCancelBookings: boolean, 
+  canCreateBookings: boolean
+) {
+  const { error } = await supabase
+    .from("barbers")
+    .update({ 
+      can_cancel_bookings: canCancelBookings,
+      can_create_bookings: canCreateBookings 
+    })
     .eq("id", barberId);
 
   if (error) throw error;

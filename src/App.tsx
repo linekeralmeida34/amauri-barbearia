@@ -87,7 +87,7 @@ function AdminDevLink() {
 /** 🔒 Placeholder do painel com topbar no tema + botões e Sair */
 function AdminPanelPlaceholder() {
   const navigate = useNavigate();
-  const { barber, isAdmin, signOut } = useBarberAuth();
+  const { barber, isAdmin, canCreateBookings, signOut } = useBarberAuth();
   
   // Verificar se é admin via email também (para lineker.dev@gmail.com)
   const [isEmailAdmin, setIsEmailAdmin] = useState(false);
@@ -131,8 +131,8 @@ function AdminPanelPlaceholder() {
             </a>
 
             <div className="flex items-center gap-1 sm:gap-2">
-              {/* Botões de navegação - apenas para admin */}
-              {finalIsAdmin && (
+              {/* Botões de navegação - para admin ou barbeiros com permissão */}
+              {(finalIsAdmin || canCreateBookings) && (
                 <div className="flex items-center gap-1 sm:gap-2">
                   <Button
                     asChild

@@ -2,7 +2,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
+import { adminSetBarberPermissions } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { 
   Users, 
   UserPlus, 
@@ -13,7 +15,9 @@ import {
   Trash2,
   Star,
   Instagram,
-  X
+  X,
+  Shield,
+  Calendar
 } from "lucide-react";
 
 type BarberRow = {
@@ -27,6 +31,8 @@ type BarberRow = {
   specialties: string[] | null;
   is_active: boolean;
   deleted_at: string | null;
+  can_cancel_bookings?: boolean;
+  can_create_bookings?: boolean;
 };
 
 type NewBarber = {
@@ -42,8 +48,10 @@ export default function AdminBarbers() {
   const [rows, setRows] = useState<BarberRow[]>([]);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [barberToDelete, setBarberToDelete] = useState<BarberRow | null>(null);
+  const [barberToEdit, setBarberToEdit] = useState<BarberRow | null>(null);
   const [newBarber, setNewBarber] = useState<NewBarber>({
     name: "",
     photo_url: "",
@@ -59,7 +67,7 @@ export default function AdminBarbers() {
     try {
       const { data, error } = await supabase
         .from("barbers")
-        .select("id,name,photo_url,bio,rating,reviews,instagram,specialties,is_active,deleted_at")
+        .select("id,name,photo_url,bio,rating,reviews,instagram,specialties,is_active,deleted_at,can_cancel_bookings,can_create_bookings")
         .is("deleted_at", null)
         .order("name", { ascending: true });
 
@@ -97,6 +105,44 @@ export default function AdminBarbers() {
       }
     } catch (err) {
       console.error("[AdminBarbers] toggleActive error:", err);
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  async function toggleCancelPermission(barber: BarberRow) {
+    const next = !barber.can_cancel_bookings;
+    setSavingId(barber.id);
+    
+    try {
+      await adminSetBarberPermissions(barber.id, next, barber.can_create_bookings ?? false);
+      setRows((prev) =>
+        prev.map((b) => (b.id === barber.id ? { ...b, can_cancel_bookings: next } : b))
+      );
+    } catch (err) {
+      console.error("[AdminBarbers] toggleCancelPermission error:", err);
+      setRows((prev) =>
+        prev.map((b) => (b.id === barber.id ? { ...b, can_cancel_bookings: !next } : b))
+      );
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  async function toggleCreatePermission(barber: BarberRow) {
+    const next = !barber.can_create_bookings;
+    setSavingId(barber.id);
+    
+    try {
+      await adminSetBarberPermissions(barber.id, barber.can_cancel_bookings ?? false, next);
+      setRows((prev) =>
+        prev.map((b) => (b.id === barber.id ? { ...b, can_create_bookings: next } : b))
+      );
+    } catch (err) {
+      console.error("[AdminBarbers] toggleCreatePermission error:", err);
+      setRows((prev) =>
+        prev.map((b) => (b.id === barber.id ? { ...b, can_create_bookings: !next } : b))
+      );
     } finally {
       setSavingId(null);
     }
@@ -141,6 +187,69 @@ export default function AdminBarbers() {
     } finally {
       setAddingBarber(false);
     }
+  }
+
+  async function updateBarber() {
+    if (!barberToEdit || !newBarber.name.trim()) return;
+    
+    setAddingBarber(true);
+    try {
+      const { error } = await supabase
+        .from("barbers")
+        .update({
+          name: newBarber.name.trim(),
+          photo_url: newBarber.photo_url.trim() || null,
+          bio: newBarber.bio.trim() || null,
+          instagram: newBarber.instagram.trim() || null,
+          specialties: newBarber.specialties.length > 0 ? newBarber.specialties : null
+        })
+        .eq("id", barberToEdit.id);
+
+      if (error) throw error;
+      
+      // Atualizar na lista local
+      setRows(prev =>
+        prev.map(b =>
+          b.id === barberToEdit.id
+            ? {
+                ...b,
+                name: newBarber.name.trim(),
+                photo_url: newBarber.photo_url.trim() || null,
+                bio: newBarber.bio.trim() || null,
+                instagram: newBarber.instagram.trim() || null,
+                specialties: newBarber.specialties.length > 0 ? newBarber.specialties : null
+              }
+            : b
+        )
+      );
+      
+      // Limpar e fechar
+      setNewBarber({
+        name: "",
+        photo_url: "",
+        bio: "",
+        instagram: "",
+        specialties: []
+      });
+      setBarberToEdit(null);
+      setShowEditModal(false);
+    } catch (err) {
+      console.error("[AdminBarbers] updateBarber error:", err);
+    } finally {
+      setAddingBarber(false);
+    }
+  }
+
+  function handleEditClick(barber: BarberRow) {
+    setNewBarber({
+      name: barber.name,
+      photo_url: barber.photo_url || "",
+      bio: barber.bio || "",
+      instagram: barber.instagram || "",
+      specialties: barber.specialties || []
+    });
+    setBarberToEdit(barber);
+    setShowEditModal(true);
   }
 
   async function deleteBarber(barber: BarberRow) {
@@ -500,30 +609,65 @@ export default function AdminBarbers() {
                     )}
                   </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-white/60">Status:</span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      disabled={savingId === b.id}
-                      onClick={() => toggleActive(b)}
-                      className={`relative inline-flex h-6 w-12 items-center rounded-full transition-all duration-200 ${
-                        b.is_active ? "bg-amber-500" : "bg-white/20"
-                      } ${savingId === b.id ? "opacity-60" : ""}`}
-                      aria-label="Alternar status"
-                    >
-                      <span
-                        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-all duration-200 ${
-                          b.is_active ? "translate-x-6" : "translate-x-1"
-                        }`}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-white/60">Status:</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        disabled={savingId === b.id}
+                        onClick={() => toggleActive(b)}
+                        className={`relative inline-flex h-6 w-12 items-center rounded-full transition-all duration-200 ${
+                          b.is_active ? "bg-amber-500" : "bg-white/20"
+                        } ${savingId === b.id ? "opacity-60" : ""}`}
+                        aria-label="Alternar status"
+                      >
+                        <span
+                          className={`inline-block h-5 w-5 transform rounded-full bg-white transition-all duration-200 ${
+                            b.is_active ? "translate-x-6" : "translate-x-1"
+                          }`}
+                        />
+                      </button>
+                      <button
+                        onClick={() => handleEditClick(b)}
+                        className="p-1.5 text-amber-400 hover:text-amber-300 hover:bg-amber-500/20 rounded-md transition-colors"
+                        aria-label="Editar barbeiro"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteClick(b)}
+                        className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded-md transition-colors"
+                        aria-label="Excluir barbeiro"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Permissões */}
+                  <div className="border-t border-white/10 pt-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Shield className="w-4 h-4 text-amber-400" />
+                        <span className="text-sm text-white">Cancelar Agendamentos</span>
+                      </div>
+                      <Switch
+                        checked={b.can_cancel_bookings ?? false}
+                        onCheckedChange={() => toggleCancelPermission(b)}
+                        disabled={savingId === b.id}
                       />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteClick(b)}
-                      className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded-md transition-colors"
-                      aria-label="Excluir barbeiro"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-amber-400" />
+                        <span className="text-sm text-white">Criar Agendamentos</span>
+                      </div>
+                      <Switch
+                        checked={b.can_create_bookings ?? false}
+                        onCheckedChange={() => toggleCreatePermission(b)}
+                        disabled={savingId === b.id}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -696,6 +840,130 @@ export default function AdminBarbers() {
           </div>
         </div>
       )}
+
+      {/* Modal de Edição */}
+      {showEditModal && barberToEdit && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-white">Editar Barbeiro</h2>
+              <button
+                onClick={() => {
+                  setShowEditModal(false);
+                  setBarberToEdit(null);
+                  setNewBarber({
+                    name: "",
+                    photo_url: "",
+                    bio: "",
+                    instagram: "",
+                    specialties: []
+                  });
+                }}
+                className="text-white/60 hover:text-white transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-white/80 mb-2">
+                  Nome *
+                </label>
+                <input
+                  type="text"
+                  value={newBarber.name}
+                  onChange={(e) => setNewBarber(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full rounded-lg bg-white/5 border border-white/20 text-white px-3 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+                  placeholder="Nome do barbeiro"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-white/80 mb-2">
+                  URL da Foto
+                </label>
+                <input
+                  type="url"
+                  value={newBarber.photo_url}
+                  onChange={(e) => setNewBarber(prev => ({ ...prev, photo_url: e.target.value }))}
+                  className="w-full rounded-lg bg-white/5 border border-white/20 text-white px-3 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+                  placeholder="https://exemplo.com/foto.jpg"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-white/80 mb-2">
+                  Biografia
+                </label>
+                <textarea
+                  value={newBarber.bio}
+                  onChange={(e) => setNewBarber(prev => ({ ...prev, bio: e.target.value }))}
+                  className="w-full rounded-lg bg-white/5 border border-white/20 text-white px-3 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+                  rows={3}
+                  placeholder="Descrição do barbeiro..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-white/80 mb-2">
+                  Instagram
+                </label>
+                <input
+                  type="text"
+                  value={newBarber.instagram}
+                  onChange={(e) => setNewBarber(prev => ({ ...prev, instagram: e.target.value }))}
+                  className="w-full rounded-lg bg-white/5 border border-white/20 text-white px-3 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+                  placeholder="@usuario ou URL"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-white/80 mb-2">
+                  Especialidades
+                </label>
+                <input
+                  type="text"
+                  value={newBarber.specialties.join(", ")}
+                  onChange={(e) => setNewBarber(prev => ({ 
+                    ...prev, 
+                    specialties: e.target.value.split(",").map(s => s.trim()).filter(s => s)
+                  }))}
+                  className="w-full rounded-lg bg-white/5 border border-white/20 text-white px-3 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+                  placeholder="Corte masculino, Barba, Degradê (separados por vírgula)"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <Button
+                onClick={() => {
+                  setShowEditModal(false);
+                  setBarberToEdit(null);
+                  setNewBarber({
+                    name: "",
+                    photo_url: "",
+                    bio: "",
+                    instagram: "",
+                    specialties: []
+                  });
+                }}
+                className="flex-1 bg-slate-600 hover:bg-slate-500 text-white"
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={updateBarber}
+                disabled={!newBarber.name.trim() || addingBarber}
+                className="flex-1 bg-gradient-to-r from-barbershop-gold to-amber-500 hover:from-amber-400 hover:to-barbershop-gold text-barbershop-dark shadow-lg hover:shadow-amber-500/25 disabled:opacity-50"
+              >
+                {addingBarber ? "Salvando..." : "Salvar Alterações"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </section>
   );
 }

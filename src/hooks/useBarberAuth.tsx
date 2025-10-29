@@ -7,6 +7,8 @@ export type BarberAuthData = {
   name: string;
   email: string;
   is_admin: boolean;
+  can_cancel_bookings?: boolean;
+  can_create_bookings?: boolean;
 };
 
 export function useBarberAuth() {
@@ -35,7 +37,7 @@ export function useBarberAuth() {
           if (!savedData) {
             const { data: barberData } = await supabase
               .from("barbers")
-              .select("id, name, email, is_admin")
+              .select("id, name, email, is_admin, can_cancel_bookings, can_create_bookings")
               .eq("email", session.session.user.email)
               .single();
             
@@ -44,7 +46,9 @@ export function useBarberAuth() {
                 id: barberData.id,
                 name: barberData.name,
                 email: barberData.email,
-                is_admin: barberData.is_admin
+                is_admin: barberData.is_admin,
+                can_cancel_bookings: barberData.can_cancel_bookings,
+                can_create_bookings: barberData.can_create_bookings
               });
             }
           }
@@ -70,7 +74,9 @@ export function useBarberAuth() {
   };
 
   const isAdmin = barber?.is_admin || barber?.name?.toLowerCase() === "amauri" || false;
-  const canCancelBookings = isAdmin; // Apenas Amauri e admins podem cancelar
+  // Verificar permissões: admin ou permissão específica do barbeiro
+  const canCancelBookings = isAdmin || barber?.can_cancel_bookings || false;
+  const canCreateBookings = isAdmin || barber?.can_create_bookings || false;
 
   return {
     barber,
@@ -78,6 +84,7 @@ export function useBarberAuth() {
     isAuthenticated: !!barber,
     isAdmin,
     canCancelBookings,
+    canCreateBookings,
     signOut,
   };
 }

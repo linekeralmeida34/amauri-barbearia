@@ -383,7 +383,7 @@ function MobileListItem({
 
 /** ---------- Componente ---------- */
 export default function BookingsList() {
-  const { barber, isAdmin, canCancelBookings } = useBarberAuth();
+  const { barber, isAdmin, canCancelBookings, canCreateBookings } = useBarberAuth();
   
   // Verificar se é admin via email também (para lineker.dev@gmail.com)
   const [isEmailAdmin, setIsEmailAdmin] = useState(false);
