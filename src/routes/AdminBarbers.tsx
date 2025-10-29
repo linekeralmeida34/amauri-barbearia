@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { adminSetBarberPermissions } from "@/lib/api";
+import { useBarberAuth } from "@/hooks/useBarberAuth";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { 
@@ -44,6 +45,27 @@ type NewBarber = {
 };
 
 export default function AdminBarbers() {
+  const { barber, isAdmin } = useBarberAuth();
+  
+  // Verificar se é admin via email também (para lineker.dev@gmail.com)
+  const [isEmailAdmin, setIsEmailAdmin] = useState(false);
+  
+  useEffect(() => {
+    const checkEmailAdmin = async () => {
+      try {
+        const { data: session } = await supabase.auth.getSession();
+        if (session?.session?.user?.email === "lineker.dev@gmail.com") {
+          setIsEmailAdmin(true);
+        }
+      } catch (error) {
+        console.error("Erro ao verificar email admin:", error);
+      }
+    };
+    checkEmailAdmin();
+  }, []);
+  
+  const finalIsAdmin = isAdmin || isEmailAdmin;
+  
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<BarberRow[]>([]);
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -360,16 +382,18 @@ export default function AdminBarbers() {
                 </h1>
                 <p className="text-white/70">Gerencie a equipe de barbeiros e suas informações</p>
               </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  onClick={() => setShowAddModal(true)}
-                  className="flex items-center gap-2 px-3 py-2 sm:px-4 bg-gradient-to-r from-barbershop-gold to-amber-500 hover:from-amber-400 hover:to-barbershop-gold text-barbershop-dark shadow-lg hover:shadow-amber-500/25 transition-all duration-200 text-sm"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  <span className="hidden sm:inline">Adicionar Barbeiro</span>
-                  <span className="sm:hidden">Adicionar</span>
-                </Button>
-              </div>
+              {finalIsAdmin && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    onClick={() => setShowAddModal(true)}
+                    className="flex items-center gap-2 px-3 py-2 sm:px-4 bg-gradient-to-r from-barbershop-gold to-amber-500 hover:from-amber-400 hover:to-barbershop-gold text-barbershop-dark shadow-lg hover:shadow-amber-500/25 transition-all duration-200 text-sm"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    <span className="hidden sm:inline">Adicionar Barbeiro</span>
+                    <span className="sm:hidden">Adicionar</span>
+                  </Button>
+                </div>
+              )}
             </div>
 
             {/* Cards de Estatísticas */}
@@ -523,20 +547,24 @@ export default function AdminBarbers() {
                                   }`}
                                 />
                               </button>
-                              <button
-                                onClick={() => handleEditClick(b)}
-                                className="p-1.5 text-amber-400 hover:text-amber-300 hover:bg-amber-500/20 rounded-md transition-colors"
-                                aria-label="Editar barbeiro"
-                              >
-                                <Edit3 className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteClick(b)}
-                                className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded-md transition-colors"
-                                aria-label="Excluir barbeiro"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                              {finalIsAdmin && (
+                                <button
+                                  onClick={() => handleEditClick(b)}
+                                  className="p-1.5 text-amber-400 hover:text-amber-300 hover:bg-amber-500/20 rounded-md transition-colors"
+                                  aria-label="Editar barbeiro"
+                                >
+                                  <Edit3 className="w-4 h-4" />
+                                </button>
+                              )}
+                              {finalIsAdmin && (
+                                <button
+                                  onClick={() => handleDeleteClick(b)}
+                                  className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded-md transition-colors"
+                                  aria-label="Excluir barbeiro"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
                             </div>
                             
                             {/* Permissões */}
@@ -708,7 +736,7 @@ export default function AdminBarbers() {
               </div>
             ))}
 
-            {rows.length === 0 && (
+            {rows.length === 0 && finalIsAdmin && (
               <div className="bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-sm border border-slate-700/50 rounded-xl p-8 text-center shadow-xl">
                 <Users className="w-16 h-16 text-cyan-400/50 mx-auto mb-4" />
                 <h3 className="text-white/60 text-lg font-medium mb-2">
@@ -773,8 +801,8 @@ export default function AdminBarbers() {
         </div>
       )}
 
-      {/* Modal de Adicionar Barbeiro */}
-      {showAddModal && (
+      {/* Modal de Adicionar Barbeiro - apenas para admin */}
+      {showAddModal && finalIsAdmin && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 w-full max-w-md shadow-2xl">
             <div className="flex items-center justify-between mb-6">
@@ -876,8 +904,8 @@ export default function AdminBarbers() {
         </div>
       )}
 
-      {/* Modal de Edição */}
-      {showEditModal && barberToEdit && (
+      {/* Modal de Edição - apenas para admin */}
+      {showEditModal && barberToEdit && finalIsAdmin && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 w-full max-w-md shadow-2xl">
             <div className="flex items-center justify-between mb-6">

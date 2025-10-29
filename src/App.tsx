@@ -145,27 +145,31 @@ function AdminPanelPlaceholder() {
                     </Link>
                   </Button>
 
-                  <Button
-                    asChild
-                    size="sm"
-                    className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark text-xs sm:text-sm px-2 sm:px-3"
-                  >
-                    <Link to="/admin/barbeiros" aria-label="Gerenciar barbeiros">
-                      <Users className="h-3 w-3 sm:h-4 sm:w-4" />
-                      <span className="hidden sm:inline sm:ml-2">Barbeiros</span>
-                    </Link>
-                  </Button>
+                  {finalIsAdmin && (
+                    <Button
+                      asChild
+                      size="sm"
+                      className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark text-xs sm:text-sm px-2 sm:px-3"
+                    >
+                      <Link to="/admin/barbeiros" aria-label="Gerenciar barbeiros">
+                        <Users className="h-3 w-3 sm:h-4 sm:w-4" />
+                        <span className="hidden sm:inline sm:ml-2">Barbeiros</span>
+                      </Link>
+                    </Button>
+                  )}
 
-                  <Button
-                    asChild
-                    size="sm"
-                    className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark text-xs sm:text-sm px-2 sm:px-3"
-                  >
-                    <Link to="/admin/servicos" aria-label="Gerenciar serviços">
-                      <Scissors className="h-3 w-3 sm:h-4 sm:w-4" />
-                      <span className="hidden sm:inline sm:ml-2">Serviços</span>
-                    </Link>
-                  </Button>
+                  {finalIsAdmin && (
+                    <Button
+                      asChild
+                      size="sm"
+                      className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark text-xs sm:text-sm px-2 sm:px-3"
+                    >
+                      <Link to="/admin/servicos" aria-label="Gerenciar serviços">
+                        <Scissors className="h-3 w-3 sm:h-4 sm:w-4" />
+                        <span className="hidden sm:inline sm:ml-2">Serviços</span>
+                      </Link>
+                    </Button>
+                  )}
                 </div>
               )}
 
