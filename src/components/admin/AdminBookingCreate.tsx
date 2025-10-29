@@ -245,9 +245,10 @@ export default function AdminBookingCreate() {
     
     if (result.ok) {
       setSuccess(true);
+      // Redireciona ainda mais rápido para melhorar UX em mobile
       setTimeout(() => {
         navigate("/admin");
-      }, 2000);
+      }, 800);
     } else {
       setError(result.message || "Erro ao criar agendamento");
     }
