@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 
 import { supabase } from "@/lib/supabase";
 import BookingsList from "@/components/admin/BookingsList";
+import AdminBookingCreate from "@/components/admin/AdminBookingCreate";
 
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
@@ -26,7 +27,7 @@ import AdminGuard from "./routes/AdminGuard"; // ← Deve renderizar <Outlet />
 import AdminBarbers from "./routes/AdminBarbers";
 import AdminServices from "./routes/AdminServices";
 import BarberLogin from "./routes/BarberLogin";
-import { Users, Scissors } from "lucide-react";
+import { Users, Scissors, Plus } from "lucide-react";
 import { useBarberAuth } from "@/hooks/useBarberAuth";
 import { PWAInstallButton } from "@/components/PWAInstallButton";
 
@@ -136,11 +137,22 @@ function AdminPanelPlaceholder() {
                   <Button
                     asChild
                     size="sm"
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm px-2 sm:px-3"
+                  >
+                    <Link to="/admin/booking/create" aria-label="Criar agendamento">
+                      <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
+                      <span className="hidden sm:inline sm:ml-2">Novo Agendamento</span>
+                    </Link>
+                  </Button>
+
+                  <Button
+                    asChild
+                    size="sm"
                     className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark text-xs sm:text-sm px-2 sm:px-3"
                   >
                     <Link to="/admin/barbeiros" aria-label="Gerenciar barbeiros">
-                      <Users className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
-                      <span className="hidden sm:inline">Barbeiros</span>
+                      <Users className="h-3 w-3 sm:h-4 sm:w-4" />
+                      <span className="hidden sm:inline sm:ml-2">Barbeiros</span>
                     </Link>
                   </Button>
 
@@ -150,8 +162,8 @@ function AdminPanelPlaceholder() {
                     className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark text-xs sm:text-sm px-2 sm:px-3"
                   >
                     <Link to="/admin/servicos" aria-label="Gerenciar serviços">
-                      <Scissors className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
-                      <span className="hidden sm:inline">Serviços</span>
+                      <Scissors className="h-3 w-3 sm:h-4 sm:w-4" />
+                      <span className="hidden sm:inline sm:ml-2">Serviços</span>
                     </Link>
                   </Button>
                 </div>
@@ -182,12 +194,17 @@ function AdminPanelPlaceholder() {
         <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 sm:py-10 text-white">
           <div className="space-y-6">
             <div className="text-center sm:text-left">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2">
-                Bem-vindo ao <span className="text-barbershop-gold">Painel</span>
-              </h1>
-              <p className="text-white/80 text-sm sm:text-base max-w-2xl mx-auto sm:mx-0">
-                Abaixo estão os agendamentos em tempo real.
-              </p>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2">
+                    Bem-vindo ao <span className="text-barbershop-gold">Painel</span>
+                  </h1>
+                  <p className="text-white/80 text-sm sm:text-base max-w-2xl mx-auto sm:mx-0">
+                    Abaixo estão os agendamentos em tempo real.
+                  </p>
+                </div>
+                
+              </div>
               
               {/* Botão de instalação PWA Admin para mobile */}
               {finalIsAdmin && (
@@ -239,6 +256,7 @@ export default function App() {
             {/* 🔒 Tudo sob /admin protegido por AdminGuard (usa <Outlet />) */}
             <Route element={<AdminGuard />}>
               <Route path="/admin" element={<AdminPanelPlaceholder />} />
+              <Route path="/admin/booking/create" element={<AdminBookingCreate />} />
               <Route path="/admin/barbeiros" element={<AdminBarbers />} />
               <Route path="/admin/servicos" element={<AdminServices />} />
             </Route>
