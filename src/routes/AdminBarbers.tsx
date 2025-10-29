@@ -506,29 +506,64 @@ export default function AdminBarbers() {
                             )}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center gap-2">
-                            <button
-                              disabled={savingId === b.id}
-                              onClick={() => toggleActive(b)}
-                              className={`relative inline-flex h-6 w-12 items-center rounded-full transition-all duration-200 ${
-                                b.is_active ? "bg-amber-500" : "bg-white/20"
-                              } ${savingId === b.id ? "opacity-60" : "hover:scale-105"}`}
-                              aria-label="Alternar status"
-                            >
-                              <span
-                                className={`inline-block h-5 w-5 transform rounded-full bg-white transition-all duration-200 ${
-                                  b.is_active ? "translate-x-6" : "translate-x-1"
-                                }`}
-                              />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteClick(b)}
-                              className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded-md transition-colors"
-                              aria-label="Excluir barbeiro"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                        <td className="px-6 py-4">
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-2">
+                              <button
+                                disabled={savingId === b.id}
+                                onClick={() => toggleActive(b)}
+                                className={`relative inline-flex h-6 w-12 items-center rounded-full transition-all duration-200 ${
+                                  b.is_active ? "bg-amber-500" : "bg-white/20"
+                                } ${savingId === b.id ? "opacity-60" : "hover:scale-105"}`}
+                                aria-label="Alternar status"
+                              >
+                                <span
+                                  className={`inline-block h-5 w-5 transform rounded-full bg-white transition-all duration-200 ${
+                                    b.is_active ? "translate-x-6" : "translate-x-1"
+                                  }`}
+                                />
+                              </button>
+                              <button
+                                onClick={() => handleEditClick(b)}
+                                className="p-1.5 text-amber-400 hover:text-amber-300 hover:bg-amber-500/20 rounded-md transition-colors"
+                                aria-label="Editar barbeiro"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteClick(b)}
+                                className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded-md transition-colors"
+                                aria-label="Excluir barbeiro"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                            
+                            {/* Permissões */}
+                            <div className="border-t border-white/10 pt-3 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Shield className="w-3 h-3 text-amber-400" />
+                                  <span className="text-xs text-white/80">Cancelar</span>
+                                </div>
+                                <Switch
+                                  checked={b.can_cancel_bookings ?? false}
+                                  onCheckedChange={() => toggleCancelPermission(b)}
+                                  disabled={savingId === b.id}
+                                />
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Calendar className="w-3 h-3 text-amber-400" />
+                                  <span className="text-xs text-white/80">Criar</span>
+                                </div>
+                                <Switch
+                                  checked={b.can_create_bookings ?? false}
+                                  onCheckedChange={() => toggleCreatePermission(b)}
+                                  disabled={savingId === b.id}
+                                />
+                              </div>
+                            </div>
                           </div>
                         </td>
                       </tr>
