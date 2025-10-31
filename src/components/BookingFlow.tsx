@@ -352,6 +352,7 @@ export const BookingFlow = () => {
       starts_at_iso,
       duration_min: selectedService.duration,
       price: Number(selectedService.price),
+      created_by: "client",
     });
     setSubmitting(false);
 

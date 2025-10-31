@@ -31,6 +31,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
+import { useBarberAuth } from "@/hooks/useBarberAuth";
 
 type BookingStep = "service" | "barber" | "datetime" | "details" | "confirmation";
 
@@ -74,6 +75,7 @@ const paymentMethods: { value: PaymentMethod; label: string; icon: JSX.Element }
 
 export default function AdminBookingCreate() {
   const navigate = useNavigate();
+  const { barber: authenticatedBarber, isAdmin } = useBarberAuth();
   
   const [currentStep, setCurrentStep] = useState<BookingStep>("service");
   
@@ -127,16 +129,40 @@ export default function AdminBookingCreate() {
         ]);
         setServices(svcs);
         setFilteredServices(svcs);
-        setBarbers(brbs.map(b => ({
-          id: b.id,
-          name: b.name,
-          photo_url: b.photo_url
-        })));
+
+        const mapped = brbs.map(b => ({ id: b.id, name: b.name, photo_url: b.photo_url }));
+
+        if (!isAdmin && authenticatedBarber) {
+          const mine = mapped.find(b => b.id === authenticatedBarber.id);
+          if (mine) {
+            setBarbers([mine]);
+            setSelectedBarber(mine);
+          } else {
+            setBarbers(mapped);
+          }
+        } else {
+          setBarbers(mapped);
+        }
       } catch (err) {
         console.error("Erro ao carregar dados:", err);
       }
     })();
-  }, []);
+  }, [isAdmin, authenticatedBarber]);
+
+  // Garante que barbeiro não-admin só possa selecionar a si mesmo
+  useEffect(() => {
+    if (!isAdmin && authenticatedBarber && barbers.length > 0) {
+      const mine = barbers.find(b => b.id === authenticatedBarber.id);
+      if (mine) {
+        if (!selectedBarber || selectedBarber.id !== mine.id) {
+          setSelectedBarber(mine);
+        }
+        if (!(barbers.length === 1 && barbers[0].id === mine.id)) {
+          setBarbers([mine]);
+        }
+      }
+    }
+  }, [isAdmin, authenticatedBarber, barbers, selectedBarber]);
 
   // Sincroniza filteredServices quando services mudar
   useEffect(() => {
@@ -167,13 +193,9 @@ export default function AdminBookingCreate() {
       .finally(() => setLoadingSlots(false));
   }, [selectedBarber, selectedService, selectedDate]);
   
-  const stepsOrder: BookingStep[] = [
-    "service",
-    "barber", 
-    "datetime",
-    "details",
-    "confirmation",
-  ];
+  const stepsOrder: BookingStep[] = isAdmin
+    ? ["service", "barber", "datetime", "details", "confirmation"]
+    : ["service", "datetime", "details", "confirmation"];
 
   const nextStep = () => {
     const idx = stepsOrder.indexOf(currentStep);
@@ -225,6 +247,12 @@ export default function AdminBookingCreate() {
       return;
     }
     
+    // Segurança extra: barbeiro não-admin só pode agendar para si mesmo
+    if (!isAdmin && authenticatedBarber && selectedBarber?.id !== authenticatedBarber.id) {
+      setError("Você só pode criar agendamentos para você mesmo.");
+      return;
+    }
+
     // Admin pode agendar qualquer data/hora, incluindo passadas
     const bookingInput: CreateBookingInput = {
       service_id: selectedService.id,
@@ -237,6 +265,7 @@ export default function AdminBookingCreate() {
       duration_min: selectedService.duration_min,
       price: selectedService.price,
       payment_method: selectedPaymentMethod,
+      created_by: isAdmin ? "admin" : "barber",
     };
     
     setSubmitting(true);
@@ -629,20 +658,20 @@ export default function AdminBookingCreate() {
         {/* STEPS */}
         <div className="mb-6 sm:mb-12 px-2">
           <div className="flex items-center justify-center gap-4">
-            {["Serviço", "Barbeiro", "Data/Hora", "Dados", "Confirmação"].map(
-              (step, index) => {
-                const stepsOrderLocal: BookingStep[] = [
-                  "service",
-                  "barber",
-                  "datetime",
-                  "details",
-                  "confirmation",
-                ];
-                const currentIndex = stepsOrderLocal.indexOf(currentStep);
+            {(() => {
+              const labelByStep: Record<BookingStep, string> = {
+                service: "Serviço",
+                barber: "Barbeiro",
+                datetime: "Data/Hora",
+                details: "Dados",
+                confirmation: "Confirmação",
+              };
+              return stepsOrder.map((stepKey, index) => {
+                const currentIndex = stepsOrder.indexOf(currentStep);
                 const isActive = index === currentIndex;
                 const isCompleted = index < currentIndex;
                 return (
-                  <div key={step} className="flex items-center">
+                  <div key={stepKey} className="flex items-center">
                     <div
                       className={`rounded-full flex items-center justify-center font-semibold w-6 h-6 text-xs sm:w-8 sm:h-8 sm:text-sm ${
                         isCompleted
@@ -665,10 +694,11 @@ export default function AdminBookingCreate() {
                         }`}
                       />
                     )}
+                    <span className="sr-only">{labelByStep[stepKey]}</span>
                   </div>
                 );
-              }
-            )}
+              });
+            })()}
           </div>
         </div>
 

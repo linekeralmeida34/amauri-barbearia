@@ -148,6 +148,7 @@ export type CreateBookingInput = {
   duration_min: number;
   price: number;
   payment_method?: PaymentMethod; // Forma de pagamento opcional
+  created_by?: "client" | "barber" | "admin"; // Origem da criação do agendamento
 };
 
 export type CreateBookingResult =
@@ -195,6 +196,7 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
     customer_name: input.customer_name.trim(),
     phone: normalizePhone(input.phone),
     payment_method: input.payment_method || null,      // Forma de pagamento
+    created_by: (input.created_by || "client") as "client" | "barber" | "admin",
   };
 
   // returning: "minimal" evita SELECT no retorno (útil quando RLS é mais restrita)
