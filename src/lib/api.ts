@@ -250,6 +250,7 @@ export type CreateBookingInput = {
 
   customer_name: string;
   phone: string;               // WhatsApp do cliente -> salvo em "phone"
+  customer_id?: string;        // ID do cliente na tabela customers (UUID)
 
   email?: string;              // (não salvo por enquanto)
   notes?: string;              // (não salvo por enquanto)
@@ -296,7 +297,7 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
   }
 
   // Payload compatível com a tabela "bookings"
-  const payload = {
+  const payload: any = {
     service_id: svcId,
     barber_id: brbId,
     starts_at: input.starts_at_iso,                    // timestamptz (UTC)
@@ -308,6 +309,13 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
     payment_method: input.payment_method || null,      // Forma de pagamento
     created_by: (input.created_by || "client") as "client" | "barber" | "admin",
   };
+
+  // Adiciona customer_id se fornecido (UUID válido, não "temp")
+  if (input.customer_id && 
+      String(input.customer_id).length >= 10 && 
+      input.customer_id !== "temp") {
+    payload.customer_id = String(input.customer_id);
+  }
 
   // returning: "minimal" evita SELECT no retorno (útil quando RLS é mais restrita)
   const { error } = await supabase

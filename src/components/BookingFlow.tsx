@@ -27,7 +27,6 @@ import {
   Customer,
 } from "@/lib/api";
 import { Combobox } from "@/components/ui/combobox";
-import { DatePicker } from "@/components/ui/date-picker";
 import { joaoPessoaNeighborhoods, searchNeighborhoods } from "@/data/neighborhoods";
 
 type BookingStep = "phone" | "customerRegistration" | "service" | "barber" | "datetime" | "details" | "confirmation";
@@ -173,7 +172,7 @@ export const BookingFlow = () => {
           phone: foundCustomer.phone,
           email: "",
           notes: "",
-          birthDate: foundCustomer.birth_date || "",
+          birthDate: formatDateFromDB(foundCustomer.birth_date),
           neighborhood: foundCustomer.neighborhood || "",
         });
         setCurrentStep("barber");
@@ -389,10 +388,78 @@ export const BookingFlow = () => {
     }
   };
 
+  // Função para formatar data DD/MM/YYYY para YYYY-MM-DD
+  const formatDateForDB = (dateStr: string): string | null => {
+    if (!dateStr) return null;
+    // Remove tudo que não é número
+    const digits = dateStr.replace(/\D/g, "");
+    if (digits.length !== 8) return null;
+    
+    const day = digits.slice(0, 2);
+    const month = digits.slice(2, 4);
+    const year = digits.slice(4, 8);
+    
+    // Valida a data
+    const dayNum = parseInt(day, 10);
+    const monthNum = parseInt(month, 10);
+    const yearNum = parseInt(year, 10);
+    
+    if (dayNum < 1 || dayNum > 31 || monthNum < 1 || monthNum > 12 || yearNum < 1900 || yearNum > new Date().getFullYear()) {
+      return null;
+    }
+    
+    // Verifica se a data é válida
+    const date = new Date(yearNum, monthNum - 1, dayNum);
+    if (date.getDate() !== dayNum || date.getMonth() !== monthNum - 1 || date.getFullYear() !== yearNum) {
+      return null;
+    }
+    
+    // Verifica se não é data futura
+    if (date > new Date()) {
+      return null;
+    }
+    
+    return `${year}-${month}-${day}`;
+  };
+
+  // Função para formatar input de data DD/MM/YYYY
+  const formatDateInput = (value: string): string => {
+    // Remove tudo que não é número
+    const digits = value.replace(/\D/g, "").slice(0, 8);
+    
+    if (digits.length === 0) return "";
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+  };
+
+  // Função para converter YYYY-MM-DD para DD/MM/YYYY
+  const formatDateFromDB = (dateStr: string | null): string => {
+    if (!dateStr) return "";
+    // Se já está no formato DD/MM/YYYY, retorna como está
+    if (dateStr.includes("/")) return dateStr;
+    // Converte de YYYY-MM-DD para DD/MM/YYYY
+    const parts = dateStr.split("-");
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    return "";
+  };
+
   // Função para salvar cliente antes de continuar
   const handleSaveCustomer = async () => {
     if (!customerDetails.name.trim() || !customerDetails.phone.trim()) {
       setGlobalError("Nome e telefone são obrigatórios.");
+      return;
+    }
+    
+    if (!customerDetails.birthDate || !formatDateForDB(customerDetails.birthDate)) {
+      setGlobalError("Data de nascimento é obrigatória e deve estar no formato DD/MM/YYYY.");
+      return;
+    }
+    
+    if (!customerDetails.neighborhood?.trim()) {
+      setGlobalError("Bairro é obrigatório.");
       return;
     }
 
@@ -400,11 +467,17 @@ export const BookingFlow = () => {
     setGlobalError(null);
 
     try {
+      const birthDateFormatted = formatDateForDB(customerDetails.birthDate);
+      if (!birthDateFormatted) {
+        setGlobalError("Data de nascimento inválida. Use o formato DD/MM/YYYY.");
+        return;
+      }
+
       const savedCustomer = await upsertCustomer({
         name: customerDetails.name,
         phone: customerDetails.phone,
-        birth_date: customerDetails.birthDate || undefined,
-        neighborhood: customerDetails.neighborhood || undefined,
+        birth_date: birthDateFormatted,
+        neighborhood: customerDetails.neighborhood.trim(),
       });
 
       setCustomer(savedCustomer);
@@ -455,6 +528,7 @@ export const BookingFlow = () => {
       barber_id: selectedBarber.id,
       customer_name: customerDetails.name.trim(),
       phone: customerDetails.phone.trim(),
+      customer_id: customer?.id || undefined, // Inclui customer_id se o cliente foi cadastrado/encontrado
       email: customerDetails.email || undefined,
       notes: customerDetails.notes || undefined,
       starts_at_iso,
@@ -481,7 +555,10 @@ export const BookingFlow = () => {
       case "phone":
         return phoneInput.replace(/\D/g, "").length >= 10;
       case "customerRegistration":
-        return !!customerDetails.name.trim() && !!customerDetails.phone.trim();
+        if (!customerDetails.name.trim() || !customerDetails.phone.trim()) return false;
+        if (!customerDetails.birthDate || !formatDateForDB(customerDetails.birthDate)) return false;
+        if (!customerDetails.neighborhood?.trim()) return false;
+        return true;
       case "service":
         return selectedService !== null;
       case "barber":
@@ -589,32 +666,48 @@ export const BookingFlow = () => {
                 </p>
               </div>
               <div>
-                <Label htmlFor="birth-date">Data de nascimento (opcional)</Label>
-                <DatePicker
-                  value={customerDetails.birthDate || undefined}
-                  onChange={(value) =>
-                    setCustomerDetails({ ...customerDetails, birthDate: value })
-                  }
-                  placeholder="Selecione sua data de nascimento"
-                  maxDate={new Date()}
+                <Label htmlFor="birth-date">Data de nascimento *</Label>
+                <Input
+                  id="birth-date"
+                  inputMode="numeric"
+                  value={customerDetails.birthDate}
+                  onChange={(e) => {
+                    const formatted = formatDateInput(e.target.value);
+                    setCustomerDetails({ ...customerDetails, birthDate: formatted });
+                    setGlobalError(null);
+                  }}
+                  placeholder="DD/MM/AAAA"
+                  maxLength={10}
+                  className="font-mono"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Este campo é opcional
+                  Formato: DD/MM/AAAA (ex: 21/04/1990)
                 </p>
+                {customerDetails.birthDate && !formatDateForDB(customerDetails.birthDate) && (
+                  <p className="text-xs text-red-600 mt-1">
+                    Data inválida. Verifique o formato e se a data não é futura.
+                  </p>
+                )}
               </div>
               <div>
-                <Label htmlFor="neighborhood">Bairro (João Pessoa)</Label>
+                <Label htmlFor="neighborhood">Bairro (João Pessoa) *</Label>
                 <Combobox
                   options={filteredNeighborhoods}
                   value={customerDetails.neighborhood || undefined}
                   onValueChange={(value) => {
                     setCustomerDetails({ ...customerDetails, neighborhood: value });
                     setNeighborhoodSearch("");
+                    setGlobalError(null);
                   }}
-                  placeholder="Selecione ou pesquise seu bairro"
+                  placeholder="Selecione ou pesquise seu bairro *"
                   searchPlaceholder="Pesquisar bairro..."
                   emptyMessage="Nenhum bairro encontrado."
                 />
+                {!customerDetails.neighborhood && (
+                  <p className="text-xs text-red-600 mt-1">
+                    Este campo é obrigatório
+                  </p>
+                )}
               </div>
             </div>
           </div>
