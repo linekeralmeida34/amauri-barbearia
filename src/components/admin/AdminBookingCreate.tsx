@@ -378,7 +378,14 @@ export default function AdminBookingCreate() {
       case "details":
         {
           const phoneDigits = customerDetails.phone.replace(/\D/g, "");
-          return !!customerDetails.name.trim() && phoneDigits.length === 11;
+          const birthOk = !!customerDetails.birthDate && !!formatDateForDB(customerDetails.birthDate);
+          const neighborhoodOk = !!customerDetails.neighborhood?.trim();
+          return (
+            !!customerDetails.name.trim() &&
+            phoneDigits.length === 11 &&
+            birthOk &&
+            neighborhoodOk
+          );
         }
       default:
         return false;
@@ -402,6 +409,15 @@ export default function AdminBookingCreate() {
     const phoneDigits = customerDetails.phone.replace(/\D/g, "");
     if (phoneDigits.length !== 11) {
       setError("Informe um WhatsApp válido com 11 dígitos (DDD + 9 + número).");
+      return;
+    }
+    // Campos obrigatórios adicionais: nascimento + bairro
+    if (!customerDetails.birthDate || !formatDateForDB(customerDetails.birthDate)) {
+      setError("Data de nascimento é obrigatória e deve estar no formato DD/MM/AAAA.");
+      return;
+    }
+    if (!customerDetails.neighborhood?.trim()) {
+      setError("Bairro é obrigatório.");
       return;
     }
     
@@ -794,7 +810,7 @@ export default function AdminBookingCreate() {
                 />
               </div>
               <div>
-                <Label htmlFor="birth-date">Data de nascimento (opcional)</Label>
+                <Label htmlFor="birth-date">Data de nascimento *</Label>
                 <Input
                   id="birth-date"
                   inputMode="numeric"
@@ -807,12 +823,15 @@ export default function AdminBookingCreate() {
                   maxLength={10}
                   className="font-mono"
                 />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Formato: DD/MM/AAAA
-                </p>
+                <p className="text-xs text-muted-foreground mt-1">Formato: DD/MM/AAAA</p>
+                {customerDetails.birthDate && !formatDateForDB(customerDetails.birthDate) && (
+                  <p className="text-xs text-red-600 mt-1">
+                    Data inválida. Verifique o formato e se a data não é futura.
+                  </p>
+                )}
               </div>
               <div>
-                <Label>Bairro (João Pessoa) (opcional)</Label>
+                <Label>Bairro (João Pessoa) *</Label>
                 <Combobox
                   options={joaoPessoaNeighborhoods}
                   value={customerDetails.neighborhood || undefined}
@@ -823,6 +842,9 @@ export default function AdminBookingCreate() {
                   searchPlaceholder="Pesquisar bairro..."
                   emptyMessage="Nenhum bairro encontrado."
                 />
+                {!customerDetails.neighborhood && (
+                  <p className="text-xs text-red-600 mt-1">Este campo é obrigatório</p>
+                )}
               </div>
               <div>
                 <Label htmlFor="notes">Observações (opcional)</Label>
