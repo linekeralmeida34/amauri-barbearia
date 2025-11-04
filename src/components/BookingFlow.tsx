@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Clock, ArrowLeft, ArrowRight, Check, Search } from "lucide-react";
+import { Clock, ArrowLeft, ArrowRight, Check, Search, Phone } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,9 +22,15 @@ import {
   fetchActiveBarbers,
   createBooking,
   listAvailableTimes,
+  findCustomerByPhone,
+  upsertCustomer,
+  Customer,
 } from "@/lib/api";
+import { Combobox } from "@/components/ui/combobox";
+import { DatePicker } from "@/components/ui/date-picker";
+import { joaoPessoaNeighborhoods, searchNeighborhoods } from "@/data/neighborhoods";
 
-type BookingStep = "service" | "barber" | "datetime" | "details" | "confirmation";
+type BookingStep = "phone" | "customerRegistration" | "service" | "barber" | "datetime" | "details" | "confirmation";
 
 type LocalService = {
   id: string | number;
@@ -88,7 +94,7 @@ function toStartsAtISO(dateStr: string, timeStr: string): string | null {
 }
 
 export const BookingFlow = () => {
-  const [currentStep, setCurrentStep] = useState<BookingStep>("service");
+  const [currentStep, setCurrentStep] = useState<BookingStep>("phone");
 
   // Listas vindas do banco com fallback local
   const [services, setServices] = useState<LocalService[]>(
@@ -124,9 +130,68 @@ export const BookingFlow = () => {
     phone: "",
     email: "",
     notes: "",
+    birthDate: "",
+    neighborhood: "",
   });
 
+  // Estado para telefone e cliente
+  const [phoneInput, setPhoneInput] = useState("");
+  const [customer, setCustomer] = useState<Customer | null>(null);
+  const [checkingCustomer, setCheckingCustomer] = useState(false);
+  const [filteredNeighborhoods, setFilteredNeighborhoods] = useState<string[]>(joaoPessoaNeighborhoods);
+  const [neighborhoodSearch, setNeighborhoodSearch] = useState("");
+
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // Filtro de bairros
+  useEffect(() => {
+    if (neighborhoodSearch.trim()) {
+      setFilteredNeighborhoods(searchNeighborhoods(neighborhoodSearch));
+    } else {
+      setFilteredNeighborhoods(joaoPessoaNeighborhoods);
+    }
+  }, [neighborhoodSearch]);
+
+  // Função para verificar telefone do cliente
+  const handlePhoneCheck = async () => {
+    if (!phoneInput.trim() || phoneInput.replace(/\D/g, "").length < 10) {
+      setGlobalError("Digite um número de telefone válido (apenas números).");
+      return;
+    }
+
+    setCheckingCustomer(true);
+    setGlobalError(null);
+
+    try {
+      const foundCustomer = await findCustomerByPhone(phoneInput);
+      
+      if (foundCustomer) {
+        // Cliente encontrado: preenche dados e vai direto para barbeiro
+        setCustomer(foundCustomer);
+        setCustomerDetails({
+          name: foundCustomer.name,
+          phone: foundCustomer.phone,
+          email: "",
+          notes: "",
+          birthDate: foundCustomer.birth_date || "",
+          neighborhood: foundCustomer.neighborhood || "",
+        });
+        setCurrentStep("barber");
+      } else {
+        // Cliente não encontrado: preenche telefone e vai para cadastro
+        setCustomerDetails((prev) => ({
+          ...prev,
+          phone: phoneInput.replace(/\D/g, ""),
+        }));
+        setCurrentStep("customerRegistration");
+      }
+    } catch (error) {
+      console.error("Erro ao buscar cliente:", error);
+      setGlobalError("Erro ao verificar telefone. Tente novamente.");
+    } finally {
+      setCheckingCustomer(false);
+    }
+  };
 
   // Função de filtro de serviços
   const filterServices = (term: string) => {
@@ -288,6 +353,8 @@ export const BookingFlow = () => {
   };
 
   const stepsOrder: BookingStep[] = [
+    "phone",
+    "customerRegistration",
     "service",
     "barber",
     "datetime",
@@ -297,8 +364,14 @@ export const BookingFlow = () => {
 
   const nextStep = () => {
     const idx = stepsOrder.indexOf(currentStep);
-    if (currentStep === "details" && canProceed()) {
+    if (currentStep === "datetime" && canProceed()) {
+      // Vai direto para o modal de confirmação após selecionar data/hora
       setShowConfirmationModal(true);
+      return;
+    }
+    if (currentStep === "customerRegistration" && canProceed()) {
+      // Salva o cliente antes de continuar
+      handleSaveCustomer();
       return;
     }
     if (idx < stepsOrder.length - 1) setCurrentStep(stepsOrder[idx + 1]);
@@ -306,7 +379,42 @@ export const BookingFlow = () => {
 
   const prevStep = () => {
     const idx = stepsOrder.indexOf(currentStep);
-    if (idx > 0) setCurrentStep(stepsOrder[idx - 1]);
+    if (idx > 0) {
+      // Se voltar do barbeiro para phone, limpa o cliente
+      if (currentStep === "barber" && stepsOrder[idx - 1] === "phone") {
+        setCustomer(null);
+        setPhoneInput("");
+      }
+      setCurrentStep(stepsOrder[idx - 1]);
+    }
+  };
+
+  // Função para salvar cliente antes de continuar
+  const handleSaveCustomer = async () => {
+    if (!customerDetails.name.trim() || !customerDetails.phone.trim()) {
+      setGlobalError("Nome e telefone são obrigatórios.");
+      return;
+    }
+
+    setSubmitting(true);
+    setGlobalError(null);
+
+    try {
+      const savedCustomer = await upsertCustomer({
+        name: customerDetails.name,
+        phone: customerDetails.phone,
+        birth_date: customerDetails.birthDate || undefined,
+        neighborhood: customerDetails.neighborhood || undefined,
+      });
+
+      setCustomer(savedCustomer);
+      setCurrentStep("service");
+    } catch (error) {
+      console.error("Erro ao salvar cliente:", error);
+      setGlobalError("Erro ao salvar dados. Tente novamente.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const confirmBooking = async () => {
@@ -370,6 +478,10 @@ export const BookingFlow = () => {
 
   const canProceed = () => {
     switch (currentStep) {
+      case "phone":
+        return phoneInput.replace(/\D/g, "").length >= 10;
+      case "customerRegistration":
+        return !!customerDetails.name.trim() && !!customerDetails.phone.trim();
       case "service":
         return selectedService !== null;
       case "barber":
@@ -382,8 +494,6 @@ export const BookingFlow = () => {
         if (isTodayLocal(selectedDate) && !hmGte(selectedTime, nowHM)) return false;
         return true;
       }
-      case "details":
-        return !!customerDetails.name && !!customerDetails.phone;
       default:
         return false;
     }
@@ -391,6 +501,125 @@ export const BookingFlow = () => {
 
   const renderStepContent = () => {
     switch (currentStep) {
+      case "phone":
+        return (
+          <div>
+            <h3 className="font-bold text-barbershop-dark mb-6 text-2xl">
+              Digite seu número de telefone
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="phone-input">WhatsApp *</Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-barbershop-brown/60 w-4 h-4" />
+                  <Input
+                    id="phone-input"
+                    inputMode="numeric"
+                    value={phoneInput}
+                    onChange={(e) => {
+                      const onlyNumbers = e.target.value.replace(/\D/g, "").slice(0, 11);
+                      setPhoneInput(onlyNumbers);
+                      setGlobalError(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && canProceed()) {
+                        handlePhoneCheck();
+                      }
+                    }}
+                    placeholder="83999999999"
+                    className="pl-10"
+                    autoFocus
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Apenas números, sem espaços ou caracteres especiais.
+                </p>
+              </div>
+              {checkingCustomer && (
+                <div className="text-center py-4">
+                  <p className="text-sm text-muted-foreground">Verificando...</p>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+
+      case "customerRegistration":
+        return (
+          <div>
+            <h3 className="font-bold text-barbershop-dark mb-6 text-2xl">
+              Complete seu cadastro
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="name">Nome completo *</Label>
+                <Input
+                  id="name"
+                  value={customerDetails.name}
+                  onChange={(e) => {
+                    const onlyLetters = e.target.value.replace(
+                      /[^a-zA-ZÀ-ÿ\s]/g,
+                      ""
+                    );
+                    setCustomerDetails({ ...customerDetails, name: onlyLetters });
+                  }}
+                  placeholder="Seu nome completo"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <Label htmlFor="phone-reg">WhatsApp *</Label>
+                <Input
+                  id="phone-reg"
+                  inputMode="numeric"
+                  value={customerDetails.phone}
+                  onChange={(e) => {
+                    const onlyNumbers = e.target.value.replace(/\D/g, "").slice(0, 11);
+                    setCustomerDetails({
+                      ...customerDetails,
+                      phone: onlyNumbers,
+                    });
+                  }}
+                  placeholder="83999999999"
+                  disabled
+                  className="bg-muted"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Este número já foi preenchido automaticamente.
+                </p>
+              </div>
+              <div>
+                <Label htmlFor="birth-date">Data de nascimento (opcional)</Label>
+                <DatePicker
+                  value={customerDetails.birthDate || undefined}
+                  onChange={(value) =>
+                    setCustomerDetails({ ...customerDetails, birthDate: value })
+                  }
+                  placeholder="Selecione sua data de nascimento"
+                  maxDate={new Date()}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Este campo é opcional
+                </p>
+              </div>
+              <div>
+                <Label htmlFor="neighborhood">Bairro (João Pessoa)</Label>
+                <Combobox
+                  options={filteredNeighborhoods}
+                  value={customerDetails.neighborhood || undefined}
+                  onValueChange={(value) => {
+                    setCustomerDetails({ ...customerDetails, neighborhood: value });
+                    setNeighborhoodSearch("");
+                  }}
+                  placeholder="Selecione ou pesquise seu bairro"
+                  searchPlaceholder="Pesquisar bairro..."
+                  emptyMessage="Nenhum bairro encontrado."
+                />
+              </div>
+            </div>
+          </div>
+        );
+
       case "service":
         return (
           <div>
@@ -749,21 +978,34 @@ export const BookingFlow = () => {
 
         {/* STEPS */}
         <div className="mb-6 sm:mb-12 px-2">
-          <div className="flex items-center justify-center gap-4">
-            {["Serviço", "Barbeiro", "Data/Hora", "Dados", "Confirmação"].map(
-              (step, index) => {
-                const stepsOrderLocal: BookingStep[] = [
-                  "service",
-                  "barber",
-                  "datetime",
-                  "details",
-                  "confirmation",
-                ];
-                const currentIndex = stepsOrderLocal.indexOf(currentStep);
+          <div className="flex items-center justify-center gap-4 flex-wrap">
+            {(() => {
+              // Define steps visuais baseado no estado atual
+              const visualSteps: { label: string; step: BookingStep }[] = [];
+              
+              if (currentStep === "phone" || currentStep === "customerRegistration") {
+                // No início, mostra apenas "Telefone" ou "Cadastro"
+                visualSteps.push(
+                  { label: "Telefone", step: "phone" },
+                  { label: "Cadastro", step: "customerRegistration" }
+                );
+              } else {
+                // Após cadastro, mostra os steps principais
+                visualSteps.push(
+                  { label: "Serviço", step: "service" },
+                  { label: "Barbeiro", step: "barber" },
+                  { label: "Data/Hora", step: "datetime" },
+                  { label: "Confirmação", step: "confirmation" }
+                );
+                // Remove "details" do fluxo visual
+              }
+
+              return visualSteps.map((visualStep, index) => {
+                const currentIndex = visualSteps.findIndex(s => s.step === currentStep);
                 const isActive = index === currentIndex;
                 const isCompleted = index < currentIndex;
                 return (
-                  <div key={step} className="flex items-center">
+                  <div key={visualStep.step} className="flex items-center">
                     <div
                       className={`rounded-full flex items-center justify-center font-semibold w-6 h-6 text-xs sm:w-8 sm:h-8 sm:text-sm ${
                         isCompleted
@@ -779,7 +1021,7 @@ export const BookingFlow = () => {
                         index + 1
                       )}
                     </div>
-                    {index < 4 && (
+                    {index < visualSteps.length - 1 && (
                       <div
                         className={`h-0.5 w-8 sm:w-12 ${
                           isCompleted ? "bg-success" : "bg-muted"
@@ -788,8 +1030,8 @@ export const BookingFlow = () => {
                     )}
                   </div>
                 );
-              }
-            )}
+              });
+            })()}
           </div>
         </div>
 
@@ -812,39 +1054,51 @@ export const BookingFlow = () => {
                     ← Início
                   </Link>
                 </Button>
-                <Button
-                  variant="outline"
-                  onClick={prevStep}
-                  disabled={currentStep === "service"}
-                >
+                  <Button
+                    variant="outline"
+                    onClick={prevStep}
+                    disabled={currentStep === "phone"}
+                  >
                   <ArrowLeft className="h-4 w-4 mr-2" /> Voltar
                 </Button>
               </div>
               <Button
-                onClick={nextStep}
-                disabled={!canProceed()}
+                onClick={currentStep === "phone" ? handlePhoneCheck : nextStep}
+                disabled={!canProceed() || checkingCustomer || submitting}
                 className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark h-11"
               >
-                {currentStep === "details" ? "Revisar Agendamento" : "Continuar"}
-                <ArrowRight className="h-4 w-4 ml-2" />
+                {currentStep === "phone" 
+                  ? (checkingCustomer ? "Verificando..." : "Verificar")
+                  : currentStep === "customerRegistration"
+                  ? (submitting ? "Salvando..." : "Continuar")
+                  : currentStep === "datetime"
+                  ? "Revisar Agendamento"
+                  : "Continuar"}
+                {currentStep !== "phone" && <ArrowRight className="h-4 w-4 ml-2" />}
               </Button>
             </div>
 
             {/* Mobile */}
             <div className="md:hidden space-y-3">
               <Button
-                onClick={nextStep}
-                disabled={!canProceed()}
+                onClick={currentStep === "phone" ? handlePhoneCheck : nextStep}
+                disabled={!canProceed() || checkingCustomer || submitting}
                 className="w-full bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark h-11"
               >
-                {currentStep === "details" ? "Revisar Agendamento" : "Continuar"}
-                <ArrowRight className="h-4 w-4 ml-2" />
+                {currentStep === "phone" 
+                  ? (checkingCustomer ? "Verificando..." : "Verificar")
+                  : currentStep === "customerRegistration"
+                  ? (submitting ? "Salvando..." : "Continuar")
+                  : currentStep === "datetime"
+                  ? "Revisar Agendamento"
+                  : "Continuar"}
+                {currentStep !== "phone" && <ArrowRight className="h-4 w-4 ml-2" />}
               </Button>
               <div className="flex justify-between gap-3">
                 <Button
                   variant="outline"
                   onClick={prevStep}
-                  disabled={currentStep === "service"}
+                  disabled={currentStep === "phone"}
                   className="flex-1"
                 >
                   <ArrowLeft className="h-4 w-4 mr-2" /> Voltar

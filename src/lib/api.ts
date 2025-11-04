@@ -33,6 +33,116 @@ export type Barber = {
 export type PaymentMethod = "credit_card" | "debit_card" | "cash" | "pix" | "voucher";
 
 /* =========================
+   Customers
+========================= */
+export type Customer = {
+  id: string;
+  name: string;
+  phone: string;
+  birth_date: string | null;
+  neighborhood: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CreateCustomerInput = {
+  name: string;
+  phone: string;
+  birth_date?: string; // YYYY-MM-DD
+  neighborhood?: string;
+};
+
+/** Busca cliente por telefone (normalizado) */
+export async function findCustomerByPhone(phone: string): Promise<Customer | null> {
+  const normalized = normalizePhone(phone);
+  if (!normalized) return null;
+
+  const { data, error } = await supabase
+    .from("customers")
+    .select("*")
+    .eq("phone", normalized)
+    .maybeSingle();
+
+  if (error) {
+    // Se a tabela não existir ainda, retorna null
+    if (error.message?.includes("does not exist") || error.code === "PGRST116") {
+      return null;
+    }
+    throw error;
+  }
+
+  if (!data) return null;
+
+  return {
+    id: String(data.id),
+    name: data.name ?? "",
+    phone: data.phone ?? "",
+    birth_date: data.birth_date ?? null,
+    neighborhood: data.neighborhood ?? null,
+    created_at: data.created_at ?? "",
+    updated_at: data.updated_at ?? "",
+  };
+}
+
+/** Cria ou atualiza um cliente */
+export async function upsertCustomer(input: CreateCustomerInput): Promise<Customer> {
+  const normalized = normalizePhone(input.phone);
+  if (!normalized) {
+    throw new Error("Telefone inválido");
+  }
+
+  const payload: any = {
+    name: input.name.trim(),
+    phone: normalized,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (input.birth_date) {
+    payload.birth_date = input.birth_date;
+  }
+
+  if (input.neighborhood) {
+    payload.neighborhood = input.neighborhood.trim();
+  }
+
+  const { data, error } = await supabase
+    .from("customers")
+    .upsert(payload, {
+      onConflict: "phone",
+      returning: "representation",
+    })
+    .select()
+    .single();
+
+  if (error) {
+    // Se a tabela não existir ainda, simula sucesso mas não persiste
+    if (error.message?.includes("does not exist") || error.code === "PGRST116") {
+      console.warn("[upsertCustomer] Tabela customers não existe ainda. Execute o script SQL.");
+      return {
+        id: "temp",
+        name: input.name,
+        phone: normalized,
+        birth_date: input.birth_date || null,
+        neighborhood: input.neighborhood || null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+    }
+    throw error;
+  }
+
+  return {
+    id: String(data.id),
+    name: data.name ?? "",
+    phone: data.phone ?? "",
+    birth_date: data.birth_date ?? null,
+    neighborhood: data.neighborhood ?? null,
+    created_at: data.created_at ?? "",
+    updated_at: data.updated_at ?? "",
+  };
+}
+
+/* =========================
    Services
 ========================= */
 export async function fetchActiveServices(): Promise<Service[]> {
