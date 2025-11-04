@@ -363,6 +363,12 @@ export const BookingFlow = () => {
 
   const nextStep = () => {
     const idx = stepsOrder.indexOf(currentStep);
+    // Se o usuário entrou pelo passo de Barbeiro (fluxo quando o telefone já existe)
+    // e ainda não escolheu o serviço, levamos para o passo de serviço antes da data/hora
+    if (currentStep === "barber" && !selectedService) {
+      setCurrentStep("service");
+      return;
+    }
     if (currentStep === "datetime" && canProceed()) {
       // Vai direto para o modal de confirmação após selecionar data/hora
       setShowConfirmationModal(true);
