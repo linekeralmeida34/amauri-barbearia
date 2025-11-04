@@ -178,16 +178,18 @@ export default function AdminBookingCreate() {
     const digits = customerDetails.phone.replace(/\D/g, "");
     if (digits.length !== 11) {
       setCustomerId(null);
+      setCustomerLookupMsg(null);
       return;
     }
     let cancelled = false;
+    setCustomerLookupMsg("Buscando cliente...");
     (async () => {
       try {
         const c = await findCustomerByPhone(digits);
         if (cancelled) return;
         if (c) {
           setCustomerId(c.id);
-          setCustomerLookupMsg(`Cliente encontrado: ${c.name || '—'}`);
+          setCustomerLookupMsg(`✓ Cliente encontrado: ${c.name || '—'}`);
           // Se o nome estiver vazio, preenche com o cadastrado
           if (!customerDetails.name.trim() && c.name) {
             setCustomerDetails(prev => ({ ...prev, name: c.name }));
@@ -196,12 +198,15 @@ export default function AdminBookingCreate() {
           setCustomerId(null);
           setCustomerLookupMsg("Novo cliente (será cadastrado ao salvar)");
         }
-      } catch (_e) {
-        // silencioso
+      } catch (e) {
+        if (!cancelled) {
+          console.error("Erro ao buscar cliente:", e);
+          setCustomerLookupMsg("Erro ao buscar cliente. Tente novamente.");
+        }
       }
     })();
     return () => { cancelled = true; };
-  }, [customerDetails.phone]);
+  }, [customerDetails.phone, customerDetails.name]);
   
   // Carrega horários disponíveis (admin pode agendar qualquer horário)
   useEffect(() => {
@@ -304,8 +309,19 @@ export default function AdminBookingCreate() {
         phone: phoneDigits,
       });
       ensuredCustomerId = saved.id;
-    } catch (_e) {
-      // Se falhar, segue sem customer_id (RLS pode bloquear conforme políticas)
+      // Atualiza o estado local para refletir o cliente salvo
+      if (saved.id && saved.id !== "temp") {
+        setCustomerId(saved.id);
+      }
+    } catch (e) {
+      console.error("Erro ao salvar cliente:", e);
+      // Se falhar, tenta continuar sem customer_id mas avisa
+      if (!isAdmin) {
+        setError("Erro ao salvar dados do cliente. Tente novamente.");
+        setSubmitting(false);
+        return;
+      }
+      // Admin pode continuar mesmo se não conseguir salvar o cliente
     }
 
     // Admin pode agendar qualquer data/hora, incluindo passadas
@@ -567,10 +583,27 @@ export default function AdminBookingCreate() {
                   placeholder="11999999999"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Apenas números, até 11 dígitos.
+                  Apenas números, exatamente 11 dígitos (DDD + 9 + número).
                 </p>
-                {customerLookupMsg && (
-                  <p className="text-xs mt-1 text-barbershop-brown">{customerLookupMsg}</p>
+                {customerDetails.phone && (
+                  <p className={`text-xs mt-1 font-medium ${
+                    customerDetails.phone.replace(/\D/g, "").length === 11 
+                      ? "text-green-600" 
+                      : "text-red-600"
+                  }`}>
+                    {customerDetails.phone.replace(/\D/g, "").length}/11 dígitos
+                  </p>
+                )}
+                {customerLookupMsg && customerDetails.phone.replace(/\D/g, "").length === 11 && (
+                  <p className={`text-xs mt-1 font-medium ${
+                    customerLookupMsg.includes("encontrado") 
+                      ? "text-green-600" 
+                      : customerLookupMsg.includes("Novo cliente")
+                      ? "text-blue-600"
+                      : "text-orange-600"
+                  }`}>
+                    {customerLookupMsg}
+                  </p>
                 )}
               </div>
               <div>
