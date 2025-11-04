@@ -35,7 +35,7 @@ import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { useBarberAuth } from "@/hooks/useBarberAuth";
 
-type BookingStep = "service" | "barber" | "datetime" | "details" | "confirmation";
+type BookingStep = "phone" | "service" | "barber" | "datetime" | "details" | "confirmation";
 
 type Service = {
   id: string;
@@ -79,7 +79,7 @@ export default function AdminBookingCreate() {
   const navigate = useNavigate();
   const { barber: authenticatedBarber, isAdmin } = useBarberAuth();
   
-  const [currentStep, setCurrentStep] = useState<BookingStep>("service");
+  const [currentStep, setCurrentStep] = useState<BookingStep>("phone");
   
   const [services, setServices] = useState<Service[]>([]);
   const [filteredServices, setFilteredServices] = useState<Service[]>([]);
@@ -100,6 +100,9 @@ export default function AdminBookingCreate() {
     email: "",
     notes: "",
   });
+  // Passo inicial: telefone
+  const [phoneInput, setPhoneInput] = useState("");
+  const [checkingCustomer, setCheckingCustomer] = useState(false);
   
   // Estado
   const [slots, setSlots] = useState<string[]>([]);
@@ -173,8 +176,9 @@ export default function AdminBookingCreate() {
     setFilteredServices(services);
   }, [services]);
 
-  // Busca cliente por telefone (11 dígitos) e preenche dados quando encontrado
+  // Busca cliente por telefone (11 dígitos) e preenche dados quando encontrado (detalhes)
   useEffect(() => {
+    if (customerId) return; // já resolvido via passo de telefone
     const digits = customerDetails.phone.replace(/\D/g, "");
     if (digits.length !== 11) {
       if (customerDetails.phone.length === 0) {
@@ -237,6 +241,38 @@ export default function AdminBookingCreate() {
       clearTimeout(timeoutId);
     };
   }, [customerDetails.phone]);
+
+  // Ação do passo inicial: verificar telefone
+  const handlePhoneCheck = async () => {
+    const digits = phoneInput.replace(/\D/g, "");
+    if (!digits || digits.length !== 11) {
+      setError("Digite um WhatsApp válido com 11 dígitos (DDD + 9 + número).");
+      return;
+    }
+    setCheckingCustomer(true);
+    setError(null);
+    try {
+      const found = await findCustomerByPhone(digits);
+      if (found) {
+        setCustomerId(found.id);
+        setCustomerDetails(prev => ({
+          ...prev,
+          name: found.name || prev.name,
+          phone: found.phone || digits,
+        }));
+      } else {
+        setCustomerId(null);
+        setCustomerDetails(prev => ({ ...prev, phone: digits }));
+      }
+      // Avança para seleção de serviço
+      setCurrentStep("service");
+    } catch (e) {
+      console.error("Erro ao verificar telefone:", e);
+      setError("Erro ao verificar telefone. Tente novamente.");
+    } finally {
+      setCheckingCustomer(false);
+    }
+  };
   
   // Carrega horários disponíveis (admin pode agendar qualquer horário)
   useEffect(() => {
@@ -263,8 +299,8 @@ export default function AdminBookingCreate() {
   }, [selectedBarber, selectedService, selectedDate]);
   
   const stepsOrder: BookingStep[] = isAdmin
-    ? ["service", "barber", "datetime", "details", "confirmation"]
-    : ["service", "datetime", "details", "confirmation"];
+    ? ["phone", "service", "barber", "datetime", "details", "confirmation"]
+    : ["phone", "service", "datetime", "details", "confirmation"];
 
   const nextStep = () => {
     const idx = stepsOrder.indexOf(currentStep);
@@ -282,6 +318,8 @@ export default function AdminBookingCreate() {
 
   const canProceed = () => {
     switch (currentStep) {
+      case "phone":
+        return phoneInput.replace(/\D/g, "").length === 11 && !checkingCustomer;
       case "service":
         return selectedService !== null;
       case "barber":
@@ -387,6 +425,43 @@ export default function AdminBookingCreate() {
   
   const renderStepContent = () => {
     switch (currentStep) {
+      case "phone":
+        return (
+          <div>
+            <h3 className="font-bold text-barbershop-dark mb-6 text-2xl">
+              Digite o número de telefone do cliente
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="phone-input">WhatsApp *</Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-barbershop-brown/60 w-4 h-4" />
+                  <Input
+                    id="phone-input"
+                    inputMode="numeric"
+                    value={phoneInput}
+                    onChange={(e) => {
+                      const onlyNumbers = e.target.value.replace(/\D/g, "").slice(0, 11);
+                      setPhoneInput(onlyNumbers);
+                      setError(null);
+                    }}
+                    placeholder="83999999999"
+                    className="pl-10"
+                    autoFocus
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Apenas números, sem espaços ou caracteres especiais.
+                </p>
+              </div>
+              {checkingCustomer && (
+                <div className="text-center py-2">
+                  <p className="text-sm text-muted-foreground">Verificando...</p>
+                </div>
+              )}
+            </div>
+          </div>
+        );
       case "service":
   return (
           <div>
@@ -792,6 +867,7 @@ export default function AdminBookingCreate() {
           <div className="flex items-center justify-center gap-4">
             {(() => {
               const labelByStep: Record<BookingStep, string> = {
+                phone: "Telefone",
                 service: "Serviço",
                 barber: "Barbeiro",
                 datetime: "Data/Hora",
@@ -861,11 +937,15 @@ export default function AdminBookingCreate() {
                 </Button>
               </div>
               <Button
-                onClick={nextStep}
+                onClick={currentStep === "phone" ? handlePhoneCheck : nextStep}
                 disabled={!canProceed()}
                 className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark h-11"
               >
-                {currentStep === "details" ? "Revisar Agendamento" : "Continuar"}
+                {currentStep === "details"
+                  ? "Revisar Agendamento"
+                  : currentStep === "phone"
+                  ? (checkingCustomer ? "Verificando..." : "Verificar")
+                  : "Continuar"}
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
                 </div>
@@ -873,11 +953,15 @@ export default function AdminBookingCreate() {
             {/* Mobile */}
             <div className="md:hidden space-y-3">
               <Button
-                onClick={nextStep}
+                onClick={currentStep === "phone" ? handlePhoneCheck : nextStep}
                 disabled={!canProceed()}
                 className="w-full bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark h-11"
               >
-                {currentStep === "details" ? "Revisar Agendamento" : "Continuar"}
+                {currentStep === "details"
+                  ? "Revisar Agendamento"
+                  : currentStep === "phone"
+                  ? (checkingCustomer ? "Verificando..." : "Verificar")
+                  : "Continuar"}
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
               <div className="flex justify-between gap-3">
