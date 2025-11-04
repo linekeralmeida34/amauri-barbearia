@@ -108,6 +108,7 @@ export default function AdminBookingCreate() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [customerId, setCustomerId] = useState<string | null>(null);
+  const [customerLookupMsg, setCustomerLookupMsg] = useState<string | null>(null);
   
   // Função de filtro de serviços
   const filterServices = (term: string) => {
@@ -186,12 +187,14 @@ export default function AdminBookingCreate() {
         if (cancelled) return;
         if (c) {
           setCustomerId(c.id);
+          setCustomerLookupMsg(`Cliente encontrado: ${c.name || '—'}`);
           // Se o nome estiver vazio, preenche com o cadastrado
           if (!customerDetails.name.trim() && c.name) {
             setCustomerDetails(prev => ({ ...prev, name: c.name }));
           }
         } else {
           setCustomerId(null);
+          setCustomerLookupMsg("Novo cliente (será cadastrado ao salvar)");
         }
       } catch (_e) {
         // silencioso
@@ -252,7 +255,10 @@ export default function AdminBookingCreate() {
         // Admin pode agendar qualquer data/hora, sem validações de tempo mínimo
         return !!selectedDate && !!selectedTime;
       case "details":
-        return !!customerDetails.name && !!customerDetails.phone;
+        {
+          const phoneDigits = customerDetails.phone.replace(/\D/g, "");
+          return !!customerDetails.name.trim() && phoneDigits.length === 11;
+        }
       default:
         return false;
     }
@@ -563,6 +569,9 @@ export default function AdminBookingCreate() {
                 <p className="text-xs text-muted-foreground mt-1">
                   Apenas números, até 11 dígitos.
                 </p>
+                {customerLookupMsg && (
+                  <p className="text-xs mt-1 text-barbershop-brown">{customerLookupMsg}</p>
+                )}
               </div>
               <div>
                 <Label htmlFor="email">E-mail (opcional)</Label>
