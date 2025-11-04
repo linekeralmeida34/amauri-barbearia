@@ -173,7 +173,7 @@ export default function AdminBookingCreate() {
     setFilteredServices(services);
   }, [services]);
 
-  // Busca cliente por telefone (11 dígitos) e preenche nome/ID quando encontrado
+  // Busca cliente por telefone (11 dígitos) e preenche dados quando encontrado
   useEffect(() => {
     const digits = customerDetails.phone.replace(/\D/g, "");
     if (digits.length !== 11) {
@@ -188,15 +188,19 @@ export default function AdminBookingCreate() {
         const c = await findCustomerByPhone(digits);
         if (cancelled) return;
         if (c) {
+          // Cliente encontrado: preenche dados automaticamente
           setCustomerId(c.id);
           setCustomerLookupMsg(`✓ Cliente encontrado: ${c.name || '—'}`);
-          // Se o nome estiver vazio, preenche com o cadastrado
-          if (!customerDetails.name.trim() && c.name) {
-            setCustomerDetails(prev => ({ ...prev, name: c.name }));
-          }
+          // Preenche nome automaticamente se estiver vazio, caso contrário mantém o que o usuário digitou
+          setCustomerDetails(prev => ({
+            ...prev,
+            name: prev.name.trim() ? prev.name : (c.name || prev.name),
+            phone: digits, // Garante que está normalizado
+          }));
         } else {
+          // Cliente não encontrado: permite criar novo cliente
           setCustomerId(null);
-          setCustomerLookupMsg("Novo cliente (será cadastrado ao salvar)");
+          setCustomerLookupMsg("⚠ Cliente não encontrado (será cadastrado ao salvar)");
         }
       } catch (e) {
         if (!cancelled) {
@@ -206,7 +210,7 @@ export default function AdminBookingCreate() {
       }
     })();
     return () => { cancelled = true; };
-  }, [customerDetails.phone, customerDetails.name]);
+  }, [customerDetails.phone]);
   
   // Carrega horários disponíveis (admin pode agendar qualquer horário)
   useEffect(() => {
@@ -569,21 +573,26 @@ export default function AdminBookingCreate() {
               </div>
               <div>
                 <Label htmlFor="phone">WhatsApp *</Label>
-                <Input
-                  id="phone"
-                  inputMode="numeric"
-                  value={customerDetails.phone}
-                  onChange={(e) => {
-                    const onlyNumbers = e.target.value.replace(/\D/g, "").slice(0, 11);
-                    setCustomerDetails({
-                      ...customerDetails,
-                      phone: onlyNumbers,
-                    });
-                  }}
-                  placeholder="11999999999"
-                />
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-barbershop-brown/60 w-4 h-4" />
+                  <Input
+                    id="phone"
+                    inputMode="numeric"
+                    value={customerDetails.phone}
+                    onChange={(e) => {
+                      const onlyNumbers = e.target.value.replace(/\D/g, "").slice(0, 11);
+                      setCustomerDetails({
+                        ...customerDetails,
+                        phone: onlyNumbers,
+                      });
+                      setError(null); // Limpa erro ao digitar
+                    }}
+                    placeholder="11999999999"
+                    className="pl-10"
+                  />
+                </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Apenas números, exatamente 11 dígitos (DDD + 9 + número).
+                  Apenas números, exatamente 11 dígitos (DDD + 9 + número). O sistema buscará automaticamente se o cliente já está cadastrado.
                 </p>
                 {customerDetails.phone && (
                   <p className={`text-xs mt-1 font-medium ${
@@ -595,15 +604,20 @@ export default function AdminBookingCreate() {
                   </p>
                 )}
                 {customerLookupMsg && customerDetails.phone.replace(/\D/g, "").length === 11 && (
-                  <p className={`text-xs mt-1 font-medium ${
-                    customerLookupMsg.includes("encontrado") 
-                      ? "text-green-600" 
-                      : customerLookupMsg.includes("Novo cliente")
-                      ? "text-blue-600"
-                      : "text-orange-600"
+                  <div className={`text-xs mt-2 p-2 rounded-md font-medium ${
+                    customerLookupMsg.includes("✓") || customerLookupMsg.includes("encontrado")
+                      ? "bg-green-50 text-green-700 border border-green-200" 
+                      : customerLookupMsg.includes("⚠") || customerLookupMsg.includes("não encontrado")
+                      ? "bg-blue-50 text-blue-700 border border-blue-200"
+                      : "bg-orange-50 text-orange-700 border border-orange-200"
                   }`}>
                     {customerLookupMsg}
-                  </p>
+                    {customerLookupMsg.includes("encontrado") && customerId && (
+                      <span className="block mt-1 text-xs text-green-600">
+                        Os dados do cliente foram preenchidos automaticamente.
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
               <div>
