@@ -177,39 +177,65 @@ export default function AdminBookingCreate() {
   useEffect(() => {
     const digits = customerDetails.phone.replace(/\D/g, "");
     if (digits.length !== 11) {
-      setCustomerId(null);
-      setCustomerLookupMsg(null);
+      if (customerDetails.phone.length === 0) {
+        // Se o campo está vazio, limpa tudo
+        setCustomerId(null);
+        setCustomerLookupMsg(null);
+      }
       return;
     }
-    let cancelled = false;
-    setCustomerLookupMsg("Buscando cliente...");
-    (async () => {
+
+    // Debounce: aguarda 500ms após parar de digitar
+    const timeoutId = setTimeout(async () => {
+      // Verifica novamente se ainda é o telefone atual (evita buscas desnecessárias)
+      const currentDigits = customerDetails.phone.replace(/\D/g, "");
+      if (currentDigits !== digits || currentDigits.length !== 11) {
+        return;
+      }
+      
+      setCustomerLookupMsg("Buscando cliente...");
+      
       try {
         const c = await findCustomerByPhone(digits);
-        if (cancelled) return;
+        
+        // Verifica novamente se o telefone ainda é o mesmo (evita race conditions)
+        const stillCurrentDigits = customerDetails.phone.replace(/\D/g, "");
+        if (stillCurrentDigits !== digits) {
+          return;
+        }
+        
         if (c) {
           // Cliente encontrado: preenche dados automaticamente
           setCustomerId(c.id);
           setCustomerLookupMsg(`✓ Cliente encontrado: ${c.name || '—'}`);
-          // Preenche nome automaticamente se estiver vazio, caso contrário mantém o que o usuário digitou
-          setCustomerDetails(prev => ({
-            ...prev,
-            name: prev.name.trim() ? prev.name : (c.name || prev.name),
-            phone: digits, // Garante que está normalizado
-          }));
+          
+          // Preenche nome automaticamente se estiver vazio
+          setCustomerDetails(prev => {
+            const prevDigits = prev.phone.replace(/\D/g, "");
+            // Só atualiza se o nome estiver vazio ou se o telefone mudou
+            if (!prev.name.trim() || prevDigits !== digits) {
+              return {
+                ...prev,
+                name: c.name || prev.name,
+                phone: digits, // Garante que está normalizado
+              };
+            }
+            return prev;
+          });
         } else {
           // Cliente não encontrado: permite criar novo cliente
           setCustomerId(null);
           setCustomerLookupMsg("⚠ Cliente não encontrado (será cadastrado ao salvar)");
         }
       } catch (e) {
-        if (!cancelled) {
-          console.error("Erro ao buscar cliente:", e);
-          setCustomerLookupMsg("Erro ao buscar cliente. Tente novamente.");
-        }
+        console.error("Erro ao buscar cliente:", e);
+        setCustomerLookupMsg("Erro ao buscar cliente. Tente novamente.");
       }
-    })();
-    return () => { cancelled = true; };
+    }, 500);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
   }, [customerDetails.phone]);
   
   // Carrega horários disponíveis (admin pode agendar qualquer horário)
