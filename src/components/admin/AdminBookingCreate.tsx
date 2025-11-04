@@ -240,6 +240,12 @@ export default function AdminBookingCreate() {
       setError("Nome e telefone do cliente são obrigatórios.");
       return;
     }
+    // Telefone deve ter 11 dígitos (DDD + 9 + número)
+    const phoneDigits = customerDetails.phone.replace(/\D/g, "");
+    if (phoneDigits.length !== 11) {
+      setError("Informe um WhatsApp válido com 11 dígitos (DDD + 9 + número).");
+      return;
+    }
     
     const starts_at_iso = toStartsAtISO(selectedDate, selectedTime);
     if (!starts_at_iso) {

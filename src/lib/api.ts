@@ -289,6 +289,11 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
   if (!input.customer_name?.trim() || !input.phone?.trim()) {
     return { ok: false, reason: "VALIDATION", message: "Nome e WhatsApp são obrigatórios." };
   }
+  // Validação de telefone BR (11 dígitos)
+  const normalizedPhone = normalizePhone(input.phone);
+  if (!normalizedPhone || normalizedPhone.length !== 11) {
+    return { ok: false, reason: "VALIDATION", message: "Informe um WhatsApp válido com 11 dígitos (DDD + 9 + número)." };
+  }
   if (!input.starts_at_iso || isNaN(Date.parse(input.starts_at_iso))) {
     return { ok: false, reason: "VALIDATION", message: "Data/hora inválidas." };
   }
@@ -305,7 +310,7 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
     price: Number(input.price),
     status: "pending" as const,
     customer_name: input.customer_name.trim(),
-    phone: normalizePhone(input.phone),
+    phone: normalizedPhone,
     payment_method: input.payment_method || null,      // Forma de pagamento
     created_by: (input.created_by || "client") as "client" | "barber" | "admin",
   };

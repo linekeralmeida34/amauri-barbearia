@@ -153,8 +153,9 @@ export const BookingFlow = () => {
 
   // Função para verificar telefone do cliente
   const handlePhoneCheck = async () => {
-    if (!phoneInput.trim() || phoneInput.replace(/\D/g, "").length < 10) {
-      setGlobalError("Digite um número de telefone válido (apenas números).");
+    const digits = phoneInput.replace(/\D/g, "");
+    if (!digits || digits.length !== 11) {
+      setGlobalError("Digite um WhatsApp válido com 11 dígitos (DDD + 9 + número).");
       return;
     }
 
@@ -559,7 +560,7 @@ export const BookingFlow = () => {
   const canProceed = () => {
     switch (currentStep) {
       case "phone":
-        return phoneInput.replace(/\D/g, "").length >= 10;
+        return phoneInput.replace(/\D/g, "").length === 11;
       case "customerRegistration":
         if (!customerDetails.name.trim() || !customerDetails.phone.trim()) return false;
         if (!customerDetails.birthDate || !formatDateForDB(customerDetails.birthDate)) return false;
