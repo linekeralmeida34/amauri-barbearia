@@ -7,7 +7,9 @@ import {
   createBooking,
   listAvailableTimes,
   CreateBookingInput,
-  PaymentMethod
+  PaymentMethod,
+  findCustomerByPhone,
+  upsertCustomer
 } from "@/lib/api";
 import { 
   Calendar, 
@@ -105,6 +107,7 @@ export default function AdminBookingCreate() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [customerId, setCustomerId] = useState<string | null>(null);
   
   // Função de filtro de serviços
   const filterServices = (term: string) => {
@@ -168,6 +171,34 @@ export default function AdminBookingCreate() {
   useEffect(() => {
     setFilteredServices(services);
   }, [services]);
+
+  // Busca cliente por telefone (11 dígitos) e preenche nome/ID quando encontrado
+  useEffect(() => {
+    const digits = customerDetails.phone.replace(/\D/g, "");
+    if (digits.length !== 11) {
+      setCustomerId(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const c = await findCustomerByPhone(digits);
+        if (cancelled) return;
+        if (c) {
+          setCustomerId(c.id);
+          // Se o nome estiver vazio, preenche com o cadastrado
+          if (!customerDetails.name.trim() && c.name) {
+            setCustomerDetails(prev => ({ ...prev, name: c.name }));
+          }
+        } else {
+          setCustomerId(null);
+        }
+      } catch (_e) {
+        // silencioso
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [customerDetails.phone]);
   
   // Carrega horários disponíveis (admin pode agendar qualquer horário)
   useEffect(() => {
@@ -259,12 +290,25 @@ export default function AdminBookingCreate() {
       return;
     }
 
+    // Garante cadastro/atualização do cliente e obtém customer_id
+    let ensuredCustomerId: string | undefined = customerId ?? undefined;
+    try {
+      const saved = await upsertCustomer({
+        name: customerDetails.name.trim(),
+        phone: phoneDigits,
+      });
+      ensuredCustomerId = saved.id;
+    } catch (_e) {
+      // Se falhar, segue sem customer_id (RLS pode bloquear conforme políticas)
+    }
+
     // Admin pode agendar qualquer data/hora, incluindo passadas
     const bookingInput: CreateBookingInput = {
       service_id: selectedService.id,
       barber_id: selectedBarber.id,
       customer_name: customerDetails.name.trim(),
-      phone: customerDetails.phone.trim(),
+      phone: phoneDigits,
+      customer_id: ensuredCustomerId,
       email: customerDetails.email || undefined,
       notes: customerDetails.notes || undefined,
       starts_at_iso,
