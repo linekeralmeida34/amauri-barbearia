@@ -34,6 +34,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { useBarberAuth } from "@/hooks/useBarberAuth";
+import { Combobox } from "@/components/ui/combobox";
+import { joaoPessoaNeighborhoods } from "@/data/neighborhoods";
 
 type BookingStep = "phone" | "service" | "barber" | "datetime" | "details" | "confirmation";
 
@@ -65,6 +67,46 @@ function toStartsAtISO(dateStr: string, timeStr: string): string | null {
   const [hh, mm] = timeStr.split(":").map(Number);
   const dt = new Date(y, (m ?? 1) - 1, d ?? 1, hh ?? 0, mm ?? 0, 0);
   return dt.toISOString();
+}
+
+// Formatações de data (DD/MM/YYYY <-> YYYY-MM-DD)
+function formatDateForDB(dateStr: string): string | null {
+  if (!dateStr) return null;
+  const digits = dateStr.replace(/\D/g, "");
+  if (digits.length !== 8) return null;
+  const day = digits.slice(0, 2);
+  const month = digits.slice(2, 4);
+  const year = digits.slice(4);
+  const dayNum = parseInt(day, 10);
+  const monthNum = parseInt(month, 10);
+  const yearNum = parseInt(year, 10);
+  const d = new Date(yearNum, monthNum - 1, dayNum);
+  if (
+    d.getFullYear() !== yearNum ||
+    d.getMonth() !== monthNum - 1 ||
+    d.getDate() !== dayNum ||
+    yearNum < 1900 || yearNum > new Date().getFullYear()
+  ) {
+    return null;
+  }
+  if (d > new Date()) return null;
+  return `${year}-${month}-${day}`;
+}
+
+function formatDateInput(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 8);
+  if (digits.length === 0) return "";
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
+
+function formatDateFromDB(dateStr: string | null): string {
+  if (!dateStr) return "";
+  if (dateStr.includes("/")) return dateStr;
+  const parts = dateStr.split("-");
+  if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  return "";
 }
 
 const paymentMethods: { value: PaymentMethod; label: string; icon: JSX.Element }[] = [
@@ -99,6 +141,8 @@ export default function AdminBookingCreate() {
     phone: "",
     email: "",
     notes: "",
+    birthDate: "",
+    neighborhood: "",
   });
   // Passo inicial: telefone
   const [phoneInput, setPhoneInput] = useState("");
@@ -222,6 +266,8 @@ export default function AdminBookingCreate() {
                 ...prev,
                 name: c.name || prev.name,
                 phone: digits, // Garante que está normalizado
+                birthDate: formatDateFromDB(c.birth_date),
+                neighborhood: c.neighborhood || prev.neighborhood,
               };
             }
             return prev;
@@ -259,10 +305,12 @@ export default function AdminBookingCreate() {
           ...prev,
           name: found.name || prev.name,
           phone: found.phone || digits,
+          birthDate: formatDateFromDB(found.birth_date),
+          neighborhood: found.neighborhood || prev.neighborhood,
         }));
       } else {
         setCustomerId(null);
-        setCustomerDetails(prev => ({ ...prev, phone: digits }));
+        setCustomerDetails(prev => ({ ...prev, phone: digits, birthDate: "", neighborhood: "" }));
       }
       // Avança para seleção de serviço
       setCurrentStep("service");
@@ -372,9 +420,21 @@ export default function AdminBookingCreate() {
     // Garante cadastro/atualização do cliente e obtém customer_id
     let ensuredCustomerId: string | undefined = customerId ?? undefined;
     try {
+      let birthDateFormatted: string | null = null;
+      if (customerDetails.birthDate) {
+        birthDateFormatted = formatDateForDB(customerDetails.birthDate);
+        if (!birthDateFormatted) {
+          setError("Data de nascimento inválida. Use o formato DD/MM/AAAA.");
+          setSubmitting(false);
+          return;
+        }
+      }
+
       const saved = await upsertCustomer({
         name: customerDetails.name.trim(),
         phone: phoneDigits,
+        birth_date: birthDateFormatted || undefined,
+        neighborhood: customerDetails.neighborhood?.trim() || undefined,
       });
       ensuredCustomerId = saved.id;
       // Atualiza o estado local para refletir o cliente salvo
@@ -731,6 +791,37 @@ export default function AdminBookingCreate() {
                     setCustomerDetails({ ...customerDetails, email: e.target.value })
                   }
                   placeholder="cliente@email.com"
+                />
+              </div>
+              <div>
+                <Label htmlFor="birth-date">Data de nascimento (opcional)</Label>
+                <Input
+                  id="birth-date"
+                  inputMode="numeric"
+                  value={customerDetails.birthDate}
+                  onChange={(e) => {
+                    const formatted = formatDateInput(e.target.value);
+                    setCustomerDetails({ ...customerDetails, birthDate: formatted });
+                  }}
+                  placeholder="DD/MM/AAAA"
+                  maxLength={10}
+                  className="font-mono"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Formato: DD/MM/AAAA
+                </p>
+              </div>
+              <div>
+                <Label>Bairro (João Pessoa) (opcional)</Label>
+                <Combobox
+                  options={joaoPessoaNeighborhoods}
+                  value={customerDetails.neighborhood || undefined}
+                  onValueChange={(value) => {
+                    setCustomerDetails({ ...customerDetails, neighborhood: value });
+                  }}
+                  placeholder="Selecione ou pesquise o bairro"
+                  searchPlaceholder="Pesquisar bairro..."
+                  emptyMessage="Nenhum bairro encontrado."
                 />
               </div>
               <div>
