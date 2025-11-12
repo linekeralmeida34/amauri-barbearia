@@ -37,27 +37,33 @@ CREATE OR REPLACE FUNCTION public.get_barber_day_block(
   p_barber_id UUID,
   p_day DATE
 )
-RETURNS TABLE (
-  start_time TIME,
-  end_time TIME
-) 
+RETURNS JSON
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
+DECLARE
+  v_start_time TIME;
+  v_end_time TIME;
 BEGIN
-  RETURN QUERY
   SELECT 
     bdb.start_time,
     bdb.end_time
+  INTO v_start_time, v_end_time
   FROM public.barber_day_blocks bdb
   WHERE bdb.barber_id = p_barber_id
     AND bdb.day = p_day
   LIMIT 1;
   
   -- Se não encontrou, retorna NULL
-  IF NOT FOUND THEN
-    RETURN QUERY SELECT NULL::TIME, NULL::TIME;
+  IF v_start_time IS NULL AND v_end_time IS NULL THEN
+    RETURN json_build_object('start_time', null, 'end_time', null);
   END IF;
+  
+  -- Retorna os valores encontrados
+  RETURN json_build_object(
+    'start_time', v_start_time::text,
+    'end_time', v_end_time::text
+  );
 END;
 $$;
 

@@ -427,17 +427,21 @@ export async function fetchBarberDayBlock(
       } catch {}
       return { start_time: null, end_time: null };
     }
-    // Aceita retornos em diferentes formatos
+    // A função retorna JSON ou pode retornar array (se for TABLE)
     if (!data) return { start_time: null, end_time: null };
-    const start = typeof data === "object" && data !== null 
-      ? (data.start_time || data.start_hhmm || null)
-      : null;
-    const end = typeof data === "object" && data !== null
-      ? (data.end_time || data.end_hhmm || null)
-      : null;
+    
+    // Se for array (retorno de TABLE), pega o primeiro elemento
+    let result = Array.isArray(data) ? data[0] : data;
+    
+    // Se ainda for null, retorna null
+    if (!result) return { start_time: null, end_time: null };
+    
+    const start = result.start_time || result.start_hhmm || null;
+    const end = result.end_time || result.end_hhmm || null;
     
     const normalize = (s: any): string | null => {
       if (!s || typeof s !== "string") return null;
+      // Remove segundos se houver (HH:MM:SS -> HH:MM)
       const hhmm = s.slice(0, 5);
       return /^\d{2}:\d{2}$/.test(hhmm) ? hhmm : null;
     };
