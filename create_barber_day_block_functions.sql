@@ -23,6 +23,8 @@ ALTER TABLE public.barber_day_blocks ENABLE ROW LEVEL SECURITY;
 
 -- Política permissiva: permite acesso via funções (que fazem validação)
 -- As funções SECURITY DEFINER validam permissões internamente
+-- Remove política existente se houver e cria nova
+DROP POLICY IF EXISTS "Allow access via functions" ON public.barber_day_blocks;
 CREATE POLICY "Allow access via functions"
   ON public.barber_day_blocks
   FOR ALL
