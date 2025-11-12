@@ -182,3 +182,91 @@ COMMENT ON TABLE public.barber_day_blocks IS 'Armazena bloqueios de horários po
 COMMENT ON FUNCTION public.get_barber_day_block IS 'Retorna start_time/end_time do bloqueio do dia; se não houver, retorna bloqueio global (JSON).';
 COMMENT ON FUNCTION public.set_barber_day_block IS 'Define/remove bloqueio por dia ou global (day NULL). Ambos horários NULL removem o bloqueio.';
 
+-- ============================================
+-- RPC: list_available_times com intervalos de 15 minutos
+-- - Considera almoço (12:00-12:59) indisponível
+-- - Considera bloqueio por dia e bloqueio global (barber_day_blocks)
+-- - Evita sobreposição com agendamentos existentes (bookings)
+-- ============================================
+DROP FUNCTION IF EXISTS public.list_available_times(uuid, date, integer);
+CREATE OR REPLACE FUNCTION public.list_available_times(
+  p_barber_id UUID,
+  p_day DATE,
+  p_duration_min INTEGER
+)
+RETURNS TABLE (slot TEXT)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_tz TEXT := 'America/Sao_Paulo';
+  v_day_start_local TIME := TIME '09:00';
+  v_day_end_local   TIME := TIME '17:00';
+  v_lunch_start     TIME := TIME '12:00';
+  v_lunch_end       TIME := TIME '13:00';
+  v_block_start     TIME := NULL;
+  v_block_end       TIME := NULL;
+  v_day_start_ts    TIMESTAMPTZ;
+  v_day_end_ts      TIMESTAMPTZ;
+BEGIN
+  IF p_duration_min IS NULL OR p_duration_min <= 0 THEN
+    RETURN;
+  END IF;
+
+  -- Carrega bloqueio (dia específico ou global)
+  SELECT b.start_time, b.end_time
+  INTO v_block_start, v_block_end
+  FROM public.barber_day_blocks b
+  WHERE b.barber_id = p_barber_id AND (b.day = p_day OR b.day IS NULL)
+  ORDER BY CASE WHEN b.day IS NULL THEN 2 ELSE 1 END
+  LIMIT 1;
+
+  -- Constrói início/fim do dia em timestamptz a partir do horário local
+  v_day_start_ts := ((p_day::timestamp + v_day_start_local) AT TIME ZONE v_tz);
+  v_day_end_ts   := ((p_day::timestamp + v_day_end_local)   AT TIME ZONE v_tz);
+
+  RETURN QUERY
+  WITH candidates AS (
+    SELECT gs AS ts
+    FROM generate_series(v_day_start_ts, v_day_end_ts, INTERVAL '15 minutes') AS gs
+  ),
+  labeled AS (
+    SELECT 
+      ts,
+      ((ts AT TIME ZONE v_tz)::time) AS local_time,
+      ((ts + make_interval(mins => p_duration_min)) AT TIME ZONE v_tz)::time AS local_time_end
+    FROM candidates
+  ),
+  filtered_lunch AS (
+    SELECT * FROM labeled
+    WHERE NOT (local_time >= v_lunch_start AND local_time < v_lunch_end)
+  ),
+  filtered_block AS (
+    SELECT * FROM filtered_lunch
+    WHERE (
+      v_block_start IS NULL OR v_block_end IS NULL OR
+      NOT (local_time >= v_block_start AND local_time <= v_block_end)
+    )
+  ),
+  without_overlap AS (
+    SELECT f.*
+    FROM filtered_block f
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM public.bookings bk
+      WHERE bk.barber_id = p_barber_id
+        AND DATE((bk.starts_at AT TIME ZONE v_tz)) = p_day
+        AND (bk.status IS DISTINCT FROM 'canceled')
+        AND tstzrange(bk.starts_at, bk.starts_at + make_interval(mins => COALESCE(bk.duration_min, p_duration_min)), '[)') &&
+            tstzrange(f.ts, f.ts + make_interval(mins => p_duration_min), '[)')
+    )
+  )
+  SELECT to_char(local_time, 'HH24:MI') AS slot
+  FROM without_overlap
+  -- Garante que o horário resultante caberá dentro do período de trabalho (não passar do fim ao somar a duração)
+  WHERE (local_time < v_day_end_local)
+  GROUP BY slot
+  ORDER BY slot;
+END;
+$$;
+
