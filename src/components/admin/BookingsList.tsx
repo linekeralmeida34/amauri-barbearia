@@ -504,7 +504,8 @@ export default function BookingsList() {
           payment_method,
           canceled_by_admin,
           services ( name, commission_percentage ),
-          barbers ( id, name )
+          barbers!barber_id ( id, name ),
+          created_by_barber:barbers!created_by_barber_id ( id, name )
         `
         );
 
