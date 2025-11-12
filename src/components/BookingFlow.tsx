@@ -301,8 +301,10 @@ export const BookingFlow = () => {
     (async () => {
       try {
         const block = await fetchBarberDayBlock(String(selectedBarber.id), selectedDate);
+        console.log("[BookingFlow] Bloqueio carregado:", block, "para barbeiro", selectedBarber.id, "dia", selectedDate);
         setDayBlock(block);
-      } catch {
+      } catch (error) {
+        console.warn("[BookingFlow] Erro ao carregar bloqueio:", error);
         setDayBlock({ start_time: null, end_time: null });
       }
     })();
@@ -331,7 +333,9 @@ export const BookingFlow = () => {
       // Aplica bloqueio do dia (fechar de X até Y => remove horários >= X e <= Y)
       if (dayBlock.start_time && dayBlock.end_time) {
         staticFiltered = staticFiltered.filter((t) => {
-          return t < dayBlock.start_time! || t > dayBlock.end_time!;
+          // Remove horários que estão dentro do intervalo bloqueado (inclusive)
+          // Mantém apenas horários < start_time OU > end_time
+          return !(t >= dayBlock.start_time! && t <= dayBlock.end_time!);
         });
       }
       setSlots(staticFiltered);
@@ -355,7 +359,9 @@ export const BookingFlow = () => {
         // Aplica bloqueio do dia (fechar de X até Y => remove horários >= X e <= Y)
         if (dayBlock.start_time && dayBlock.end_time) {
           filtered = filtered.filter((t) => {
-            return t < dayBlock.start_time! || t > dayBlock.end_time!;
+            // Remove horários que estão dentro do intervalo bloqueado (inclusive)
+            // Mantém apenas horários < start_time OU > end_time
+            return !(t >= dayBlock.start_time! && t <= dayBlock.end_time!);
           });
         }
         setSlots(filtered);
