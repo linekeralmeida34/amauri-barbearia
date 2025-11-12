@@ -260,6 +260,7 @@ export type CreateBookingInput = {
   price: number;
   payment_method?: PaymentMethod; // Forma de pagamento opcional
   created_by?: "client" | "barber" | "admin"; // Origem da criação do agendamento
+  created_by_barber_id?: string; // ID do barbeiro que criou o agendamento (quando created_by = "barber")
 };
 
 export type CreateBookingResult =
@@ -320,6 +321,14 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
       String(input.customer_id).length >= 10 && 
       input.customer_id !== "temp") {
     payload.customer_id = String(input.customer_id);
+  }
+
+  // Adiciona created_by_barber_id se o agendamento foi criado por um barbeiro
+  if (input.created_by === "barber" && input.created_by_barber_id) {
+    const barberCreatorId = String(input.created_by_barber_id);
+    if (barberCreatorId.length >= 10) { // Valida UUID
+      payload.created_by_barber_id = barberCreatorId;
+    }
   }
 
   // returning: "minimal" evita SELECT no retorno (útil quando RLS é mais restrita)

@@ -513,6 +513,8 @@ export default function AdminBookingCreate() {
       price: selectedService.price,
       payment_method: selectedPaymentMethod,
       created_by: isAdmin ? "admin" : "barber",
+      // Se foi criado por barbeiro (não admin), inclui o ID do barbeiro que criou
+      created_by_barber_id: !isAdmin && authenticatedBarber?.id ? authenticatedBarber.id : undefined,
     };
     
     setSubmitting(true);
