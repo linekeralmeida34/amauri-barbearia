@@ -23,7 +23,6 @@ import {
   DollarSign,
   Shield,
   Lock,
-  Gift,
   LockKeyhole,
   Unlock
 } from "lucide-react";
@@ -733,7 +732,7 @@ export default function BookingsList() {
   }
 
   async function loadCurrentBlock() {
-    if (!cutoffBarberId || !finalIsAdmin) return;
+    if (!cutoffBarberId) return;
     setLoadingCutoff(true);
     try {
       const block = await fetchBarberDayBlock(cutoffBarberId, todayYMD());
@@ -753,7 +752,12 @@ export default function BookingsList() {
   }
 
   async function handleSetBlock() {
-    if (!cutoffBarberId || !blockStartTime || !blockEndTime || !finalIsAdmin) return;
+    if (!cutoffBarberId || !blockStartTime || !blockEndTime) return;
+    // Segurança: barbeiro comum só pode fechar o próprio horário
+    if (!finalIsAdmin && barber?.id && cutoffBarberId !== barber.id) {
+      alert("Você só pode fechar horários para você mesmo.");
+      return;
+    }
     
     if (blockStartTime >= blockEndTime) {
       alert("O horário de início deve ser menor que o horário de fim.");
@@ -774,7 +778,12 @@ export default function BookingsList() {
   }
 
   async function handleRemoveBlock() {
-    if (!cutoffBarberId || !finalIsAdmin) return;
+    if (!cutoffBarberId) return;
+    // Segurança: barbeiro comum só pode reabrir o próprio horário
+    if (!finalIsAdmin && barber?.id && cutoffBarberId !== barber.id) {
+      alert("Você só pode reabrir horários do seu próprio perfil.");
+      return;
+    }
     setSavingCutoff(true);
     try {
       await adminSetBarberDayBlock(cutoffBarberId, todayYMD(), null, null);
@@ -795,9 +804,14 @@ export default function BookingsList() {
     if (cutoffBarberId && finalIsAdmin) {
       loadCurrentBlock();
     } else {
-      setCurrentBlock({ start_time: null, end_time: null });
-      setBlockStartTime("");
-      setBlockEndTime("");
+      // Para barbeiro comum, fixa o selection no próprio id
+      if (!finalIsAdmin && barber?.id) {
+        if (!cutoffBarberId) setCutoffBarberId(barber.id);
+      } else {
+        setCurrentBlock({ start_time: null, end_time: null });
+        setBlockStartTime("");
+        setBlockEndTime("");
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cutoffBarberId, finalIsAdmin]);
@@ -1092,131 +1106,129 @@ export default function BookingsList() {
         </div>
       </div>
 
-      {/* Seção de Fechamento de Horários (Apenas Admin) */}
-      {finalIsAdmin && (
-        <div className="bg-gradient-to-br from-slate-800/30 to-slate-900/30 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6 shadow-xl">
-          <div className="flex items-center gap-2 mb-4">
-            <LockKeyhole className="w-5 h-5 text-amber-400" />
-            <h2 className="text-lg font-semibold bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">
-              Fechar Horários
-            </h2>
+      {/* Seção de Fechamento de Horários */}
+      <div className="bg-gradient-to-br from-slate-800/30 to-slate-900/30 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6 shadow-xl">
+        <div className="flex items-center gap-2 mb-4">
+          <LockKeyhole className="w-5 h-5 text-amber-400" />
+          <h2 className="text-lg font-semibold bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">
+            Fechar Horários
+          </h2>
+        </div>
+        <p className="text-white/70 text-sm mb-4">
+          Feche um intervalo de horários de um barbeiro para hoje. Exemplo: se o barbeiro precisa se ausentar de 15h até 17h, feche os horários de 15:00 até 17:00.
+        </p>
+        
+        <div className="space-y-4">
+          {/* Barbeiro - sempre em linha completa */}
+          <div className="space-y-2">
+            <label className="text-white/80 text-sm font-medium">Barbeiro</label>
+            <select
+              value={cutoffBarberId}
+              onChange={(e) => setCutoffBarberId(e.target.value)}
+              className="w-full rounded-lg border border-white/20 bg-white/5 text-white px-3 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+              style={{ 
+                colorScheme: 'dark',
+                fontSize: '16px',
+                minHeight: '44px'
+              }}
+              disabled={!finalIsAdmin}
+            >
+              <option value="" className="bg-gray-800 text-white">Selecione um barbeiro</option>
+              {barbers.map((b) => (
+                <option key={b.id} value={b.id} className="bg-gray-800 text-white">
+                  {b.name}
+                </option>
+              ))}
+            </select>
           </div>
-          <p className="text-white/70 text-sm mb-4">
-            Feche um intervalo de horários de um barbeiro para hoje. Exemplo: se o barbeiro precisa se ausentar de 15h até 17h, feche os horários de 15:00 até 17:00.
-          </p>
-          
-          <div className="space-y-4">
-            {/* Barbeiro - sempre em linha completa */}
+
+          {/* Horários - em grid responsivo */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            {/* Horário de Início */}
             <div className="space-y-2">
-              <label className="text-white/80 text-sm font-medium">Barbeiro</label>
-              <select
-                value={cutoffBarberId}
-                onChange={(e) => setCutoffBarberId(e.target.value)}
-                className="w-full rounded-lg border border-white/20 bg-white/5 text-white px-3 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+              <label className="text-white/80 text-sm font-medium">Fechar de (HH:MM)</label>
+              <input
+                type="time"
+                value={blockStartTime}
+                onChange={(e) => setBlockStartTime(e.target.value)}
+                disabled={!cutoffBarberId || loadingCutoff}
+                className="w-full rounded-lg border border-white/20 bg-white/5 text-white px-3 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed h-[44px]"
                 style={{ 
                   colorScheme: 'dark',
-                  fontSize: '16px',
-                  minHeight: '44px'
+                  fontSize: '16px'
                 }}
-              >
-                <option value="" className="bg-gray-800 text-white">Selecione um barbeiro</option>
-                {barbers.map((b) => (
-                  <option key={b.id} value={b.id} className="bg-gray-800 text-white">
-                    {b.name}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
 
-            {/* Horários - em grid responsivo */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-              {/* Horário de Início */}
-              <div className="space-y-2">
-                <label className="text-white/80 text-sm font-medium">Fechar de (HH:MM)</label>
-                <input
-                  type="time"
-                  value={blockStartTime}
-                  onChange={(e) => setBlockStartTime(e.target.value)}
-                  disabled={!cutoffBarberId || loadingCutoff}
-                  className="w-full rounded-lg border border-white/20 bg-white/5 text-white px-3 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed h-[44px]"
-                  style={{ 
-                    colorScheme: 'dark',
-                    fontSize: '16px'
-                  }}
-                />
-              </div>
+            {/* Horário de Fim */}
+            <div className="space-y-2">
+              <label className="text-white/80 text-sm font-medium">Fechar até (HH:MM)</label>
+              <input
+                type="time"
+                value={blockEndTime}
+                onChange={(e) => setBlockEndTime(e.target.value)}
+                disabled={!cutoffBarberId || loadingCutoff}
+                className="w-full rounded-lg border border-white/20 bg-white/5 text-white px-3 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed h-[44px]"
+                style={{ 
+                  colorScheme: 'dark',
+                  fontSize: '16px'
+                }}
+              />
+            </div>
+          </div>
 
-              {/* Horário de Fim */}
-              <div className="space-y-2">
-                <label className="text-white/80 text-sm font-medium">Fechar até (HH:MM)</label>
-                <input
-                  type="time"
-                  value={blockEndTime}
-                  onChange={(e) => setBlockEndTime(e.target.value)}
-                  disabled={!cutoffBarberId || loadingCutoff}
-                  className="w-full rounded-lg border border-white/20 bg-white/5 text-white px-3 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed h-[44px]"
-                  style={{ 
-                    colorScheme: 'dark',
-                    fontSize: '16px'
-                  }}
-                />
+          {/* Status e Ações - em grid responsivo */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            {/* Status Atual */}
+            <div className="space-y-2">
+              <label className="text-white/80 text-sm font-medium">Status</label>
+              <div className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2.5 min-h-[44px] flex items-center">
+                {loadingCutoff ? (
+                  <span className="text-white/60 text-sm">Carregando...</span>
+                ) : currentBlock.start_time && currentBlock.end_time ? (
+                  <div className="flex items-center gap-2">
+                    <Lock className="w-4 h-4 text-red-400 flex-shrink-0" />
+                    <span className="text-white text-sm truncate">Fechado {currentBlock.start_time} - {currentBlock.end_time}</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Unlock className="w-4 h-4 text-green-400 flex-shrink-0" />
+                    <span className="text-white/60 text-sm">Dia aberto</span>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Status e Ações - em grid responsivo */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-              {/* Status Atual */}
-              <div className="space-y-2">
-                <label className="text-white/80 text-sm font-medium">Status</label>
-                <div className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2.5 min-h-[44px] flex items-center">
-                  {loadingCutoff ? (
-                    <span className="text-white/60 text-sm">Carregando...</span>
-                  ) : currentBlock.start_time && currentBlock.end_time ? (
-                    <div className="flex items-center gap-2">
-                      <Lock className="w-4 h-4 text-red-400 flex-shrink-0" />
-                      <span className="text-white text-sm truncate">Fechado {currentBlock.start_time} - {currentBlock.end_time}</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <Unlock className="w-4 h-4 text-green-400 flex-shrink-0" />
-                      <span className="text-white/60 text-sm">Dia aberto</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Ações */}
-              <div className="space-y-2">
-                <label className="text-white/80 text-sm font-medium">Ações</label>
-                <div className="flex gap-2">
-                  {currentBlock.start_time && currentBlock.end_time ? (
-                    <button
-                      onClick={handleRemoveBlock}
-                      disabled={!cutoffBarberId || savingCutoff || loadingCutoff}
-                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-green-600/20 hover:bg-green-600/30 text-green-400 border border-green-500/50 rounded-lg transition-all duration-200 font-semibold shadow-lg hover:shadow-green-500/25 text-sm disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]"
-                    >
-                      <Unlock className="w-4 h-4 flex-shrink-0" />
-                      <span className="hidden sm:inline">Reabrir</span>
-                      <span className="sm:hidden">Abrir</span>
-                    </button>
-                  ) : (
-                    <button
-                      onClick={handleSetBlock}
-                      disabled={!cutoffBarberId || !blockStartTime || !blockEndTime || savingCutoff || loadingCutoff}
-                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-500/50 rounded-lg transition-all duration-200 font-semibold shadow-lg hover:shadow-red-500/25 text-sm disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]"
-                    >
-                      <LockKeyhole className="w-4 h-4 flex-shrink-0" />
-                      <span className="hidden sm:inline">{savingCutoff ? "Fechando..." : "Fechar"}</span>
-                      <span className="sm:hidden">{savingCutoff ? "..." : "Fechar"}</span>
-                    </button>
-                  )}
-                </div>
+            {/* Ações */}
+            <div className="space-y-2">
+              <label className="text-white/80 text-sm font-medium">Ações</label>
+              <div className="flex gap-2">
+                {currentBlock.start_time && currentBlock.end_time ? (
+                  <button
+                    onClick={handleRemoveBlock}
+                    disabled={!cutoffBarberId || savingCutoff || loadingCutoff}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-green-600/20 hover:bg-green-600/30 text-green-400 border border-green-500/50 rounded-lg transition-all duration-200 font-semibold shadow-lg hover:shadow-green-500/25 text-sm disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]"
+                  >
+                    <Unlock className="w-4 h-4 flex-shrink-0" />
+                    <span className="hidden sm:inline">Reabrir</span>
+                    <span className="sm:hidden">Abrir</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleSetBlock}
+                    disabled={!cutoffBarberId || !blockStartTime || !blockEndTime || savingCutoff || loadingCutoff}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-500/50 rounded-lg transition-all duration-200 font-semibold shadow-lg hover:shadow-red-500/25 text-sm disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]"
+                  >
+                    <LockKeyhole className="w-4 h-4 flex-shrink-0" />
+                    <span className="hidden sm:inline">{savingCutoff ? "Fechando..." : "Fechar"}</span>
+                    <span className="sm:hidden">{savingCutoff ? "..." : "Fechar"}</span>
+                  </button>
+                )}
               </div>
             </div>
           </div>
-          
         </div>
-      )}
+      </div>
 
       {/* Tabela Desktop Moderna */}
       <div className="hidden md:block">
