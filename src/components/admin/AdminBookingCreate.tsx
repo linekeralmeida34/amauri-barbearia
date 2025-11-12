@@ -6,6 +6,9 @@ import {
   fetchActiveBarbers, 
   createBooking,
   listAvailableTimes,
+  fetchBarberDayBlock,
+  adminSetBarberDayBlock,
+  type BarberDayBlock,
   CreateBookingInput,
   PaymentMethod,
   findCustomerByPhone,
@@ -131,7 +134,7 @@ export default function AdminBookingCreate() {
   // Seleções
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedBarber, setSelectedBarber] = useState<Barber | null>(null);
-  const [selectedDate, setSelectedDate] = useState<string>("");
+  const [selectedDate, setSelectedDate] = useState<string>(todayLocalYMD());
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>("cash");
   
@@ -156,6 +159,11 @@ export default function AdminBookingCreate() {
   const [success, setSuccess] = useState(false);
   const [customerId, setCustomerId] = useState<string | null>(null);
   const [customerLookupMsg, setCustomerLookupMsg] = useState<string | null>(null);
+  // Bloqueio do dia (admin) - intervalo
+  const [dayBlock, setDayBlock] = useState<BarberDayBlock>({ start_time: null, end_time: null });
+  const [blockStartInput, setBlockStartInput] = useState<string>("");
+  const [blockEndInput, setBlockEndInput] = useState<string>("");
+  const [savingCutoff, setSavingCutoff] = useState(false);
   
   // Função de filtro de serviços
   const filterServices = (term: string) => {
@@ -322,7 +330,23 @@ export default function AdminBookingCreate() {
     }
   };
   
-  // Carrega horários disponíveis (admin pode agendar qualquer horário)
+  // Busca o bloqueio do dia ao trocar barbeiro/data
+  useEffect(() => {
+    if (!selectedBarber || !selectedDate) {
+      setDayBlock({ start_time: null, end_time: null });
+      setBlockStartInput("");
+      setBlockEndInput("");
+      return;
+    }
+    (async () => {
+      const block = await fetchBarberDayBlock(selectedBarber.id, selectedDate);
+      setDayBlock(block);
+      setBlockStartInput(block.start_time || "");
+      setBlockEndInput(block.end_time || "");
+    })();
+  }, [selectedBarber, selectedDate]);
+  
+  // Carrega horários disponíveis (admin pode agendar qualquer horário), respeitando fechamento do dia
   useEffect(() => {
     if (!selectedBarber || !selectedService || !selectedDate) {
       setSlots([]);
@@ -333,9 +357,16 @@ export default function AdminBookingCreate() {
     setLoadingSlots(true);
     listAvailableTimes(selectedBarber.id, selectedDate, selectedService.duration_min)
       .then((serverSlots: string[]) => {
-        // Admin pode agendar qualquer horário disponível, sem filtros de tempo mínimo
-        setSlots(serverSlots);
-        if (selectedTime && !serverSlots.includes(selectedTime)) {
+        // Aplica bloqueio do dia (fechar de X até Y => remove horários >= X e <= Y)
+        let filtered = serverSlots;
+        if (dayBlock.start_time && dayBlock.end_time) {
+          filtered = serverSlots.filter((t) => {
+            // Remove horários que estão dentro do intervalo bloqueado (inclusive)
+            return t < dayBlock.start_time! || t > dayBlock.end_time!;
+          });
+        }
+        setSlots(filtered);
+        if (selectedTime && !filtered.includes(selectedTime)) {
           setSelectedTime("");
         }
       })
@@ -344,7 +375,7 @@ export default function AdminBookingCreate() {
         setSelectedTime("");
       })
       .finally(() => setLoadingSlots(false));
-  }, [selectedBarber, selectedService, selectedDate]);
+  }, [selectedBarber, selectedService, selectedDate, dayBlock]);
   
   const stepsOrder: BookingStep[] = isAdmin
     ? ["phone", "service", "barber", "datetime", "details", "confirmation"]
@@ -666,15 +697,96 @@ export default function AdminBookingCreate() {
                 <Input
                   type="date"
                   value={selectedDate}
+                  min={todayLocalYMD()}
+                  max={todayLocalYMD()}
                   onChange={(e) => {
                     setSelectedDate(e.target.value);
                     setError(null);
                   }}
                   className="mb-2"
                 />
-                <p className="text-xs text-muted-foreground">
-                  Admin pode agendar qualquer data (incluindo passadas)
-                </p>
+                {isAdmin && selectedBarber && selectedDate && (
+                  <div className="mt-4 p-3 border rounded-md bg-muted/50">
+                    <div className="mb-2">
+                      <Label className="text-sm font-semibold">Fechar horários deste dia (intervalo)</Label>
+                    </div>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                      <div className="flex items-center gap-2">
+                        <Label className="text-xs">De:</Label>
+                        <Input
+                          type="time"
+                          step={900}
+                          value={blockStartInput}
+                          onChange={(e) => setBlockStartInput(e.target.value)}
+                          className="max-w-[120px]"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Label className="text-xs">Até:</Label>
+                        <Input
+                          type="time"
+                          step={900}
+                          value={blockEndInput}
+                          onChange={(e) => setBlockEndInput(e.target.value)}
+                          className="max-w-[120px]"
+                        />
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                          if (!selectedBarber || !selectedDate || !blockStartInput || !blockEndInput) return;
+                          if (blockStartInput >= blockEndInput) {
+                            setError("O horário de início deve ser menor que o horário de fim.");
+                            return;
+                          }
+                          try {
+                            setSavingCutoff(true);
+                            await adminSetBarberDayBlock(selectedBarber.id, selectedDate, blockStartInput, blockEndInput);
+                            setDayBlock({ start_time: blockStartInput, end_time: blockEndInput });
+                          } catch (e) {
+                            console.error("Erro ao definir bloqueio:", e);
+                            setError("Não foi possível salvar o bloqueio. Tente novamente.");
+                          } finally {
+                            setSavingCutoff(false);
+                          }
+                        }}
+                        disabled={!blockStartInput || !blockEndInput || savingCutoff}
+                      >
+                        {savingCutoff ? "Salvando..." : "Fechar"}
+                      </Button>
+                      {dayBlock.start_time && dayBlock.end_time && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={async () => {
+                            if (!selectedBarber || !selectedDate) return;
+                            try {
+                              setSavingCutoff(true);
+                              await adminSetBarberDayBlock(selectedBarber.id, selectedDate, null, null);
+                              setDayBlock({ start_time: null, end_time: null });
+                              setBlockStartInput("");
+                              setBlockEndInput("");
+                            } catch (e) {
+                              console.error("Erro ao remover bloqueio:", e);
+                              setError("Não foi possível remover o bloqueio. Tente novamente.");
+                            } finally {
+                              setSavingCutoff(false);
+                            }
+                          }}
+                          disabled={savingCutoff}
+                        >
+                          Reabrir
+                        </Button>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {dayBlock.start_time && dayBlock.end_time
+                        ? `Fechado de ${dayBlock.start_time} até ${dayBlock.end_time}. Horários neste intervalo não aparecem.`
+                        : "Defina um intervalo de horários para fechar a agenda deste barbeiro hoje."}
+                    </p>
+                  </div>
+                )}
               </div>
               
               <div>

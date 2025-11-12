@@ -382,6 +382,154 @@ export async function listAvailableTimes(
   return (data ?? []).map((r: any) => r.slot);
 }
 
+/* =========================
+   Fechamento de horários por dia (Admin) - Intervalo
+========================= */
+
+export type BarberDayBlock = {
+  start_time: string | null; // "HH:MM" ou null
+  end_time: string | null;   // "HH:MM" ou null
+};
+
+/**
+ * Obtém o intervalo de bloqueio (start_time e end_time) para um barbeiro em um dia específico.
+ * Retorna { start_time: null, end_time: null } se não houver fechamento configurado.
+ * Implementado via RPC 'get_barber_day_block(p_barber_id, p_day)'.
+ */
+export async function fetchBarberDayBlock(
+  barberId: string,
+  dayYMD: string
+): Promise<BarberDayBlock> {
+  if (!barberId || !dayYMD) return { start_time: null, end_time: null };
+  try {
+    const { data, error } = await supabase.rpc("get_barber_day_block", {
+      p_barber_id: String(barberId),
+      p_day: dayYMD,
+    });
+    if (error) {
+      console.warn("[fetchBarberDayBlock] RPC ausente ou falhou:", error.message);
+      // Fallback: tenta a RPC antiga (cutoff)
+      try {
+        const { data: oldData } = await supabase.rpc("get_barber_day_cutoff", {
+          p_barber_id: String(barberId),
+          p_day: dayYMD,
+        });
+        if (oldData) {
+          const cutoff = typeof oldData === "string" ? oldData : (oldData?.cutoff || oldData?.cutoff_hhmm);
+          if (cutoff && typeof cutoff === "string") {
+            const hhmm = cutoff.slice(0, 5);
+            if (/^\d{2}:\d{2}$/.test(hhmm)) {
+              // Se tinha cutoff antigo, converte para intervalo (fechar após X = de X até 23:59)
+              return { start_time: hhmm, end_time: "23:59" };
+            }
+          }
+        }
+      } catch {}
+      return { start_time: null, end_time: null };
+    }
+    // Aceita retornos em diferentes formatos
+    if (!data) return { start_time: null, end_time: null };
+    const start = typeof data === "object" && data !== null 
+      ? (data.start_time || data.start_hhmm || null)
+      : null;
+    const end = typeof data === "object" && data !== null
+      ? (data.end_time || data.end_hhmm || null)
+      : null;
+    
+    const normalize = (s: any): string | null => {
+      if (!s || typeof s !== "string") return null;
+      const hhmm = s.slice(0, 5);
+      return /^\d{2}:\d{2}$/.test(hhmm) ? hhmm : null;
+    };
+    
+    return {
+      start_time: normalize(start),
+      end_time: normalize(end),
+    };
+  } catch (e) {
+    console.warn("[fetchBarberDayBlock] erro:", e);
+    return { start_time: null, end_time: null };
+  }
+}
+
+/**
+ * Define (ou remove) o intervalo de bloqueio para um barbeiro em um dia.
+ * - startTime: string "HH:MM" - início do bloqueio (inclusive)
+ * - endTime: string "HH:MM" - fim do bloqueio (inclusive)
+ * - Ambos null para remover o fechamento do dia
+ * Implementado via RPC 'set_barber_day_block(p_barber_id, p_day, p_start_hhmm, p_end_hhmm)'
+ */
+export async function adminSetBarberDayBlock(
+  barberId: string,
+  dayYMD: string,
+  startTime: string | null,
+  endTime: string | null
+): Promise<void> {
+  if (!barberId || !dayYMD) return;
+  
+  // Validação: se um está preenchido, o outro também deve estar
+  if ((startTime && !endTime) || (!startTime && endTime)) {
+    throw new Error("Ambos os horários (início e fim) devem ser preenchidos ou ambos vazios.");
+  }
+  
+  // Validação: startTime deve ser menor que endTime
+  if (startTime && endTime && startTime >= endTime) {
+    throw new Error("O horário de início deve ser menor que o horário de fim.");
+  }
+  
+  const payload: any = {
+    p_barber_id: String(barberId),
+    p_day: dayYMD,
+    p_start_hhmm: startTime,
+    p_end_hhmm: endTime,
+  };
+  
+  const { error } = await supabase.rpc("set_barber_day_block", payload);
+  if (error) {
+    // Fallback: tenta a RPC antiga (cutoff) se a nova não existir
+    if (error.message?.includes("does not exist") || error.message?.includes("function") || error.code === "42883") {
+      if (startTime && endTime === "23:59") {
+        // Compatibilidade: se for "fechar após X", usa a RPC antiga
+        try {
+          const { error: oldError } = await supabase.rpc("set_barber_day_cutoff", {
+            p_barber_id: String(barberId),
+            p_day: dayYMD,
+            p_cutoff_hhmm: startTime,
+          });
+          if (!oldError) return;
+        } catch {}
+      }
+    }
+    throw error;
+  }
+}
+
+// Funções de compatibilidade (mantidas para não quebrar código existente)
+export async function fetchBarberDayCutoff(
+  barberId: string,
+  dayYMD: string
+): Promise<string | null> {
+  const block = await fetchBarberDayBlock(barberId, dayYMD);
+  // Se tiver start_time e end_time = 23:59, retorna start_time (compatibilidade)
+  if (block.start_time && block.end_time === "23:59") {
+    return block.start_time;
+  }
+  return null;
+}
+
+export async function adminSetBarberDayCutoff(
+  barberId: string,
+  dayYMD: string,
+  cutoffHM: string | null
+): Promise<void> {
+  // Converte cutoff antigo para intervalo (de X até 23:59)
+  if (cutoffHM) {
+    await adminSetBarberDayBlock(barberId, dayYMD, cutoffHM, "23:59");
+  } else {
+    await adminSetBarberDayBlock(barberId, dayYMD, null, null);
+  }
+}
+
 /* ---------- Admin: Barbers (listar todos / ativar-desativar) ---------- */
 export type AdminBarber = {
   id: string;

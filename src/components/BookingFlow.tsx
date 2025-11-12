@@ -24,6 +24,8 @@ import {
   listAvailableTimes,
   findCustomerByPhone,
   upsertCustomer,
+  fetchBarberDayBlock,
+  type BarberDayBlock,
   Customer,
 } from "@/lib/api";
 import { Combobox } from "@/components/ui/combobox";
@@ -122,6 +124,7 @@ export const BookingFlow = () => {
   // Slots dinâmicos
   const [slots, setSlots] = useState<string[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
+  const [dayBlock, setDayBlock] = useState<BarberDayBlock>({ start_time: null, end_time: null });
 
   // Dados do cliente
   const [customerDetails, setCustomerDetails] = useState({
@@ -289,6 +292,22 @@ export const BookingFlow = () => {
     }
   }, [selectedDate, selectedTime]);
 
+  // Busca o fechamento do dia ao trocar barbeiro/data
+  useEffect(() => {
+    if (!selectedBarber || !selectedDate) {
+      setDayBlock({ start_time: null, end_time: null });
+      return;
+    }
+    (async () => {
+      try {
+        const block = await fetchBarberDayBlock(String(selectedBarber.id), selectedDate);
+        setDayBlock(block);
+      } catch {
+        setDayBlock({ start_time: null, end_time: null });
+      }
+    })();
+  }, [selectedBarber, selectedDate]);
+
   // Carrega SLOTS DINÂMICOS quando barbeiro + serviço + data estiverem definidos
   useEffect(() => {
     const hasUUID = (id: string | number | undefined | null) =>
@@ -306,9 +325,15 @@ export const BookingFlow = () => {
     // Se ainda estiver com IDs locais (fallback), usamos grade estática filtrada
     if (onFallbackIds) {
       const nowHM = nowLocalHM();
-      const staticFiltered = isTodayLocal(selectedDate)
+      let staticFiltered = isTodayLocal(selectedDate)
         ? STATIC_TIME_SLOTS.filter((t) => hmGte(t, nowHM))
         : STATIC_TIME_SLOTS;
+      // Aplica bloqueio do dia (fechar de X até Y => remove horários >= X e <= Y)
+      if (dayBlock.start_time && dayBlock.end_time) {
+        staticFiltered = staticFiltered.filter((t) => {
+          return t < dayBlock.start_time! || t > dayBlock.end_time!;
+        });
+      }
       setSlots(staticFiltered);
       if (selectedTime && !staticFiltered.includes(selectedTime)) setSelectedTime("");
       return;
@@ -327,6 +352,12 @@ export const BookingFlow = () => {
         if (isTodayLocal(selectedDate)) {
           filtered = serverSlots.filter((t) => hmGte(t, nowHM));
         }
+        // Aplica bloqueio do dia (fechar de X até Y => remove horários >= X e <= Y)
+        if (dayBlock.start_time && dayBlock.end_time) {
+          filtered = filtered.filter((t) => {
+            return t < dayBlock.start_time! || t > dayBlock.end_time!;
+          });
+        }
         setSlots(filtered);
         if (selectedTime && !filtered.includes(selectedTime)) setSelectedTime("");
       })
@@ -336,7 +367,7 @@ export const BookingFlow = () => {
       })
       .finally(() => setLoadingSlots(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedBarber, selectedService, selectedDate]);
+  }, [selectedBarber, selectedService, selectedDate, dayBlock]);
 
   const handleSelectService = (service: LocalService) => {
     setSelectedService(service);
