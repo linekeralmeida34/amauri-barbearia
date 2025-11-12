@@ -401,6 +401,11 @@ export const BookingFlow = () => {
       setCurrentStep("service");
       return;
     }
+    // Se está no passo de serviço e já tem barbeiro selecionado, vai direto para datetime
+    if (currentStep === "service" && selectedBarber) {
+      setCurrentStep("datetime");
+      return;
+    }
     if (currentStep === "datetime" && canProceed()) {
       // Vai direto para o modal de confirmação após selecionar data/hora
       setShowConfirmationModal(true);
