@@ -457,16 +457,17 @@ export default function BookingsList() {
       // Barbeiros para o filtro (apenas se for admin)
       if (finalIsAdmin) {
         try {
-          // Primeiro, tentar com is_active
+          // Busca todos os barbeiros (não deletados) para a seção de fechamento de horários
+          // Primeiro tenta com deleted_at
           let { data: barbs, error: barbsError } = await supabase
             .from("barbers")
             .select("id,name")
-            .eq("is_active", true)
+            .is("deleted_at", null)
             .order("name", { ascending: true });
           
-          // Se der erro 400, tentar sem o filtro is_active
-          if (barbsError && barbsError.code === "400") {
-            console.warn("[BookingsList] Coluna is_active não encontrada, buscando todos os barbeiros");
+          // Se der erro (coluna deleted_at não existe), busca todos
+          if (barbsError) {
+            console.warn("[BookingsList] Tentando buscar todos os barbeiros sem filtro deleted_at");
             const { data: allBarbs, error: allBarbsError } = await supabase
               .from("barbers")
               .select("id,name")
@@ -478,9 +479,6 @@ export default function BookingsList() {
             } else {
               setBarbers((allBarbs ?? []) as BarberLite[]);
             }
-          } else if (barbsError) {
-            console.error("[BookingsList] Erro ao buscar barbeiros:", barbsError);
-            setBarbers([]);
           } else {
             setBarbers((barbs ?? []) as BarberLite[]);
           }
