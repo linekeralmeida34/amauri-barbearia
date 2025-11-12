@@ -5,7 +5,7 @@
 CREATE TABLE IF NOT EXISTS public.barber_day_blocks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   barber_id UUID NOT NULL REFERENCES public.barbers(id) ON DELETE CASCADE,
-  day DATE NOT NULL, -- YYYY-MM-DD
+  day DATE, -- YYYY-MM-DD
   start_time TIME, -- HH:MM (inclusive) - início do bloqueio
   end_time TIME,   -- HH:MM (inclusive) - fim do bloqueio
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -16,6 +16,14 @@ CREATE TABLE IF NOT EXISTS public.barber_day_blocks (
 -- Índices para performance
 CREATE INDEX IF NOT EXISTS idx_barber_day_blocks_barber_day ON public.barber_day_blocks(barber_id, day);
 CREATE INDEX IF NOT EXISTS idx_barber_day_blocks_day ON public.barber_day_blocks(day);
+
+-- Permite bloqueio global (para todos os dias): torna day opcional
+ALTER TABLE public.barber_day_blocks ALTER COLUMN day DROP NOT NULL;
+
+-- Garante apenas um bloqueio global por barbeiro
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_barber_day_blocks_global
+  ON public.barber_day_blocks(barber_id)
+  WHERE day IS NULL;
 
 -- RLS (Row Level Security) - desabilitado por enquanto, validação feita nas funções
 -- As funções SECURITY DEFINER fazem a validação de segurança internamente
@@ -35,6 +43,9 @@ CREATE POLICY "Allow access via functions"
 -- Função para obter o bloqueio de um barbeiro em um dia
 -- ============================================
 
+-- Garante que podemos alterar o tipo de retorno sem erro 42P13
+DROP FUNCTION IF EXISTS public.get_barber_day_block(uuid, date);
+
 CREATE OR REPLACE FUNCTION public.get_barber_day_block(
   p_barber_id UUID,
   p_day DATE
@@ -47,6 +58,7 @@ DECLARE
   v_start_time TIME;
   v_end_time TIME;
 BEGIN
+  -- Primeiro tenta bloqueio específico do dia
   SELECT 
     bdb.start_time,
     bdb.end_time
@@ -55,8 +67,20 @@ BEGIN
   WHERE bdb.barber_id = p_barber_id
     AND bdb.day = p_day
   LIMIT 1;
+
+  -- Se não achou para o dia, tenta bloqueio global (day IS NULL)
+  IF v_start_time IS NULL AND v_end_time IS NULL THEN
+    SELECT 
+      bdb.start_time,
+      bdb.end_time
+    INTO v_start_time, v_end_time
+    FROM public.barber_day_blocks bdb
+    WHERE bdb.barber_id = p_barber_id
+      AND bdb.day IS NULL
+    LIMIT 1;
+  END IF;
   
-  -- Se não encontrou, retorna NULL
+  -- Se ainda não encontrou, retorna nulos
   IF v_start_time IS NULL AND v_end_time IS NULL THEN
     RETURN json_build_object('start_time', null, 'end_time', null);
   END IF;
@@ -70,12 +94,12 @@ END;
 $$;
 
 -- ============================================
--- Função para definir ou remover o bloqueio de um barbeiro em um dia
+-- Função para definir ou remover o bloqueio de um barbeiro em um dia (ou global)
 -- ============================================
 
 CREATE OR REPLACE FUNCTION public.set_barber_day_block(
   p_barber_id UUID,
-  p_day DATE,
+  p_day DATE DEFAULT NULL,
   p_start_hhmm TIME DEFAULT NULL,
   p_end_hhmm TIME DEFAULT NULL
 )
@@ -121,19 +145,30 @@ BEGIN
   
   -- Se ambos são NULL, remove o bloqueio
   IF p_start_hhmm IS NULL AND p_end_hhmm IS NULL THEN
-    DELETE FROM public.barber_day_blocks
-    WHERE barber_id = p_barber_id AND day = p_day;
+    IF p_day IS NULL THEN
+      DELETE FROM public.barber_day_blocks WHERE barber_id = p_barber_id AND day IS NULL;
+    ELSE
+      DELETE FROM public.barber_day_blocks WHERE barber_id = p_barber_id AND day = p_day;
+    END IF;
     RETURN;
   END IF;
   
-  -- Caso contrário, insere ou atualiza (UPSERT)
-  INSERT INTO public.barber_day_blocks (barber_id, day, start_time, end_time, updated_at)
-  VALUES (p_barber_id, p_day, p_start_hhmm, p_end_hhmm, NOW())
-  ON CONFLICT (barber_id, day)
-  DO UPDATE SET
-    start_time = EXCLUDED.start_time,
-    end_time = EXCLUDED.end_time,
-    updated_at = NOW();
+  -- Caso contrário, insere ou atualiza
+  IF p_day IS NULL THEN
+    -- Global: remove anterior e insere novo
+    DELETE FROM public.barber_day_blocks WHERE barber_id = p_barber_id AND day IS NULL;
+    INSERT INTO public.barber_day_blocks (barber_id, day, start_time, end_time, updated_at)
+    VALUES (p_barber_id, NULL, p_start_hhmm, p_end_hhmm, NOW());
+  ELSE
+    -- Específico do dia: upsert pelo unique (barber_id, day)
+    INSERT INTO public.barber_day_blocks (barber_id, day, start_time, end_time, updated_at)
+    VALUES (p_barber_id, p_day, p_start_hhmm, p_end_hhmm, NOW())
+    ON CONFLICT (barber_id, day)
+    DO UPDATE SET
+      start_time = EXCLUDED.start_time,
+      end_time = EXCLUDED.end_time,
+      updated_at = NOW();
+  END IF;
 END;
 $$;
 
@@ -141,7 +176,7 @@ $$;
 -- Comentários para documentação
 -- ============================================
 
-COMMENT ON TABLE public.barber_day_blocks IS 'Armazena bloqueios de horários por barbeiro e dia';
-COMMENT ON FUNCTION public.get_barber_day_block IS 'Retorna o intervalo de bloqueio (start_time, end_time) para um barbeiro em um dia específico';
-COMMENT ON FUNCTION public.set_barber_day_block IS 'Define ou remove o bloqueio de horários para um barbeiro em um dia. Se ambos os horários forem NULL, remove o bloqueio.';
+COMMENT ON TABLE public.barber_day_blocks IS 'Armazena bloqueios de horários por barbeiro e dia (day NULL = bloqueio global)';
+COMMENT ON FUNCTION public.get_barber_day_block IS 'Retorna start_time/end_time do bloqueio do dia; se não houver, retorna bloqueio global (JSON).';
+COMMENT ON FUNCTION public.set_barber_day_block IS 'Define/remove bloqueio por dia ou global (day NULL). Ambos horários NULL removem o bloqueio.';
 

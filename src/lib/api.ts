@@ -465,11 +465,11 @@ export async function fetchBarberDayBlock(
  */
 export async function adminSetBarberDayBlock(
   barberId: string,
-  dayYMD: string,
+  dayYMD: string | null,
   startTime: string | null,
   endTime: string | null
 ): Promise<void> {
-  if (!barberId || !dayYMD) return;
+  if (!barberId) return;
   
   // Validação: se um está preenchido, o outro também deve estar
   if ((startTime && !endTime) || (!startTime && endTime)) {
@@ -483,7 +483,7 @@ export async function adminSetBarberDayBlock(
   
   const payload: any = {
     p_barber_id: String(barberId),
-    p_day: dayYMD,
+    p_day: dayYMD ?? null,
     p_start_hhmm: startTime,
     p_end_hhmm: endTime,
   };
@@ -492,7 +492,7 @@ export async function adminSetBarberDayBlock(
   if (error) {
     // Fallback: tenta a RPC antiga (cutoff) se a nova não existir
     if (error.message?.includes("does not exist") || error.message?.includes("function") || error.code === "42883") {
-      if (startTime && endTime === "23:59") {
+      if (startTime && endTime === "23:59" && dayYMD) {
         // Compatibilidade: se for "fechar após X", usa a RPC antiga
         try {
           const { error: oldError } = await supabase.rpc("set_barber_day_cutoff", {

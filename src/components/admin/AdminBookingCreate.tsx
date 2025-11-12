@@ -742,7 +742,7 @@ export default function AdminBookingCreate() {
                           }
                           try {
                             setSavingCutoff(true);
-                            await adminSetBarberDayBlock(selectedBarber.id, selectedDate, blockStartInput, blockEndInput);
+                            await adminSetBarberDayBlock(selectedBarber.id, null, blockStartInput, blockEndInput);
                             setDayBlock({ start_time: blockStartInput, end_time: blockEndInput });
                           } catch (e) {
                             console.error("Erro ao definir bloqueio:", e);
@@ -763,7 +763,7 @@ export default function AdminBookingCreate() {
                             if (!selectedBarber || !selectedDate) return;
                             try {
                               setSavingCutoff(true);
-                              await adminSetBarberDayBlock(selectedBarber.id, selectedDate, null, null);
+                              await adminSetBarberDayBlock(selectedBarber.id, null, null, null);
                               setDayBlock({ start_time: null, end_time: null });
                               setBlockStartInput("");
                               setBlockEndInput("");

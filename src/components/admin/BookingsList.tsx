@@ -763,12 +763,13 @@ export default function BookingsList() {
       alert("O horário de início deve ser menor que o horário de fim.");
       return;
     }
-    
+ 
     setSavingCutoff(true);
     try {
-      await adminSetBarberDayBlock(cutoffBarberId, todayYMD(), blockStartTime, blockEndTime);
+      // Salva como bloqueio global (para todos os dias)
+      await adminSetBarberDayBlock(cutoffBarberId, null, blockStartTime, blockEndTime);
       setCurrentBlock({ start_time: blockStartTime, end_time: blockEndTime });
-      alert(`Horários fechados de ${blockStartTime} até ${blockEndTime} para o barbeiro selecionado.`);
+      alert(`Horários fechados de ${blockStartTime} até ${blockEndTime} para todos os dias do barbeiro selecionado.`);
     } catch (error: any) {
       console.error("Erro ao definir bloqueio de horários:", error);
       alert(error?.message || "Erro ao fechar horários. Verifique se as funções RPC estão configuradas no banco.");
@@ -776,7 +777,7 @@ export default function BookingsList() {
       setSavingCutoff(false);
     }
   }
-
+ 
   async function handleRemoveBlock() {
     if (!cutoffBarberId) return;
     // Segurança: barbeiro comum só pode reabrir o próprio horário
@@ -786,11 +787,12 @@ export default function BookingsList() {
     }
     setSavingCutoff(true);
     try {
-      await adminSetBarberDayBlock(cutoffBarberId, todayYMD(), null, null);
+      // Remove bloqueio global
+      await adminSetBarberDayBlock(cutoffBarberId, null, null, null);
       setCurrentBlock({ start_time: null, end_time: null });
       setBlockStartTime("");
       setBlockEndTime("");
-      alert("Horários reabertos para o barbeiro selecionado.");
+      alert("Horários reabertos (todos os dias) para o barbeiro selecionado.");
     } catch (error) {
       console.error("Erro ao remover bloqueio de horários:", error);
       alert("Erro ao reabrir horários. Verifique se as funções RPC estão configuradas no banco.");
