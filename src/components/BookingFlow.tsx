@@ -301,8 +301,13 @@ export const BookingFlow = () => {
     (async () => {
       try {
         const block = await fetchBarberDayBlock(String(selectedBarber.id), selectedDate);
-        console.log("[BookingFlow] Bloqueio carregado:", block, "para barbeiro", selectedBarber.id, "dia", selectedDate);
-        setDayBlock(block);
+        // Se não veio nada (nem do dia nem global, por algum atraso), tenta novamente com hoje
+        if (!block.start_time && !block.end_time) {
+          const fallback = await fetchBarberDayBlock(String(selectedBarber.id), todayLocalYMD());
+          setDayBlock(fallback);
+        } else {
+          setDayBlock(block);
+        }
       } catch (error) {
         console.warn("[BookingFlow] Erro ao carregar bloqueio:", error);
         setDayBlock({ start_time: null, end_time: null });
