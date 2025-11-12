@@ -801,20 +801,24 @@ export default function BookingsList() {
 
   // Carrega o bloqueio de horários quando o barbeiro é selecionado
   useEffect(() => {
-    if (cutoffBarberId && finalIsAdmin) {
-      loadCurrentBlock();
-    } else {
-      // Para barbeiro comum, fixa o selection no próprio id
-      if (!finalIsAdmin && barber?.id) {
-        if (!cutoffBarberId) setCutoffBarberId(barber.id);
-      } else {
-        setCurrentBlock({ start_time: null, end_time: null });
-        setBlockStartTime("");
-        setBlockEndTime("");
-      }
+    // Se não-admin, garante barbeiro próprio pré-selecionado
+    if (!finalIsAdmin && barber?.id && !cutoffBarberId) {
+      setCutoffBarberId(barber.id);
+      return; // aguarda próximo ciclo para carregar
     }
+
+    // Se não há barbeiro selecionado, reseta estado
+    if (!cutoffBarberId) {
+      setCurrentBlock({ start_time: null, end_time: null });
+      setBlockStartTime("");
+      setBlockEndTime("");
+      return;
+    }
+
+    // Carrega sempre que houver um id selecionado (admin ou não)
+    loadCurrentBlock();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cutoffBarberId, finalIsAdmin]);
+  }, [cutoffBarberId, finalIsAdmin, barber?.id]);
 
   // Mostrar loading se o barbeiro ainda não foi carregado
   if (!barber) {
