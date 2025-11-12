@@ -1140,10 +1140,10 @@ export default function BookingsList() {
                   value={blockStartTime}
                   onChange={(e) => setBlockStartTime(e.target.value)}
                   disabled={!cutoffBarberId || loadingCutoff}
-                  className="w-full rounded-lg border border-white/20 bg-white/5 text-white px-3 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full rounded-lg border border-white/20 bg-white/5 text-white px-3 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed h-[44px]"
                   style={{ 
-                    fontSize: '16px',
-                    minHeight: '44px'
+                    colorScheme: 'dark',
+                    fontSize: '16px'
                   }}
                 />
               </div>
@@ -1156,10 +1156,10 @@ export default function BookingsList() {
                   value={blockEndTime}
                   onChange={(e) => setBlockEndTime(e.target.value)}
                   disabled={!cutoffBarberId || loadingCutoff}
-                  className="w-full rounded-lg border border-white/20 bg-white/5 text-white px-3 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full rounded-lg border border-white/20 bg-white/5 text-white px-3 py-2.5 focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed h-[44px]"
                   style={{ 
-                    fontSize: '16px',
-                    minHeight: '44px'
+                    colorScheme: 'dark',
+                    fontSize: '16px'
                   }}
                 />
               </div>
