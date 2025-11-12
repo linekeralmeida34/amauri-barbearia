@@ -146,8 +146,10 @@ BEGIN
   -- Se ambos são NULL, remove o bloqueio
   IF p_start_hhmm IS NULL AND p_end_hhmm IS NULL THEN
     IF p_day IS NULL THEN
-      DELETE FROM public.barber_day_blocks WHERE barber_id = p_barber_id AND day IS NULL;
+      -- Remover TODOS os bloqueios do barbeiro (global e por dia)
+      DELETE FROM public.barber_day_blocks WHERE barber_id = p_barber_id;
     ELSE
+      -- Remover apenas o bloqueio do dia específico
       DELETE FROM public.barber_day_blocks WHERE barber_id = p_barber_id AND day = p_day;
     END IF;
     RETURN;
