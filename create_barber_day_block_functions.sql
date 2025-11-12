@@ -111,18 +111,24 @@ DECLARE
   v_user_email TEXT;
   v_is_admin BOOLEAN := false;
   v_barber_email TEXT;
+  v_barber_is_admin BOOLEAN := false;
 BEGIN
   -- Obter email do usuário autenticado
   SELECT email INTO v_user_email FROM auth.users WHERE id = auth.uid();
   
-  -- Verificar se é admin
+  -- Verificar se é admin na tabela admin_users
   SELECT EXISTS (
     SELECT 1 FROM public.admin_users
     WHERE user_id = auth.uid() AND role IN ('owner', 'admin')
   ) INTO v_is_admin;
   
-  -- Se não for admin, verificar se o barbeiro_id pertence ao usuário logado
-  IF NOT v_is_admin THEN
+  -- Verificar se o barbeiro logado tem is_admin = true
+  SELECT COALESCE(is_admin, false) INTO v_barber_is_admin
+  FROM public.barbers
+  WHERE email = v_user_email;
+  
+  -- Se não for admin (nem na tabela admin_users nem is_admin no barbers), verificar se o barbeiro_id pertence ao usuário logado
+  IF NOT v_is_admin AND NOT v_barber_is_admin THEN
     -- Buscar email do barbeiro
     SELECT email INTO v_barber_email FROM public.barbers WHERE id = p_barber_id;
     
