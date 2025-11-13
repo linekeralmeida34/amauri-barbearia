@@ -272,7 +272,7 @@ export default function AdminSettings() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3 sm:space-y-6 p-3 sm:p-6 pt-0 min-w-0 box-border">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-4 min-w-0 box-border">
+            <div className="grid grid-cols-2 gap-2 sm:gap-4 min-w-0 box-border">
               <div className="min-w-0 box-border">
                 <Label htmlFor="open_time" className="text-xs sm:text-base font-semibold text-white">
                   Horário de Abertura *
@@ -392,29 +392,24 @@ export default function AdminSettings() {
                 )}
               </Button>
             </div>
-          </CardContent>
-        </Card>
 
-        <Card className="mt-2 sm:mt-4 bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700/50 text-white w-full min-w-0 box-border">
-          <CardHeader className="p-3 sm:p-6">
-            <CardTitle className="text-sm sm:text-lg">Informações</CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 sm:p-6 pt-0 box-border">
-            <ul className="space-y-2 text-xs sm:text-sm text-white/70">
-              <li>
-                • Os horários disponíveis para agendamento serão calculados automaticamente 
-                com base nestas configurações.
-              </li>
-              <li>
-                • O sistema garante que os serviços agendados não ultrapassem o horário de fechamento.
-              </li>
-              <li>
-                • Se configurar um horário de almoço, esses horários ficarão indisponíveis para agendamento.
-              </li>
-              <li>
-                • As alterações terão efeito imediato em novos agendamentos.
-              </li>
-            </ul>
+            <div className="mt-3 sm:mt-4 pt-3 border-t border-white/20 box-border">
+              <ul className="space-y-2 text-xs sm:text-sm text-white/70">
+                <li>
+                  • Os horários disponíveis para agendamento serão calculados automaticamente 
+                  com base nestas configurações.
+                </li>
+                <li>
+                  • O sistema garante que os serviços agendados não ultrapassem o horário de fechamento.
+                </li>
+                <li>
+                  • Se configurar um horário de almoço, esses horários ficarão indisponíveis para agendamento.
+                </li>
+                <li>
+                  • As alterações terão efeito imediato em novos agendamentos.
+                </li>
+              </ul>
+            </div>
           </CardContent>
         </Card>
             </TabsContent>
