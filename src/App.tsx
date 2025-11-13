@@ -159,7 +159,7 @@ function AdminPanelPlaceholder() {
                     </Button>
                   )}
 
-                  {(finalIsAdmin || barber) && (
+                  {finalIsAdmin && (
                     <Button
                       asChild
                       size="sm"
@@ -172,7 +172,7 @@ function AdminPanelPlaceholder() {
                     </Button>
                   )}
 
-                  {finalIsAdmin && (
+                  {(finalIsAdmin || barber) && (
                     <Button
                       asChild
                       size="sm"
