@@ -272,11 +272,11 @@ export default function AdminSettings() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3 sm:space-y-6 p-3 sm:p-6 pt-0 min-w-0 box-border">
-            <div className="grid grid-cols-2 gap-2 sm:gap-4 min-w-0 box-border">
-              <div className="min-w-0 box-border">
-                <Label htmlFor="open_time" className="text-xs sm:text-base font-semibold text-white">
-                  Abertura *
-                </Label>
+            <div className="min-w-0 box-border">
+              <Label className="text-xs sm:text-base font-semibold mb-1 sm:mb-2 block text-white">
+                Abertura / Fechamento *
+              </Label>
+              <div className="flex items-center gap-1 sm:gap-2 min-w-0 box-border">
                 <Input
                   id="open_time"
                   type="time"
@@ -284,18 +284,11 @@ export default function AdminSettings() {
                   onChange={(e) =>
                     setBusinessHours({ ...businessHours, open_time: e.target.value })
                   }
-                  className="mt-1 sm:mt-2 bg-white/5 border border-white/20 text-white placeholder:text-white/40 focus-visible:ring-amber-500 focus-visible:border-amber-500 text-base w-full box-border"
+                  className="bg-white/5 border border-white/20 text-white placeholder:text-white/40 focus-visible:ring-amber-500 focus-visible:border-amber-500 text-base flex-1 min-w-0 box-border"
                   step={900} // 15 minutos
+                  placeholder="Abertura"
                 />
-                <p className="text-xs text-white/60 mt-1">
-                  Horário em que a barbearia abre
-                </p>
-              </div>
-
-              <div className="min-w-0 box-border">
-                <Label htmlFor="close_time" className="text-xs sm:text-base font-semibold text-white">
-                  Fechamento *
-                </Label>
+                <span className="text-white/60 text-xs whitespace-nowrap flex-shrink-0">até</span>
                 <Input
                   id="close_time"
                   type="time"
@@ -303,13 +296,14 @@ export default function AdminSettings() {
                   onChange={(e) =>
                     setBusinessHours({ ...businessHours, close_time: e.target.value })
                   }
-                  className="mt-1 sm:mt-2 bg-white/5 border border-white/20 text-white placeholder:text-white/40 focus-visible:ring-amber-500 focus-visible:border-amber-500 text-base w-full box-border"
+                  className="bg-white/5 border border-white/20 text-white placeholder:text-white/40 focus-visible:ring-amber-500 focus-visible:border-amber-500 text-base flex-1 min-w-0 box-border"
                   step={900} // 15 minutos
+                  placeholder="Fechamento"
                 />
-                <p className="text-xs text-white/60 mt-1">
-                  Horário em que a barbearia fecha
-                </p>
               </div>
+              <p className="text-xs text-white/60 mt-1">
+                Horário em que a barbearia abre e fecha
+              </p>
             </div>
 
             <div className="border-t pt-3 sm:pt-6 min-w-0 box-border">
