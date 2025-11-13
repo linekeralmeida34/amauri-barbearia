@@ -275,7 +275,7 @@ export default function AdminSettings() {
             <div className="grid grid-cols-2 gap-2 sm:gap-4 min-w-0 box-border">
               <div className="min-w-0 box-border">
                 <Label htmlFor="open_time" className="text-xs sm:text-base font-semibold text-white">
-                  Horário de Abertura *
+                  Abertura *
                 </Label>
                 <Input
                   id="open_time"
@@ -294,7 +294,7 @@ export default function AdminSettings() {
 
               <div className="min-w-0 box-border">
                 <Label htmlFor="close_time" className="text-xs sm:text-base font-semibold text-white">
-                  Horário de Fechamento *
+                  Fechamento *
                 </Label>
                 <Input
                   id="close_time"
@@ -313,12 +313,15 @@ export default function AdminSettings() {
             </div>
 
             <div className="border-t pt-3 sm:pt-6 min-w-0 box-border">
-              <h3 className="text-sm sm:text-lg font-semibold mb-2 sm:mb-4 text-white">Horário de Almoço (Opcional)</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-4 min-w-0 box-border">
-                <div className="min-w-0 box-border">
-                  <Label htmlFor="lunch_start" className="text-xs sm:text-base font-semibold text-white">
-                    Início do Almoço
-                  </Label>
+              <h3 className="text-sm sm:text-lg font-semibold mb-2 sm:mb-4 text-white">
+                Horário de Almoço (Opcional)
+              </h3>
+
+              <div className="min-w-0 box-border">
+                <Label className="text-xs sm:text-base font-semibold mb-1 sm:mb-2 block text-white">
+                  Intervalo de almoço
+                </Label>
+                <div className="flex items-center gap-1 sm:gap-2 min-w-0 box-border">
                   <Input
                     id="lunch_start"
                     type="time"
@@ -329,18 +332,11 @@ export default function AdminSettings() {
                         lunch_start: e.target.value,
                       })
                     }
-                    className="mt-1 sm:mt-2 bg-white/5 border border-white/20 text-white placeholder:text-white/40 focus-visible:ring-amber-500 focus-visible:border-amber-500 text-base w-full box-border"
+                    className="bg-white/5 border border-white/20 text-white placeholder:text-white/40 focus-visible:ring-amber-500 focus-visible:border-amber-500 text-base flex-1 min-w-0 box-border"
                     step={900} // 15 minutos
+                    placeholder="Início"
                   />
-                  <p className="text-xs text-white/60 mt-1">
-                    Horário em que o almoço começa
-                  </p>
-                </div>
-
-                <div className="min-w-0 box-border">
-                  <Label htmlFor="lunch_end" className="text-xs sm:text-base font-semibold text-white">
-                    Fim do Almoço
-                  </Label>
+                  <span className="text-white/60 text-xs whitespace-nowrap flex-shrink-0">até</span>
                   <Input
                     id="lunch_end"
                     type="time"
@@ -351,17 +347,15 @@ export default function AdminSettings() {
                         lunch_end: e.target.value,
                       })
                     }
-                    className="mt-1 sm:mt-2 bg-white/5 border border-white/20 text-white placeholder:text-white/40 focus-visible:ring-amber-500 focus-visible:border-amber-500 text-base w-full box-border"
+                    className="bg-white/5 border border-white/20 text-white placeholder:text-white/40 focus-visible:ring-amber-500 focus-visible:border-amber-500 text-base flex-1 min-w-0 box-border"
                     step={900} // 15 minutos
+                    placeholder="Fim"
                   />
-                  <p className="text-xs text-white/60 mt-1">
-                    Horário em que o almoço termina
-                  </p>
                 </div>
+                <p className="text-xs text-white/60 mt-1">
+                  Deixe ambos os campos vazios se não houver horário de almoço
+                </p>
               </div>
-              <p className="text-xs text-white/60 mt-2">
-                Deixe ambos os campos vazios se não houver horário de almoço
-              </p>
             </div>
 
             <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 pt-3 sm:pt-4 border-t box-border">
