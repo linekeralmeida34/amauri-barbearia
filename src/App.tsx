@@ -146,7 +146,7 @@ function AdminPanelPlaceholder() {
                     </Link>
                   </Button>
 
-                  {finalIsAdmin && (
+                  {(finalIsAdmin || barber) && (
                     <Button
                       asChild
                       size="sm"
