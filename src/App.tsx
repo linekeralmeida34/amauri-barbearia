@@ -26,8 +26,9 @@ import AdminLogin from "./routes/AdminLogin";
 import AdminGuard from "./routes/AdminGuard"; // ← Deve renderizar <Outlet />
 import AdminBarbers from "./routes/AdminBarbers";
 import AdminServices from "./routes/AdminServices";
+import AdminSettings from "./routes/AdminSettings";
 import BarberLogin from "./routes/BarberLogin";
-import { Users, Scissors, Plus } from "lucide-react";
+import { Users, Scissors, Plus, Settings } from "lucide-react";
 import { useBarberAuth } from "@/hooks/useBarberAuth";
 import { PWAInstallButton } from "@/components/PWAInstallButton";
 
@@ -170,6 +171,19 @@ function AdminPanelPlaceholder() {
                       </Link>
                     </Button>
                   )}
+
+                  {finalIsAdmin && (
+                    <Button
+                      asChild
+                      size="sm"
+                      className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark text-xs sm:text-sm px-2 sm:px-3"
+                    >
+                      <Link to="/admin/configuracoes" aria-label="Configurações">
+                        <Settings className="h-3 w-3 sm:h-4 sm:w-4" />
+                        <span className="hidden sm:inline sm:ml-2">Configurações</span>
+                      </Link>
+                    </Button>
+                  )}
                 </div>
               )}
 
@@ -263,6 +277,7 @@ export default function App() {
               <Route path="/admin/booking/create" element={<AdminBookingCreate />} />
               <Route path="/admin/barbeiros" element={<AdminBarbers />} />
               <Route path="/admin/servicos" element={<AdminServices />} />
+              <Route path="/admin/configuracoes" element={<AdminSettings />} />
             </Route>
 
             {/* 404 */}

@@ -594,3 +594,67 @@ export async function adminSetBarberPermissions(
 
   if (error) throw error;
 }
+
+/* =========================
+   Horário de Funcionamento
+========================= */
+
+export type BusinessHours = {
+  open_time: string; // "HH:MM"
+  close_time: string; // "HH:MM"
+  lunch_start: string | null; // "HH:MM" ou null
+  lunch_end: string | null; // "HH:MM" ou null
+};
+
+/** Busca horário de funcionamento do estabelecimento */
+export async function getBusinessHours(): Promise<BusinessHours> {
+  const { data, error } = await supabase.rpc("get_business_hours");
+
+  if (error) {
+    // Se a função não existir, retorna valores padrão
+    if (error.message?.includes("does not exist") || error.code === "42883") {
+      return {
+        open_time: "09:00",
+        close_time: "18:00",
+        // Por padrão, nenhum horário de almoço definido
+        lunch_start: null,
+        lunch_end: null,
+      };
+    }
+    throw error;
+  }
+
+  if (!data) {
+    return {
+      open_time: "09:00",
+      close_time: "18:00",
+      lunch_start: null,
+      lunch_end: null,
+    };
+  }
+
+  return {
+    open_time: data.open_time || "09:00",
+    close_time: data.close_time || "18:00",
+    // Se o backend retornar null, mantemos null (sem intervalo de almoço)
+    lunch_start: data.lunch_start ?? null,
+    lunch_end: data.lunch_end ?? null,
+  };
+}
+
+/** Atualiza horário de funcionamento do estabelecimento (apenas admins) */
+export async function setBusinessHours(
+  openTime: string, // "HH:MM"
+  closeTime: string, // "HH:MM"
+  lunchStart?: string | null, // "HH:MM" ou null
+  lunchEnd?: string | null // "HH:MM" ou null
+): Promise<void> {
+  const { error } = await supabase.rpc("set_business_hours", {
+    p_open_time: openTime,
+    p_close_time: closeTime,
+    p_lunch_start: lunchStart || null,
+    p_lunch_end: lunchEnd || null,
+  });
+
+  if (error) throw error;
+}

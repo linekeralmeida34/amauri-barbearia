@@ -7,7 +7,6 @@ import {
   createBooking,
   listAvailableTimes,
   fetchBarberDayBlock,
-  adminSetBarberDayBlock,
   type BarberDayBlock,
   CreateBookingInput,
   PaymentMethod,
@@ -132,7 +131,7 @@ export default function AdminBookingCreate() {
   const [barbers, setBarbers] = useState<Barber[]>([]);
   
   // Seleções
-  const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [selectedServices, setSelectedServices] = useState<Service[]>([]);
   const [selectedBarber, setSelectedBarber] = useState<Barber | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>(todayLocalYMD());
   const [selectedTime, setSelectedTime] = useState<string>("");
@@ -161,9 +160,6 @@ export default function AdminBookingCreate() {
   const [customerLookupMsg, setCustomerLookupMsg] = useState<string | null>(null);
   // Bloqueio do dia (admin) - intervalo
   const [dayBlock, setDayBlock] = useState<BarberDayBlock>({ start_time: null, end_time: null });
-  const [blockStartInput, setBlockStartInput] = useState<string>("");
-  const [blockEndInput, setBlockEndInput] = useState<string>("");
-  const [savingCutoff, setSavingCutoff] = useState(false);
   
   // Função de filtro de serviços
   const filterServices = (term: string) => {
@@ -334,28 +330,27 @@ export default function AdminBookingCreate() {
   useEffect(() => {
     if (!selectedBarber || !selectedDate) {
       setDayBlock({ start_time: null, end_time: null });
-      setBlockStartInput("");
-      setBlockEndInput("");
       return;
     }
     (async () => {
       const block = await fetchBarberDayBlock(selectedBarber.id, selectedDate);
       setDayBlock(block);
-      setBlockStartInput(block.start_time || "");
-      setBlockEndInput(block.end_time || "");
     })();
   }, [selectedBarber, selectedDate]);
   
+  // Calcula duração total dos serviços selecionados
+  const totalDuration = selectedServices.reduce((sum, service) => sum + service.duration_min, 0);
+  
   // Carrega horários disponíveis (admin pode agendar qualquer horário), respeitando fechamento do dia
   useEffect(() => {
-    if (!selectedBarber || !selectedService || !selectedDate) {
+    if (!selectedBarber || selectedServices.length === 0 || !selectedDate) {
       setSlots([]);
       setSelectedTime("");
       return;
     }
     
     setLoadingSlots(true);
-    listAvailableTimes(selectedBarber.id, selectedDate, selectedService.duration_min)
+    listAvailableTimes(selectedBarber.id, selectedDate, totalDuration)
       .then((serverSlots: string[]) => {
         // Aplica bloqueio do dia (fechar de X até Y => remove horários >= X e <= Y)
         let filtered = serverSlots;
@@ -375,7 +370,7 @@ export default function AdminBookingCreate() {
         setSelectedTime("");
       })
       .finally(() => setLoadingSlots(false));
-  }, [selectedBarber, selectedService, selectedDate, dayBlock]);
+  }, [selectedBarber, selectedServices, selectedDate, dayBlock, totalDuration]);
   
   const stepsOrder: BookingStep[] = isAdmin
     ? ["phone", "service", "barber", "datetime", "details", "confirmation"]
@@ -400,7 +395,7 @@ export default function AdminBookingCreate() {
       case "phone":
         return phoneInput.replace(/\D/g, "").length === 11 && !checkingCustomer;
       case "service":
-        return selectedService !== null;
+        return selectedServices.length > 0;
       case "barber":
         return selectedBarber !== null;
       case "datetime":
@@ -427,7 +422,7 @@ export default function AdminBookingCreate() {
     setError(null);
     setSuccess(false);
     
-    if (!selectedService || !selectedBarber || !selectedDate || !selectedTime) {
+    if (selectedServices.length === 0 || !selectedBarber || !selectedDate || !selectedTime) {
       setError("Preencha todos os campos obrigatórios.");
       return;
     }
@@ -500,35 +495,54 @@ export default function AdminBookingCreate() {
     }
 
     // Admin pode agendar qualquer data/hora, incluindo passadas
-    const bookingInput: CreateBookingInput = {
-      service_id: selectedService.id,
-      barber_id: selectedBarber.id,
-      customer_name: customerDetails.name.trim(),
-      phone: phoneDigits,
-      customer_id: ensuredCustomerId,
-      email: customerDetails.email || undefined,
-      notes: customerDetails.notes || undefined,
-      starts_at_iso,
-      duration_min: selectedService.duration_min,
-      price: selectedService.price,
-      payment_method: selectedPaymentMethod,
-      created_by: isAdmin ? "admin" : "barber",
-      // Se foi criado por barbeiro (não admin), inclui o ID do barbeiro que criou
-      created_by_barber_id: !isAdmin && authenticatedBarber?.id ? authenticatedBarber.id : undefined,
-    };
-    
+    // Cria um booking para cada serviço selecionado, sequencialmente
     setSubmitting(true);
-    const result = await createBooking(bookingInput);
+    let currentStartTime = new Date(starts_at_iso);
+    let allSuccess = true;
+    let lastError: string | null = null;
+
+    for (const service of selectedServices) {
+      const serviceStartISO = currentStartTime.toISOString();
+      
+      const bookingInput: CreateBookingInput = {
+        service_id: service.id,
+        barber_id: selectedBarber.id,
+        customer_name: customerDetails.name.trim(),
+        phone: phoneDigits,
+        customer_id: ensuredCustomerId,
+        email: customerDetails.email || undefined,
+        notes: customerDetails.notes || undefined,
+        starts_at_iso: serviceStartISO,
+        duration_min: service.duration_min,
+        price: service.price,
+        payment_method: selectedPaymentMethod,
+        created_by: isAdmin ? "admin" : "barber",
+        // Se foi criado por barbeiro (não admin), inclui o ID do barbeiro que criou
+        created_by_barber_id: !isAdmin && authenticatedBarber?.id ? authenticatedBarber.id : undefined,
+      };
+      
+      const result = await createBooking(bookingInput);
+      
+      if (!result.ok) {
+        allSuccess = false;
+        lastError = result.message || "Erro ao criar agendamento";
+        break;
+      }
+
+      // Próximo serviço começa quando o anterior termina
+      currentStartTime = new Date(currentStartTime.getTime() + service.duration_min * 60 * 1000);
+    }
+    
     setSubmitting(false);
     
-    if (result.ok) {
+    if (allSuccess) {
       setSuccess(true);
       // Redireciona ainda mais rápido para melhorar UX em mobile
       setTimeout(() => {
         navigate("/admin");
       }, 800);
     } else {
-      setError(result.message || "Erro ao criar agendamento");
+      setError(lastError || "Erro ao criar agendamento");
     }
   };
   
@@ -575,8 +589,25 @@ export default function AdminBookingCreate() {
   return (
           <div>
             <h3 className="font-bold text-barbershop-dark mb-4 text-xl sm:text-2xl">
-              Escolha o serviço
+              Escolha o{selectedServices.length > 0 ? "s" : ""} serviço{selectedServices.length > 0 ? "s" : ""}
             </h3>
+            {selectedServices.length > 0 && (
+              <div className="mb-4 p-3 bg-barbershop-gold/10 rounded-md border border-barbershop-gold/20">
+                <p className="text-sm font-semibold text-barbershop-dark mb-2">
+                  {selectedServices.length} serviço{selectedServices.length > 1 ? "s" : ""} selecionado{selectedServices.length > 1 ? "s" : ""}:
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {selectedServices.map((service) => (
+                    <Badge key={service.id} className="bg-barbershop-gold text-barbershop-dark">
+                      {service.name}
+                    </Badge>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Duração total: {totalDuration}min | Total: R$ {selectedServices.reduce((sum, s) => sum + Number(s.price), 0).toFixed(2)}
+                </p>
+              </div>
+            )}
             
             {/* Search Input */}
             <div className="mb-4">
@@ -608,15 +639,26 @@ export default function AdminBookingCreate() {
             ) : (
               <div className="max-h-[320px] overflow-y-auto md:max-h-none md:overflow-visible pr-2">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4">
-                  {filteredServices.map((service) => (
+                  {filteredServices.map((service) => {
+                    const isSelected = selectedServices.some((s) => s.id === service.id);
+                    return (
                     <Card
                       key={String(service.id)}
                       className={`cursor-pointer transition-all hover:shadow-md ${
-                        selectedService?.id === service.id
+                        isSelected
                           ? "ring-2 ring-barbershop-gold border-barbershop-gold"
                           : ""
                       }`}
-                      onClick={() => setSelectedService(service)}
+                      onClick={() => {
+                        setSelectedServices((prev) => {
+                          const isAlreadySelected = prev.some((s) => s.id === service.id);
+                          if (isAlreadySelected) {
+                            return prev.filter((s) => s.id !== service.id);
+                          } else {
+                            return [...prev, service];
+                          }
+                        });
+                      }}
                     >
                       <CardHeader className="p-3 sm:p-5 md:p-6">
                         <div className="flex justify-between items-start">
@@ -642,7 +684,8 @@ export default function AdminBookingCreate() {
                         </div>
                       </CardContent>
                     </Card>
-                  ))}
+                  );
+                  })}
                 </div>
               </div>
             )}
@@ -707,88 +750,6 @@ export default function AdminBookingCreate() {
                   }}
                   className="mb-2"
                 />
-                {isAdmin && selectedBarber && selectedDate && (
-                  <div className="mt-4 p-3 border rounded-md bg-muted/50">
-                    <div className="mb-2">
-                      <Label className="text-sm font-semibold">Fechar horários deste dia (intervalo)</Label>
-                    </div>
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-                      <div className="flex items-center gap-2">
-                        <Label className="text-xs">De:</Label>
-                        <Input
-                          type="time"
-                          step={900}
-                          value={blockStartInput}
-                          onChange={(e) => setBlockStartInput(e.target.value)}
-                          className="max-w-[120px]"
-                        />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Label className="text-xs">Até:</Label>
-                        <Input
-                          type="time"
-                          step={900}
-                          value={blockEndInput}
-                          onChange={(e) => setBlockEndInput(e.target.value)}
-                          className="max-w-[120px]"
-                        />
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={async () => {
-                          if (!selectedBarber || !selectedDate || !blockStartInput || !blockEndInput) return;
-                          if (blockStartInput >= blockEndInput) {
-                            setError("O horário de início deve ser menor que o horário de fim.");
-                            return;
-                          }
-                          try {
-                            setSavingCutoff(true);
-                            await adminSetBarberDayBlock(selectedBarber.id, null, blockStartInput, blockEndInput);
-                            setDayBlock({ start_time: blockStartInput, end_time: blockEndInput });
-                          } catch (e) {
-                            console.error("Erro ao definir bloqueio:", e);
-                            setError("Não foi possível salvar o bloqueio. Tente novamente.");
-                          } finally {
-                            setSavingCutoff(false);
-                          }
-                        }}
-                        disabled={!blockStartInput || !blockEndInput || savingCutoff}
-                      >
-                        {savingCutoff ? "Salvando..." : "Fechar"}
-                      </Button>
-                      {dayBlock.start_time && dayBlock.end_time && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={async () => {
-                            if (!selectedBarber || !selectedDate) return;
-                            try {
-                              setSavingCutoff(true);
-                              await adminSetBarberDayBlock(selectedBarber.id, null, null, null);
-                              setDayBlock({ start_time: null, end_time: null });
-                              setBlockStartInput("");
-                              setBlockEndInput("");
-                            } catch (e) {
-                              console.error("Erro ao remover bloqueio:", e);
-                              setError("Não foi possível remover o bloqueio. Tente novamente.");
-                            } finally {
-                              setSavingCutoff(false);
-                            }
-                          }}
-                          disabled={savingCutoff}
-                        >
-                          Reabrir
-                        </Button>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      {dayBlock.start_time && dayBlock.end_time
-                        ? `Fechado de ${dayBlock.start_time} até ${dayBlock.end_time}. Horários neste intervalo não aparecem.`
-                        : "Defina um intervalo de horários para fechar a agenda deste barbeiro hoje."}
-                    </p>
-                  </div>
-                )}
               </div>
               
               <div>
@@ -796,9 +757,9 @@ export default function AdminBookingCreate() {
                   Horário Disponível
                 </Label>
 
-                {!selectedDate || !selectedBarber || !selectedService ? (
+                {!selectedDate || !selectedBarber || selectedServices.length === 0 ? (
                   <div className="text-sm text-muted-foreground">
-                    Escolha o serviço, barbeiro e a data.
+                    Escolha o{selectedServices.length > 0 ? "s" : ""} serviço{selectedServices.length > 0 ? "s" : ""}, barbeiro e a data.
                   </div>
                 ) : loadingSlots ? (
                   <div className="text-sm text-muted-foreground">
@@ -1028,9 +989,15 @@ export default function AdminBookingCreate() {
                     </span>
           </div>
           
-                  <div className="flex justify-between items-center">
-                    <span className="font-semibold">Serviço:</span>
-                    <span>{selectedService?.name}</span>
+                  <div className="flex justify-between items-start">
+                    <span className="font-semibold">Serviço{selectedServices.length > 1 ? "s" : ""}:</span>
+                    <div className="text-right">
+                      {selectedServices.map((service) => (
+                        <div key={service.id}>
+                          {service.name} ({service.duration_min}min) - R$ {service.price}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="font-semibold">Barbeiro:</span>
@@ -1047,8 +1014,8 @@ export default function AdminBookingCreate() {
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="font-semibold">Duração:</span>
-                    <span>{selectedService?.duration_min}min</span>
+                    <span className="font-semibold">Duração Total:</span>
+                    <span>{totalDuration}min</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="font-semibold">Pagamento:</span>
@@ -1056,7 +1023,7 @@ export default function AdminBookingCreate() {
                 </div>
                   <div className="flex justify-between items-center text-lg font-bold border-t pt-2">
                     <span>Total:</span>
-                    <span>R$ {selectedService?.price}</span>
+                    <span>R$ {selectedServices.reduce((sum, s) => sum + Number(s.price), 0).toFixed(2)}</span>
                 </div>
                 </div>
               </CardContent>

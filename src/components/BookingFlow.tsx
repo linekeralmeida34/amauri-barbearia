@@ -26,6 +26,7 @@ import {
   upsertCustomer,
   fetchBarberDayBlock,
   type BarberDayBlock,
+  type CreateBookingResult,
   Customer,
 } from "@/lib/api";
 import { Combobox } from "@/components/ui/combobox";
@@ -56,18 +57,20 @@ const fallbackBarbers: LocalBarber[] = [
 ];
 
 // Fallback estático (usado só se ainda estiver com IDs locais numéricos)
+// Nota: Este fallback será substituído pela função SQL que usa horário de funcionamento dinâmico
 const STATIC_TIME_SLOTS = [
   // Manhã (09:00 até 11:45)
   "09:00","09:15","09:30","09:45",
   "10:00","10:15","10:30","10:45",
   "11:00","11:15","11:30","11:45",
   // Pausa para almoço (12h)
-  // Tarde (13:00 até 17:00)
+  // Tarde (13:00 até 18:00)
   "13:00","13:15","13:30","13:45",
   "14:00","14:15","14:30","14:45",
   "15:00","15:15","15:30","15:45",
   "16:00","16:15","16:30","16:45",
-  "17:00",
+  "17:00","17:15","17:30","17:45",
+  "18:00",
 ];
 
 /* ===== Helpers de data/hora em FUSO LOCAL ===== */
@@ -117,7 +120,7 @@ export const BookingFlow = () => {
   const [barbers, setBarbers] = useState<LocalBarber[]>(fallbackBarbers);
 
   // Seleções do usuário
-  const [selectedService, setSelectedService] = useState<LocalService | null>(null);
+  const [selectedServices, setSelectedServices] = useState<LocalService[]>([]);
   const [selectedBarber, setSelectedBarber] = useState<LocalBarber | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedTime, setSelectedTime] = useState<string>("");
@@ -266,14 +269,14 @@ export const BookingFlow = () => {
   // Pré-seleção via query (?servico=<id>) e pular para barbeiro
   useEffect(() => {
     const s = searchParams.get("servico");
-    if (s && !selectedService) {
+    if (s && selectedServices.length === 0) {
       const found = services.find((sv) => String(sv.id) === s);
       if (found) {
-        setSelectedService(found);
+        setSelectedServices([found]);
         setCurrentStep((prev) => (prev === "service" ? "barber" : prev));
       }
     }
-  }, [searchParams, selectedService, services]);
+  }, [searchParams, selectedServices, services]);
 
   // Pré-seleção via query (?barbeiro=<id>)
   useEffect(() => {
@@ -324,15 +327,18 @@ export const BookingFlow = () => {
     })();
   }, [selectedBarber, selectedDate]);
 
+  // Calcula duração total dos serviços selecionados
+  const totalDuration = selectedServices.reduce((sum, service) => sum + service.duration, 0);
+  
   // Carrega SLOTS DINÂMICOS quando barbeiro + serviço + data estiverem definidos
   useEffect(() => {
     const hasUUID = (id: string | number | undefined | null) =>
       !!id && String(id).length >= 10; // heurística simples: UUID do Supabase
     const onFallbackIds =
-      !hasUUID(selectedBarber?.id) || !hasUUID(selectedService?.id);
+      !hasUUID(selectedBarber?.id) || selectedServices.length === 0 || !hasUUID(selectedServices[0]?.id);
 
     // Sem dados básicos? limpa
-    if (!selectedBarber || !selectedService || !selectedDate) {
+    if (!selectedBarber || selectedServices.length === 0 || !selectedDate) {
       setSlots([]);
       setSelectedTime("");
       return;
@@ -357,12 +363,12 @@ export const BookingFlow = () => {
       return;
     }
 
-    // Caso normal: buscar na RPC
+    // Caso normal: buscar na RPC usando duração total
     setLoadingSlots(true);
     listAvailableTimes(
       String(selectedBarber.id),
       selectedDate,
-      selectedService.duration
+      totalDuration
     )
       .then((serverSlots: string[]) => {
         const nowHM = nowLocalHM();
@@ -387,13 +393,33 @@ export const BookingFlow = () => {
       })
       .finally(() => setLoadingSlots(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedBarber, selectedService, selectedDate, dayBlock]);
+  }, [selectedBarber, selectedServices, selectedDate, dayBlock, totalDuration]);
 
   const handleSelectService = (service: LocalService) => {
-    setSelectedService(service);
-    const sp = new URLSearchParams(searchParams);
-    sp.set("servico", String(service.id));
-    setSearchParams(sp, { replace: true });
+    setSelectedServices((prev) => {
+      const isSelected = prev.some((s) => s.id === service.id);
+      if (isSelected) {
+        // Remove o serviço se já estiver selecionado
+        const newServices = prev.filter((s) => s.id !== service.id);
+        // Atualiza query params com o primeiro serviço restante (para compatibilidade)
+        const sp = new URLSearchParams(searchParams);
+        if (newServices.length > 0) {
+          sp.set("servico", String(newServices[0].id));
+        } else {
+          sp.delete("servico");
+        }
+        setSearchParams(sp, { replace: true });
+        return newServices;
+      } else {
+        // Adiciona o serviço
+        const newServices = [...prev, service];
+        // Atualiza query params com o primeiro serviço (para compatibilidade)
+        const sp = new URLSearchParams(searchParams);
+        sp.set("servico", String(newServices[0].id));
+        setSearchParams(sp, { replace: true });
+        return newServices;
+      }
+    });
   };
 
   const handleSelectBarber = (barber: LocalBarber) => {
@@ -417,7 +443,7 @@ export const BookingFlow = () => {
     const idx = stepsOrder.indexOf(currentStep);
     // Se o usuário entrou pelo passo de Barbeiro (fluxo quando o telefone já existe)
     // e ainda não escolheu o serviço, levamos para o passo de serviço antes da data/hora
-    if (currentStep === "barber" && !selectedService) {
+    if (currentStep === "barber" && selectedServices.length === 0) {
       setCurrentStep("service");
       return;
     }
@@ -558,8 +584,8 @@ export const BookingFlow = () => {
     setTimeError(null);
     setGlobalError(null);
 
-    if (!selectedService || !selectedBarber || !selectedDate || !selectedTime) {
-      setGlobalError("Selecione serviço, barbeiro, data e horário.");
+    if (selectedServices.length === 0 || !selectedBarber || !selectedDate || !selectedTime) {
+      setGlobalError("Selecione pelo menos um serviço, barbeiro, data e horário.");
       return;
     }
 
@@ -586,31 +612,52 @@ export const BookingFlow = () => {
     }
 
     setSubmitting(true);
-    const res = await createBooking({
-      service_id: selectedService.id,
-      barber_id: selectedBarber.id,
-      customer_name: customerDetails.name.trim(),
-      phone: customerDetails.phone.trim(),
-      customer_id: customer?.id || undefined, // Inclui customer_id se o cliente foi cadastrado/encontrado
-      email: customerDetails.email || undefined,
-      notes: customerDetails.notes || undefined,
-      starts_at_iso,
-      duration_min: selectedService.duration,
-      price: Number(selectedService.price),
-      created_by: "client",
-    });
+    
+    // Cria um booking para cada serviço selecionado, sequencialmente
+    let currentStartTime = new Date(starts_at_iso);
+    let allSuccess = true;
+    let lastError: CreateBookingResult | null = null;
+
+    for (const service of selectedServices) {
+      const serviceStartISO = currentStartTime.toISOString();
+      
+      const res = await createBooking({
+        service_id: service.id,
+        barber_id: selectedBarber.id,
+        customer_name: customerDetails.name.trim(),
+        phone: customerDetails.phone.trim(),
+        customer_id: customer?.id || undefined,
+        email: customerDetails.email || undefined,
+        notes: customerDetails.notes || undefined,
+        starts_at_iso: serviceStartISO,
+        duration_min: service.duration,
+        price: Number(service.price),
+        created_by: "client",
+      });
+
+      if (!res.ok) {
+        allSuccess = false;
+        lastError = res;
+        break;
+      }
+
+      // Próximo serviço começa quando o anterior termina
+      currentStartTime = new Date(currentStartTime.getTime() + service.duration * 60 * 1000);
+    }
+
     setSubmitting(false);
 
-    if (res.ok) {
+    if (allSuccess) {
       setCurrentStep("confirmation");
       return;
     }
-    if (res.reason === "CONFLICT") {
+    
+    if (lastError?.reason === "CONFLICT") {
       setCurrentStep("datetime");
-      setTimeError(res.message);
+      setTimeError(lastError.message);
       return;
     }
-    setGlobalError(res.message);
+    setGlobalError(lastError?.message || "Erro ao criar agendamento.");
   };
 
   const canProceed = () => {
@@ -623,7 +670,7 @@ export const BookingFlow = () => {
         if (!customerDetails.neighborhood?.trim()) return false;
         return true;
       case "service":
-        return selectedService !== null;
+        return selectedServices.length > 0;
       case "barber":
         return selectedBarber !== null;
       case "datetime": {
@@ -780,8 +827,25 @@ export const BookingFlow = () => {
         return (
           <div>
             <h3 className="font-bold text-barbershop-dark mb-4 text-xl sm:text-2xl">
-              Escolha seu serviço
+              Escolha seu{selectedServices.length > 0 ? "s" : ""} serviço{selectedServices.length > 0 ? "s" : ""}
             </h3>
+            {selectedServices.length > 0 && (
+              <div className="mb-4 p-3 bg-barbershop-gold/10 rounded-md border border-barbershop-gold/20">
+                <p className="text-sm font-semibold text-barbershop-dark mb-2">
+                  {selectedServices.length} serviço{selectedServices.length > 1 ? "s" : ""} selecionado{selectedServices.length > 1 ? "s" : ""}:
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {selectedServices.map((service) => (
+                    <Badge key={service.id} className="bg-barbershop-gold text-barbershop-dark">
+                      {service.name}
+                    </Badge>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Duração total: {totalDuration}min | Total: R$ {selectedServices.reduce((sum, s) => sum + Number(s.price), 0).toFixed(2)}
+                </p>
+              </div>
+            )}
             
             {/* Search Input */}
             <div className="mb-4">
@@ -813,11 +877,13 @@ export const BookingFlow = () => {
             ) : (
               <div className="max-h-[320px] overflow-y-auto md:max-h-none md:overflow-visible pr-2">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4">
-                  {filteredServices.map((service) => (
+                  {filteredServices.map((service) => {
+                  const isSelected = selectedServices.some((s) => s.id === service.id);
+                  return (
                   <Card
                     key={String(service.id)}
                     className={`cursor-pointer transition-all hover:shadow-md ${
-                      selectedService?.id === service.id
+                      isSelected
                         ? "ring-2 ring-barbershop-gold border-barbershop-gold"
                         : ""
                     }`}
@@ -847,7 +913,8 @@ export const BookingFlow = () => {
                       </div>
                     </CardContent>
                   </Card>
-                ))}
+                  );
+                })}
                 </div>
               </div>
             )}
@@ -895,7 +962,7 @@ export const BookingFlow = () => {
       case "datetime": {
         const min = todayLocalYMD();
         const nowHMVal = nowLocalHM();
-        const hasBasics = !!selectedDate && !!selectedBarber && !!selectedService;
+        const hasBasics = !!selectedDate && !!selectedBarber && selectedServices.length > 0;
         const effectiveSlots = slots; // já vem filtrado (RPC + filtro de "hoje")
 
         return (
@@ -1071,9 +1138,15 @@ export const BookingFlow = () => {
                     </span>
                   </div>
 
-                  <div className="flex justify-between items-center">
-                    <span className="font-semibold">Serviço:</span>
-                    <span>{selectedService?.name}</span>
+                  <div className="flex justify-between items-start">
+                    <span className="font-semibold">Serviço{selectedServices.length > 1 ? "s" : ""}:</span>
+                    <div className="text-right">
+                      {selectedServices.map((service, idx) => (
+                        <div key={service.id}>
+                          {service.name} ({service.duration}min) - R$ {service.price}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="font-semibold">Barbeiro:</span>
@@ -1090,12 +1163,12 @@ export const BookingFlow = () => {
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="font-semibold">Duração:</span>
-                    <span>{selectedService?.duration}min</span>
+                    <span className="font-semibold">Duração Total:</span>
+                    <span>{totalDuration}min</span>
                   </div>
                   <div className="flex justify-between items-center text-lg font-bold border-t pt-2">
                     <span>Total:</span>
-                    <span>R$ {selectedService?.price}</span>
+                    <span>R$ {selectedServices.reduce((sum, s) => sum + Number(s.price), 0).toFixed(2)}</span>
                   </div>
                 </div>
               </CardContent>
@@ -1297,9 +1370,15 @@ export const BookingFlow = () => {
             </DialogHeader>
 
             <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-3 items-center gap-4">
-                <Label className="font-semibold text-right">Serviço:</Label>
-                <div className="col-span-2">{selectedService?.name}</div>
+              <div className="grid grid-cols-3 items-start gap-4">
+                <Label className="font-semibold text-right">Serviço{selectedServices.length > 1 ? "s" : ""}:</Label>
+                <div className="col-span-2">
+                  {selectedServices.map((service) => (
+                    <div key={service.id} className="mb-1">
+                      {service.name} ({service.duration}min) - R$ {service.price}
+                    </div>
+                  ))}
+                </div>
               </div>
               <div className="grid grid-cols-3 items-center gap-4">
                 <Label className="font-semibold text-right">Barbeiro:</Label>
@@ -1325,13 +1404,13 @@ export const BookingFlow = () => {
                 </div>
               </div>
               <div className="grid grid-cols-3 items-center gap-4">
-                <Label className="font-semibold text-right">Duração:</Label>
-                <div className="col-span-2">{selectedService?.duration}min</div>
+                <Label className="font-semibold text-right">Duração Total:</Label>
+                <div className="col-span-2">{totalDuration}min</div>
               </div>
               <div className="grid grid-cols-3 items-center gap-4">
-                <Label className="font-semibold text-right">Preço:</Label>
+                <Label className="font-semibold text-right">Total:</Label>
                 <div className="col-span-2 font-bold">
-                  R$ {selectedService?.price}
+                  R$ {selectedServices.reduce((sum, s) => sum + Number(s.price), 0).toFixed(2)}
                 </div>
               </div>
 
