@@ -194,14 +194,14 @@ export default function AdminSettings() {
   }
 
   return (
-    <section className="min-h-screen relative overflow-hidden">
+    <section className="min-h-screen relative overflow-x-hidden">
       {/* Fundo igual ao painel admin */}
       <div className="absolute inset-0 bg-gradient-to-br from-barbershop-dark via-barbershop-brown/80 to-black" />
-      <div className="relative z-10">
+      <div className="relative z-10 w-full">
         {/* Topbar */}
         <header className="w-full border-b border-white/10 bg-black/30 backdrop-blur">
-          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-            <a href="#/" className="font-bold text-lg tracking-tight">
+          <div className="mx-auto max-w-6xl px-3 sm:px-4 md:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
+            <a href="#/" className="font-bold text-base sm:text-lg tracking-tight">
               <span className="text-white">Amauri</span>
               <span className="text-barbershop-gold">Barbearia</span>
             </a>
@@ -209,69 +209,72 @@ export default function AdminSettings() {
             <div className="flex items-center gap-2">
               <Button
                 asChild
-                className="bg-gradient-to-r from-barbershop-gold to-amber-500 hover:from-amber-400 hover:to-barbershop-gold text-barbershop-dark shadow-lg hover:shadow-amber-500/25 text-xs sm:text-sm px-2 sm:px-3"
+                className="bg-gradient-to-r from-barbershop-gold to-amber-500 hover:from-amber-400 hover:to-barbershop-gold text-barbershop-dark shadow-lg hover:shadow-amber-500/25 text-xs sm:text-sm px-2 sm:px-3 h-8 sm:h-9"
               >
-                <a href="#/admin">← Painel</a>
+                <a href="#/admin">
+                  <span className="hidden sm:inline">← Painel</span>
+                  <span className="sm:hidden">←</span>
+                </a>
               </Button>
             </div>
           </div>
         </header>
 
         {/* Conteúdo principal com abas */}
-        <main className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-8">
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-2">
-              <Settings className="h-6 w-6 text-barbershop-gold" />
-              Configurações do Estabelecimento
+        <main className="mx-auto max-w-6xl px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
+          <div className="mb-4 sm:mb-6">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white mb-2 flex items-center gap-2">
+              <Settings className="h-5 w-5 sm:h-6 sm:w-6 text-barbershop-gold flex-shrink-0" />
+              <span className="break-words">Configurações do Estabelecimento</span>
             </h1>
-            <p className="text-white/70 text-sm sm:text-base">
+            <p className="text-white/70 text-xs sm:text-sm md:text-base">
               Ajuste o horário de funcionamento geral e os bloqueios de horários por barbeiro.
             </p>
           </div>
 
           {error && (
-            <Alert variant="destructive" className="mb-6 max-w-3xl">
-              <AlertDescription>{error}</AlertDescription>
+            <Alert variant="destructive" className="mb-4 sm:mb-6 max-w-3xl">
+              <AlertDescription className="text-xs sm:text-sm">{error}</AlertDescription>
             </Alert>
           )}
 
           {success && (
-            <Alert className="mb-6 max-w-3xl bg-green-50 border-green-200">
+            <Alert className="mb-4 sm:mb-6 max-w-3xl bg-green-50 border-green-200">
               <Check className="h-4 w-4 text-green-600" />
-              <AlertDescription className="text-green-800">
+              <AlertDescription className="text-green-800 text-xs sm:text-sm">
                 Configurações salvas com sucesso!
               </AlertDescription>
             </Alert>
           )}
 
-          <Tabs defaultValue="business-hours" className="max-w-4xl">
-            <TabsList className="mb-4 bg-black/40 border border-white/10">
-              <TabsTrigger value="business-hours" className="flex items-center gap-2 text-sm">
-                <Clock className="h-4 w-4" />
-                Horário de Funcionamento
+          <Tabs defaultValue="business-hours" className="w-full max-w-4xl">
+            <TabsList className="mb-3 sm:mb-4 bg-black/40 border border-white/10 w-full grid grid-cols-2">
+              <TabsTrigger value="business-hours" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-4">
+                <Clock className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                <span className="truncate">Horário</span>
               </TabsTrigger>
-              <TabsTrigger value="barber-blocks" className="flex items-center gap-2 text-sm">
-                <Scissors className="h-4 w-4" />
-                Bloqueios por Barbeiro
+              <TabsTrigger value="barber-blocks" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-4">
+                <Scissors className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                <span className="truncate">Bloqueios</span>
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="business-hours">
               <Card className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-sm border border-slate-700/60 text-white">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-white">
-                    <Clock className="h-5 w-5" />
-                    Horário de Funcionamento
+                <CardHeader className="p-4 sm:p-6">
+                  <CardTitle className="flex items-center gap-2 text-white text-base sm:text-lg">
+                    <Clock className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+                    <span>Horário de Funcionamento</span>
                   </CardTitle>
-                  <CardDescription className="text-white/70">
+                  <CardDescription className="text-white/70 text-xs sm:text-sm mt-2">
                     Defina os horários de abertura e fechamento do estabelecimento. 
                     Isso afetará diretamente os horários disponíveis para agendamento.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
               <div>
-                <Label htmlFor="open_time" className="text-base font-semibold text-white">
+                <Label htmlFor="open_time" className="text-sm sm:text-base font-semibold text-white">
                   Horário de Abertura *
                 </Label>
                 <Input
@@ -281,7 +284,7 @@ export default function AdminSettings() {
                   onChange={(e) =>
                     setBusinessHours({ ...businessHours, open_time: e.target.value })
                   }
-                  className="mt-2 bg-white/5 border border-white/20 text-white placeholder:text-white/40 focus-visible:ring-amber-500 focus-visible:border-amber-500"
+                  className="mt-2 bg-white/5 border border-white/20 text-white placeholder:text-white/40 focus-visible:ring-amber-500 focus-visible:border-amber-500 text-base"
                   step={900} // 15 minutos
                 />
                 <p className="text-xs text-white/60 mt-1">
@@ -290,7 +293,7 @@ export default function AdminSettings() {
               </div>
 
               <div>
-                <Label htmlFor="close_time" className="text-base font-semibold text-white">
+                <Label htmlFor="close_time" className="text-sm sm:text-base font-semibold text-white">
                   Horário de Fechamento *
                 </Label>
                 <Input
@@ -300,7 +303,7 @@ export default function AdminSettings() {
                   onChange={(e) =>
                     setBusinessHours({ ...businessHours, close_time: e.target.value })
                   }
-                  className="mt-2 bg-white/5 border border-white/20 text-white placeholder:text-white/40 focus-visible:ring-amber-500 focus-visible:border-amber-500"
+                  className="mt-2 bg-white/5 border border-white/20 text-white placeholder:text-white/40 focus-visible:ring-amber-500 focus-visible:border-amber-500 text-base"
                   step={900} // 15 minutos
                 />
                 <p className="text-xs text-white/60 mt-1">
@@ -309,11 +312,11 @@ export default function AdminSettings() {
               </div>
             </div>
 
-            <div className="border-t pt-6">
-              <h3 className="text-lg font-semibold mb-4 text-white">Horário de Almoço (Opcional)</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="border-t pt-4 sm:pt-6">
+              <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-white">Horário de Almoço (Opcional)</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <Label htmlFor="lunch_start" className="text-base font-semibold text-white">
+                  <Label htmlFor="lunch_start" className="text-sm sm:text-base font-semibold text-white">
                     Início do Almoço
                   </Label>
                   <Input
@@ -326,7 +329,7 @@ export default function AdminSettings() {
                         lunch_start: e.target.value,
                       })
                     }
-                    className="mt-2 bg-white/5 border border-white/20 text-white placeholder:text-white/40 focus-visible:ring-amber-500 focus-visible:border-amber-500"
+                    className="mt-2 bg-white/5 border border-white/20 text-white placeholder:text-white/40 focus-visible:ring-amber-500 focus-visible:border-amber-500 text-base"
                     step={900} // 15 minutos
                   />
                   <p className="text-xs text-white/60 mt-1">
@@ -335,7 +338,7 @@ export default function AdminSettings() {
                 </div>
 
                 <div>
-                  <Label htmlFor="lunch_end" className="text-base font-semibold text-white">
+                  <Label htmlFor="lunch_end" className="text-sm sm:text-base font-semibold text-white">
                     Fim do Almoço
                   </Label>
                   <Input
@@ -348,7 +351,7 @@ export default function AdminSettings() {
                         lunch_end: e.target.value,
                       })
                     }
-                    className="mt-2 bg-white/5 border border-white/20 text-white placeholder:text-white/40 focus-visible:ring-amber-500 focus-visible:border-amber-500"
+                    className="mt-2 bg-white/5 border border-white/20 text-white placeholder:text-white/40 focus-visible:ring-amber-500 focus-visible:border-amber-500 text-base"
                     step={900} // 15 minutos
                   />
                   <p className="text-xs text-white/60 mt-1">
@@ -361,28 +364,30 @@ export default function AdminSettings() {
               </p>
             </div>
 
-            <div className="flex justify-end gap-3 pt-4 border-t">
+            <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 pt-4 border-t">
               <Button
                 onClick={() => navigate("/admin")}
                 disabled={saving}
-              className="bg-transparent border border-white/40 text-white hover:bg-white/10 hover:text-white disabled:opacity-60 disabled:cursor-not-allowed"
+                className="bg-transparent border border-white/40 text-white hover:bg-white/10 hover:text-white disabled:opacity-60 disabled:cursor-not-allowed w-full sm:w-auto"
               >
                 Cancelar
               </Button>
               <Button
                 onClick={handleSave}
                 disabled={saving}
-                className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark"
+                className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark w-full sm:w-auto"
               >
                 {saving ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Salvando...
+                    <span className="hidden sm:inline">Salvando...</span>
+                    <span className="sm:hidden">Salvando</span>
                   </>
                 ) : (
                   <>
                     <Save className="h-4 w-4 mr-2" />
-                    Salvar Configurações
+                    <span className="hidden sm:inline">Salvar Configurações</span>
+                    <span className="sm:hidden">Salvar</span>
                   </>
                 )}
               </Button>
@@ -390,12 +395,12 @@ export default function AdminSettings() {
           </CardContent>
         </Card>
 
-        <Card className="mt-4 bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700/50 text-white">
-          <CardHeader>
-            <CardTitle className="text-lg">Informações</CardTitle>
+        <Card className="mt-3 sm:mt-4 bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700/50 text-white">
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-base sm:text-lg">Informações</CardTitle>
           </CardHeader>
-          <CardContent>
-            <ul className="space-y-2 text-sm text-white/70">
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <ul className="space-y-2 text-xs sm:text-sm text-white/70">
               <li>
                 • Os horários disponíveis para agendamento serão calculados automaticamente 
                 com base nestas configurações.
@@ -416,27 +421,27 @@ export default function AdminSettings() {
 
             <TabsContent value="barber-blocks">
               <Card className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-sm border border-slate-700/60 text-white">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-white">
-                    <Scissors className="h-5 w-5" />
-                    Bloqueios de Horário por Barbeiro
+                <CardHeader className="p-4 sm:p-6">
+                  <CardTitle className="flex items-center gap-2 text-white text-base sm:text-lg">
+                    <Scissors className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+                    <span>Bloqueios de Horário por Barbeiro</span>
                   </CardTitle>
-                  <CardDescription className="text-white/70">
+                  <CardDescription className="text-white/70 text-xs sm:text-sm mt-2">
                     Configure intervalos em que cada barbeiro não pode receber agendamentos
                     (por exemplo: pausa fixa diária).
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                     <div>
-                      <Label className="text-base font-semibold mb-2 block text-white">
+                      <Label className="text-sm sm:text-base font-semibold mb-2 block text-white">
                         Barbeiro
                       </Label>
                       <Select
                         value={selectedBarberId}
                         onValueChange={(value) => setSelectedBarberId(value)}
                       >
-                        <SelectTrigger className="bg-white/5 border border-white/20 text-white">
+                        <SelectTrigger className="bg-white/5 border border-white/20 text-white text-base">
                           <SelectValue placeholder="Selecione um barbeiro" className="text-white" />
                         </SelectTrigger>
                         <SelectContent>
@@ -450,7 +455,7 @@ export default function AdminSettings() {
                     </div>
 
                     <div>
-                      <Label className="text-base font-semibold mb-2 block text-white">
+                      <Label className="text-sm sm:text-base font-semibold mb-2 block text-white">
                         Intervalo de bloqueio (global)
                       </Label>
                       <div className="flex items-center gap-2">
@@ -458,16 +463,16 @@ export default function AdminSettings() {
                           type="time"
                           value={blockStartInput}
                           onChange={(e) => setBlockStartInput(e.target.value)}
-                          className="bg-white/5 border border-white/20 text-white placeholder:text-white/40 focus-visible:ring-amber-500 focus-visible:border-amber-500"
+                          className="bg-white/5 border border-white/20 text-white placeholder:text-white/40 focus-visible:ring-amber-500 focus-visible:border-amber-500 text-base flex-1"
                           step={900}
                           placeholder="Início"
                         />
-                        <span className="text-white/60 text-sm">até</span>
+                        <span className="text-white/60 text-xs sm:text-sm whitespace-nowrap">até</span>
                         <Input
                           type="time"
                           value={blockEndInput}
                           onChange={(e) => setBlockEndInput(e.target.value)}
-                          className="bg-white/5 border border-white/20 text-white placeholder:text-white/40 focus-visible:ring-amber-500 focus-visible:border-amber-500"
+                          className="bg-white/5 border border-white/20 text-white placeholder:text-white/40 focus-visible:ring-amber-500 focus-visible:border-amber-500 text-base flex-1"
                           step={900}
                           placeholder="Fim"
                         />
@@ -479,56 +484,70 @@ export default function AdminSettings() {
                   </div>
 
                   {selectedBarberId && (
-                    <div className="flex flex-wrap gap-3 items-center border-t border-white/20 pt-4 mt-2">
-                      <Button
-                        disabled={savingBlock || !blockStartInput || !blockEndInput || loadingBlock}
-                        onClick={async () => {
-                          if (!selectedBarberId || !blockStartInput || !blockEndInput) return;
-                          if (blockStartInput >= blockEndInput) {
-                            setError("O horário de início deve ser menor que o horário de fim.");
-                            return;
-                          }
-                          setError(null);
-                          setSavingBlock(true);
-                          try {
-                            await adminSetBarberDayBlock(selectedBarberId, null, blockStartInput, blockEndInput);
-                            setDayBlock({ start_time: blockStartInput, end_time: blockEndInput });
-                          } catch (err) {
-                            console.error("Erro ao salvar bloqueio de barbeiro:", err);
-                            setError("Não foi possível salvar o bloqueio. Tente novamente.");
-                          } finally {
-                            setSavingBlock(false);
-                          }
-                        }}
-                        className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark"
-                      >
-                        {savingBlock ? "Salvando..." : "Aplicar bloqueio"}
-                      </Button>
-
-                      {dayBlock.start_time && dayBlock.end_time && (
+                    <div className="flex flex-col gap-3 border-t border-white/20 pt-4 mt-2">
+                      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                         <Button
-                          disabled={savingBlock || loadingBlock}
+                          disabled={savingBlock || !blockStartInput || !blockEndInput || loadingBlock}
                           onClick={async () => {
-                            if (!selectedBarberId) return;
+                            if (!selectedBarberId || !blockStartInput || !blockEndInput) return;
+                            if (blockStartInput >= blockEndInput) {
+                              setError("O horário de início deve ser menor que o horário de fim.");
+                              return;
+                            }
                             setError(null);
                             setSavingBlock(true);
                             try {
-                              await adminSetBarberDayBlock(selectedBarberId, null, null, null);
-                              setDayBlock({ start_time: null, end_time: null });
-                              setBlockStartInput("");
-                              setBlockEndInput("");
+                              await adminSetBarberDayBlock(selectedBarberId, null, blockStartInput, blockEndInput);
+                              setDayBlock({ start_time: blockStartInput, end_time: blockEndInput });
                             } catch (err) {
-                              console.error("Erro ao remover bloqueio de barbeiro:", err);
-                              setError("Não foi possível remover o bloqueio. Tente novamente.");
+                              console.error("Erro ao salvar bloqueio de barbeiro:", err);
+                              setError("Não foi possível salvar o bloqueio. Tente novamente.");
                             } finally {
                               setSavingBlock(false);
                             }
                           }}
-                          className="bg-transparent border border-white/40 text-white hover:bg-white/10 hover:text-white disabled:opacity-60 disabled:cursor-not-allowed"
+                          className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark w-full sm:w-auto"
                         >
-                          Reabrir horário completo
+                          {savingBlock ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              <span className="hidden sm:inline">Salvando...</span>
+                              <span className="sm:hidden">Salvando</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="hidden sm:inline">Aplicar bloqueio</span>
+                              <span className="sm:hidden">Aplicar</span>
+                            </>
+                          )}
                         </Button>
-                      )}
+
+                        {dayBlock.start_time && dayBlock.end_time && (
+                          <Button
+                            disabled={savingBlock || loadingBlock}
+                            onClick={async () => {
+                              if (!selectedBarberId) return;
+                              setError(null);
+                              setSavingBlock(true);
+                              try {
+                                await adminSetBarberDayBlock(selectedBarberId, null, null, null);
+                                setDayBlock({ start_time: null, end_time: null });
+                                setBlockStartInput("");
+                                setBlockEndInput("");
+                              } catch (err) {
+                                console.error("Erro ao remover bloqueio de barbeiro:", err);
+                                setError("Não foi possível remover o bloqueio. Tente novamente.");
+                              } finally {
+                                setSavingBlock(false);
+                              }
+                            }}
+                            className="bg-transparent border border-white/40 text-white hover:bg-white/10 hover:text-white disabled:opacity-60 disabled:cursor-not-allowed w-full sm:w-auto"
+                          >
+                            <span className="hidden sm:inline">Reabrir horário completo</span>
+                            <span className="sm:hidden">Reabrir</span>
+                          </Button>
+                        )}
+                      </div>
 
                       <div className="text-xs text-white/70">
                         {loadingBlock
