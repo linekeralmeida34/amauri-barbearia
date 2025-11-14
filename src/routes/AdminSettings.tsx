@@ -10,6 +10,7 @@ import {
   fetchActiveBarbers,
   fetchBarberDayBlock,
   adminSetBarberDayBlock,
+  adminSetBarberDayBlockRange,
 } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,6 +69,11 @@ export default function AdminSettings() {
   const [loadingBlock, setLoadingBlock] = useState(false);
   const [savingBlock, setSavingBlock] = useState(false);
 
+  // Estado para bloqueio por período / dias da semana (UI)
+  const [rangeStartDate, setRangeStartDate] = useState<string>("");
+  const [rangeEndDate, setRangeEndDate] = useState<string>("");
+  const [rangeWeekdays, setRangeWeekdays] = useState<number[]>([]); // ISO 1-7 (1=seg..7=dom)
+
   const loadBusinessHours = async () => {
     setLoading(true);
     setError(null);
@@ -112,6 +118,9 @@ export default function AdminSettings() {
       setDayBlock({ start_time: null, end_time: null });
       setBlockStartInput("");
       setBlockEndInput("");
+      setRangeStartDate("");
+      setRangeEndDate("");
+      setRangeWeekdays([]);
       return;
     }
 
@@ -130,7 +139,41 @@ export default function AdminSettings() {
         setBlockEndInput("");
       })
       .finally(() => setLoadingBlock(false));
+
+    // Carrega preferências de período/dias salvas localmente (por barbeiro)
+    try {
+      const key = `barber_block_ui:${selectedBarberId}`;
+      const raw = window.localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (typeof parsed.rangeStartDate === "string") {
+          setRangeStartDate(parsed.rangeStartDate);
+        }
+        if (typeof parsed.rangeEndDate === "string") {
+          setRangeEndDate(parsed.rangeEndDate);
+        }
+        if (Array.isArray(parsed.rangeWeekdays)) {
+          setRangeWeekdays(
+            parsed.rangeWeekdays.filter((n: any) => Number.isInteger(n))
+          );
+        }
+      }
+    } catch (err) {
+      console.warn("Não foi possível carregar preferências de período/dias:", err);
+    }
   }, [selectedBarberId]);
+
+  // Persiste no localStorage as escolhas de período/dias, por barbeiro
+  useEffect(() => {
+    if (!selectedBarberId) return;
+    try {
+      const key = `barber_block_ui:${selectedBarberId}`;
+      const payload = { rangeStartDate, rangeEndDate, rangeWeekdays };
+      window.localStorage.setItem(key, JSON.stringify(payload));
+    } catch (err) {
+      console.warn("Não foi possível salvar preferências de período/dias:", err);
+    }
+  }, [selectedBarberId, rangeStartDate, rangeEndDate, rangeWeekdays]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -439,7 +482,7 @@ export default function AdminSettings() {
 
                     <div className="min-w-0 box-border">
                       <Label className="text-xs sm:text-base font-semibold mb-1 sm:mb-2 block text-white">
-                        Intervalo de bloqueio (global)
+                        Intervalo de bloqueio no dia
                       </Label>
                       <div className="flex items-center gap-1 sm:gap-2 min-w-0 box-border">
                         <Input
@@ -461,30 +504,192 @@ export default function AdminSettings() {
                         />
                       </div>
                       <p className="text-xs text-white/60 mt-1">
-                        Este intervalo será aplicado a todos os dias em que o barbeiro estiver trabalhando.
+                        Defina o intervalo de horário que ficará indisponível para agendamentos.
+                        Se deixar vazio e selecionar dias da semana, o barbeiro ficará indisponível o dia inteiro nesses dias.
                       </p>
                     </div>
                   </div>
 
+                  {/* Bloco: Período e dias da semana (opcional) */}
                   {selectedBarberId && (
-                    <div className="flex flex-col gap-2 sm:gap-3 border-t border-white/20 pt-3 sm:pt-4 mt-2 box-border">
-                      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 box-border">
+                    <div className="mt-4 pt-4 border-t border-white/20 flex flex-col gap-3 sm:gap-4 box-border">
+                      <div>
+                        <Label className="text-xs sm:text-base font-semibold mb-1 sm:mb-2 block text-white">
+                          Período e dias da semana (opcional)
+                        </Label>
+                        <p className="text-xs text-white/60 mb-2">
+                          Se não informar período nem dias da semana, o bloqueio será aplicado para todos os dias.
+                          Se escolher apenas dias da semana, o bloqueio valerá para esses dias, a partir de hoje.
+                          Se definir período, o bloqueio valerá apenas entre as datas informadas.
+                          Se selecionar apenas dias sem horário, o barbeiro ficará indisponível o dia inteiro nesses dias.
+                        </p>
+                        <div className="min-w-0 box-border">
+                          <Label className="text-xs sm:text-sm text-white/80 mb-1 block">
+                            Período (opcional)
+                          </Label>
+                          <div className="flex items-center gap-1 sm:gap-2 min-w-0 box-border">
+                            <Input
+                              type="date"
+                              value={rangeStartDate}
+                              onChange={(e) => setRangeStartDate(e.target.value)}
+                              className="bg-white/5 border border-white/20 text-white text-sm sm:text-base flex-1 min-w-0"
+                            />
+                            <span className="text-white/60 text-xs whitespace-nowrap flex-shrink-0">
+                              até
+                            </span>
+                            <Input
+                              type="date"
+                              value={rangeEndDate}
+                              onChange={(e) => setRangeEndDate(e.target.value)}
+                              className="bg-white/5 border border-white/20 text-white text-sm sm:text-base flex-1 min-w-0"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex justify-end mt-2 box-border">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                              setRangeStartDate("");
+                              setRangeEndDate("");
+                            }}
+                            className="h-7 px-3 text-[11px] sm:text-xs bg-transparent border-white/30 text-white hover:bg-white/10"
+                          >
+                            Limpar período
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="min-w-0 box-border">
+                        <Label className="text-xs sm:text-sm text-white/80 mb-1 block">
+                          Dias da semana (opcional)
+                        </Label>
+                        <div className="grid grid-cols-4 sm:grid-cols-7 gap-1 sm:gap-2 text-xs sm:text-sm">
+                          {[
+                            { label: "Seg", iso: 1 },
+                            { label: "Ter", iso: 2 },
+                            { label: "Qua", iso: 3 },
+                            { label: "Qui", iso: 4 },
+                            { label: "Sex", iso: 5 },
+                            { label: "Sáb", iso: 6 },
+                            { label: "Dom", iso: 7 },
+                          ].map((d) => {
+                            const active = rangeWeekdays.includes(d.iso);
+                            return (
+                              <button
+                                key={d.iso}
+                                type="button"
+                                onClick={() => {
+                                  setRangeWeekdays((prev) =>
+                                    prev.includes(d.iso)
+                                      ? prev.filter((x) => x !== d.iso)
+                                      : [...prev, d.iso]
+                                  );
+                                }}
+                                className={`px-2 py-1 rounded-md border text-xs sm:text-sm transition-colors ${
+                                  active
+                                    ? "bg-barbershop-gold text-barbershop-dark border-barbershop-gold"
+                                    : "bg-white/5 text-white border-white/20 hover:bg-white/10"
+                                }`}
+                              >
+                                {d.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <p className="text-[11px] sm:text-xs text-white/60 mt-1">
+                          Se nada for selecionado, o bloqueio será aplicado em todos os dias entre as datas.
+                        </p>
+                      </div>
+
+                      {/* Botões de ação e status - logo abaixo dos dias da semana */}
+                      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-3 box-border">
                         <Button
-                          disabled={savingBlock || !blockStartInput || !blockEndInput || loadingBlock}
+                          disabled={
+                            savingBlock || 
+                            loadingBlock || 
+                            (!blockStartInput && !blockEndInput && rangeWeekdays.length === 0 && !rangeStartDate && !rangeEndDate)
+                          }
                           onClick={async () => {
-                            if (!selectedBarberId || !blockStartInput || !blockEndInput) return;
-                            if (blockStartInput >= blockEndInput) {
+                            if (!selectedBarberId) return;
+
+                            const hasDates = !!rangeStartDate && !!rangeEndDate;
+                            const hasWeekdays = rangeWeekdays.length > 0;
+                            const hasTime = !!blockStartInput && !!blockEndInput;
+
+                            // Validações
+                            if (hasTime && blockStartInput >= blockEndInput) {
                               setError("O horário de início deve ser menor que o horário de fim.");
                               return;
                             }
+
+                            if (hasDates && rangeStartDate > rangeEndDate) {
+                              setError("A data inicial deve ser menor ou igual à data final.");
+                              return;
+                            }
+
+                            // Se não tem horário nem dias selecionados nem período, não pode salvar
+                            if (!hasTime && !hasWeekdays && !hasDates) {
+                              setError("Selecione pelo menos: horário, dias da semana ou período.");
+                              return;
+                            }
+
                             setError(null);
                             setSavingBlock(true);
                             try {
-                              await adminSetBarberDayBlock(selectedBarberId, null, blockStartInput, blockEndInput);
-                              setDayBlock({ start_time: blockStartInput, end_time: blockEndInput });
+                              if (!hasDates && !hasWeekdays) {
+                                // Apenas horário -> bloqueio global permanente
+                                if (!hasTime) {
+                                  setError("Para bloqueio global, é necessário informar o horário.");
+                                  setSavingBlock(false);
+                                  return;
+                                }
+                                await adminSetBarberDayBlock(
+                                  selectedBarberId,
+                                  null,
+                                  blockStartInput,
+                                  blockEndInput
+                                );
+                              } else {
+                                // Remove qualquer bloqueio global antes de aplicar o por período/dias
+                                await adminSetBarberDayBlock(selectedBarberId, null, null, null);
+
+                                // Usa função de faixa de datas
+                                let startDate = rangeStartDate;
+                                let endDate = rangeEndDate;
+
+                                if (!hasDates) {
+                                  // Nenhum período escolhido: aplica a partir de hoje por alguns anos
+                                  const today = todayLocalYMD();
+                                  const end = new Date();
+                                  end.setFullYear(end.getFullYear() + 5);
+                                  const y = end.getFullYear();
+                                  const m = String(end.getMonth() + 1).padStart(2, "0");
+                                  const d = String(end.getDate() + 0).padStart(2, "0");
+                                  startDate = today;
+                                  endDate = `${y}-${m}-${d}`;
+                                }
+
+                                // Se não tem horário, passa null para bloquear o dia inteiro
+                                await adminSetBarberDayBlockRange(
+                                  selectedBarberId,
+                                  startDate!,
+                                  endDate!,
+                                  hasTime ? blockStartInput : null,
+                                  hasTime ? blockEndInput : null,
+                                  hasWeekdays ? rangeWeekdays : null
+                                );
+                              }
+
+                              // Atualiza visualmente com o bloqueio global atual (se houver)
+                              const today = todayLocalYMD();
+                              const latestBlock = await fetchBarberDayBlock(selectedBarberId, today);
+                              setDayBlock(latestBlock);
+                              setBlockStartInput(latestBlock.start_time || "");
+                              setBlockEndInput(latestBlock.end_time || "");
                             } catch (err) {
-                              console.error("Erro ao salvar bloqueio de barbeiro:", err);
-                              setError("Não foi possível salvar o bloqueio. Tente novamente.");
+                              console.error("Erro ao aplicar bloqueio:", err);
+                              setError("Não foi possível aplicar o bloqueio. Tente novamente.");
                             } finally {
                               setSavingBlock(false);
                             }
@@ -505,34 +710,44 @@ export default function AdminSettings() {
                           )}
                         </Button>
 
-                        {dayBlock.start_time && dayBlock.end_time && (
-                          <Button
-                            disabled={savingBlock || loadingBlock}
-                            onClick={async () => {
-                              if (!selectedBarberId) return;
-                              setError(null);
-                              setSavingBlock(true);
+                        <Button
+                          disabled={savingBlock || loadingBlock}
+                          onClick={async () => {
+                            if (!selectedBarberId) return;
+                            setError(null);
+                            setSavingBlock(true);
+                            try {
+                              // Remove TODOS os bloqueios do barbeiro (globais e por dia),
+                              // inclusive os criados por período/dias da semana.
+                              await adminSetBarberDayBlock(selectedBarberId, null, null, null);
+                              setDayBlock({ start_time: null, end_time: null });
+                              setBlockStartInput("");
+                              setBlockEndInput("");
+                              // Também limpa período e dias selecionados na UI
+                              setRangeStartDate("");
+                              setRangeEndDate("");
+                              setRangeWeekdays([]);
                               try {
-                                await adminSetBarberDayBlock(selectedBarberId, null, null, null);
-                                setDayBlock({ start_time: null, end_time: null });
-                                setBlockStartInput("");
-                                setBlockEndInput("");
-                              } catch (err) {
-                                console.error("Erro ao remover bloqueio de barbeiro:", err);
-                                setError("Não foi possível remover o bloqueio. Tente novamente.");
-                              } finally {
-                                setSavingBlock(false);
+                                const key = `barber_block_ui:${selectedBarberId}`;
+                                window.localStorage.removeItem(key);
+                              } catch {
+                                // ignore storage errors
                               }
-                            }}
-                            className="bg-transparent border border-white/40 text-white hover:bg-white/10 hover:text-white disabled:opacity-60 disabled:cursor-not-allowed w-full sm:w-auto text-xs sm:text-base h-8 sm:h-10 box-border"
-                          >
-                            <span className="hidden sm:inline">Reabrir horário completo</span>
-                            <span className="sm:hidden">Reabrir</span>
-                          </Button>
-                        )}
+                            } catch (err) {
+                              console.error("Erro ao remover bloqueio de barbeiro:", err);
+                              setError("Não foi possível remover o bloqueio. Tente novamente.");
+                            } finally {
+                              setSavingBlock(false);
+                            }
+                          }}
+                          className="bg-transparent border border-white/40 text-white hover:bg-white/10 hover:text-white disabled:opacity-60 disabled:cursor-not-allowed w-full sm:w-auto text-xs sm:text-base h-8 sm:h-10 box-border"
+                        >
+                          <span className="hidden sm:inline">Reabrir horário completo</span>
+                          <span className="sm:hidden">Reabrir</span>
+                        </Button>
                       </div>
 
-                      <div className="text-xs text-white/70">
+                      <div className="text-xs text-white/70 mt-1">
                         {loadingBlock
                           ? "Carregando bloqueio atual..."
                           : dayBlock.start_time && dayBlock.end_time

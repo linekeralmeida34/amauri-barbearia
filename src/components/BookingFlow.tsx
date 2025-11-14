@@ -304,7 +304,9 @@ export const BookingFlow = () => {
     }
   }, [selectedDate, selectedTime]);
 
-  // Busca o fechamento do dia ao trocar barbeiro/data
+  // Busca o bloqueio de horário do barbeiro para o dia selecionado
+  // Importante: NÃO usa mais fallback para \"hoje\", para que bloqueios por dia da semana
+  // (aplicados via faixa de datas) só afetem os dias realmente configurados no banco.
   useEffect(() => {
     if (!selectedBarber || !selectedDate) {
       setDayBlock({ start_time: null, end_time: null });
@@ -313,13 +315,7 @@ export const BookingFlow = () => {
     (async () => {
       try {
         const block = await fetchBarberDayBlock(String(selectedBarber.id), selectedDate);
-        // Se não veio nada (nem do dia nem global, por algum atraso), tenta novamente com hoje
-        if (!block.start_time && !block.end_time) {
-          const fallback = await fetchBarberDayBlock(String(selectedBarber.id), todayLocalYMD());
-          setDayBlock(fallback);
-        } else {
-          setDayBlock(block);
-        }
+        setDayBlock(block);
       } catch (error) {
         console.warn("[BookingFlow] Erro ao carregar bloqueio:", error);
         setDayBlock({ start_time: null, end_time: null });
@@ -704,8 +700,10 @@ export const BookingFlow = () => {
                     inputMode="numeric"
                     value={phoneInput}
                     onChange={(e) => {
-                      const onlyNumbers = e.target.value.replace(/\D/g, "").slice(0, 11);
-                      setPhoneInput(onlyNumbers);
+                      const digits = e.target.value.replace(/\D/g, "");
+                      const normalized =
+                        digits.length > 11 ? digits.slice(digits.length - 11) : digits;
+                      setPhoneInput(normalized);
                       setGlobalError(null);
                     }}
                     onKeyDown={(e) => {
@@ -761,10 +759,12 @@ export const BookingFlow = () => {
                   inputMode="numeric"
                   value={customerDetails.phone}
                   onChange={(e) => {
-                    const onlyNumbers = e.target.value.replace(/\D/g, "").slice(0, 11);
+                    const digits = e.target.value.replace(/\D/g, "");
+                    const normalized =
+                      digits.length > 11 ? digits.slice(digits.length - 11) : digits;
                     setCustomerDetails({
                       ...customerDetails,
-                      phone: onlyNumbers,
+                      phone: normalized,
                     });
                   }}
                   placeholder="83999999999"
@@ -1072,10 +1072,12 @@ export const BookingFlow = () => {
                   inputMode="numeric"
                   value={customerDetails.phone}
                   onChange={(e) => {
-                    const onlyNumbers = e.target.value.replace(/\D/g, "").slice(0, 11);
+                    const digits = e.target.value.replace(/\D/g, "");
+                    const normalized =
+                      digits.length > 11 ? digits.slice(digits.length - 11) : digits;
                     setCustomerDetails({
                       ...customerDetails,
-                      phone: onlyNumbers,
+                      phone: normalized,
                     });
                   }}
                   placeholder="(11) 99999-9999"

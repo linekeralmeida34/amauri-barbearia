@@ -564,8 +564,10 @@ export default function AdminBookingCreate() {
                     inputMode="numeric"
                     value={phoneInput}
                     onChange={(e) => {
-                      const onlyNumbers = e.target.value.replace(/\D/g, "").slice(0, 11);
-                      setPhoneInput(onlyNumbers);
+                      const digits = e.target.value.replace(/\D/g, "");
+                      const normalized =
+                        digits.length > 11 ? digits.slice(digits.length - 11) : digits;
+                      setPhoneInput(normalized);
                       setError(null);
                     }}
                     placeholder="83999999999"
@@ -832,10 +834,12 @@ export default function AdminBookingCreate() {
                     inputMode="numeric"
                     value={customerDetails.phone}
                     onChange={(e) => {
-                      const onlyNumbers = e.target.value.replace(/\D/g, "").slice(0, 11);
+                      const digits = e.target.value.replace(/\D/g, "");
+                      const normalized =
+                        digits.length > 11 ? digits.slice(digits.length - 11) : digits;
                       setCustomerDetails({
                         ...customerDetails,
-                        phone: onlyNumbers,
+                        phone: normalized,
                       });
                       setError(null); // Limpa erro ao digitar
                     }}

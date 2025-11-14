@@ -267,11 +267,20 @@ export type CreateBookingResult =
   | { ok: true }
   | { ok: false; reason: "CONFLICT" | "VALIDATION" | "UNKNOWN"; message: string };
 
-/** Normaliza telefone BR para apenas dígitos (ex.: "+55 (11) 9..." -> "55119...") */
+/** Normaliza telefone BR para 11 dígitos (DDD + 9 + número).
+ *  - Remove tudo que não for número
+ *  - Se vier com código do país (+55...), mantém apenas os ÚLTIMOS 11 dígitos
+ *    (ex.: "+55 (83) 9..." -> "8399...")
+ */
 function normalizePhone(brPhone: string | null | undefined) {
   if (!brPhone) return null;
   const digits = brPhone.replace(/\D/g, "");
-  return digits.length ? digits : null;
+  if (!digits.length) return null;
+  // Se tiver mais de 11 dígitos (ex.: com +55 na frente), pega apenas os últimos 11
+  if (digits.length > 11) {
+    return digits.slice(digits.length - 11);
+  }
+  return digits;
 }
 
 export async function createBooking(input: CreateBookingInput): Promise<CreateBookingResult> {
@@ -513,6 +522,55 @@ export async function adminSetBarberDayBlock(
         } catch {}
       }
     }
+    throw error;
+  }
+}
+
+/**
+ * Aplica um bloqueio em um PERÍODO de datas, opcionalmente filtrando por dias da semana.
+ *
+ * - startDateYMD / endDateYMD: "YYYY-MM-DD"
+ * - startTime / endTime: "HH:MM" (ambos null para remover bloqueios no período)
+ * - weekdaysIso: array de números 1–7 (ISO: 1=segunda ... 7=domingo) ou null para todos os dias
+ *
+ * Implementado via RPC 'set_barber_day_block_range(...)'
+ */
+export async function adminSetBarberDayBlockRange(
+  barberId: string,
+  startDateYMD: string,
+  endDateYMD: string,
+  startTime: string | null,
+  endTime: string | null,
+  weekdaysIso: number[] | null
+): Promise<void> {
+  if (!barberId) return;
+
+  if (!startDateYMD || !endDateYMD) {
+    throw new Error("Informe a data inicial e final do período.");
+  }
+  if (startDateYMD > endDateYMD) {
+    throw new Error("A data inicial deve ser menor ou igual à data final.");
+  }
+
+  // Reaproveita validações básicas de horário
+  if ((startTime && !endTime) || (!startTime && endTime)) {
+    throw new Error("Ambos os horários (início e fim) devem ser preenchidos ou ambos vazios.");
+  }
+  if (startTime && endTime && startTime >= endTime) {
+    throw new Error("O horário de início deve ser menor que o horário de fim.");
+  }
+
+  const payload: any = {
+    p_barber_id: String(barberId),
+    p_start_date: startDateYMD,
+    p_end_date: endDateYMD,
+    p_start_hhmm: startTime,
+    p_end_hhmm: endTime,
+    p_weekdays: weekdaysIso && weekdaysIso.length > 0 ? weekdaysIso : null,
+  };
+
+  const { error } = await supabase.rpc("set_barber_day_block_range", payload);
+  if (error) {
     throw error;
   }
 }

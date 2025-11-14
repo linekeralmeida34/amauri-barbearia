@@ -17,7 +17,9 @@ import {
   Smartphone,
   DollarSign,
   Shield,
-  Lock
+  Lock,
+  MessageCircle,
+  Gift
 } from "lucide-react";
 
 /** ---------- Tipos ---------- */
@@ -83,6 +85,15 @@ function fmtPaymentMethod(method: PaymentMethod): string {
     null: "—"
   };
   return methods[method || "null"];
+}
+
+/** Gera link do WhatsApp a partir do número (11 dígitos) */
+function getWhatsAppLink(phone: string | null | undefined): string | null {
+  if (!phone) return null;
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length !== 11) return null;
+  // Formato: https://wa.me/55XXXXXXXXXXX (55 = código do Brasil)
+  return `https://wa.me/55${digits}`;
 }
 
 /** ---------- Componente de Status Badge ---------- */
@@ -334,8 +345,23 @@ function MobileListItem({
               <div className="flex items-center gap-2">
                 <span className="text-white/60">Telefone:</span>
               </div>
-              <div className="text-white font-medium">
-                {fmtPhoneBR(booking.phone)}
+              <div className="flex items-center gap-2">
+                <span className="text-white font-medium">
+                  {fmtPhoneBR(booking.phone)}
+                </span>
+                {booking.phone && getWhatsAppLink(booking.phone) && (
+                  <a
+                    href={getWhatsAppLink(booking.phone)!}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="flex items-center justify-center w-8 h-8 rounded-full bg-green-500 hover:bg-green-600 text-white transition-colors"
+                    aria-label="Abrir WhatsApp"
+                    title="Abrir WhatsApp"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                  </a>
+                )}
               </div>
             </div>
             
@@ -1100,7 +1126,21 @@ export default function BookingsList() {
                       <div className="text-xs sm:text-sm text-white truncate">{r.customer_name ?? "—"}</div>
                     </td>
                     <td className="px-2 sm:px-3 py-2 sm:py-3 hidden sm:table-cell">
-                      <div className="text-xs sm:text-sm text-white/80 truncate">{fmtPhoneBR(r.phone)}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs sm:text-sm text-white/80 truncate">{fmtPhoneBR(r.phone)}</span>
+                        {r.phone && getWhatsAppLink(r.phone) && (
+                          <a
+                            href={getWhatsAppLink(r.phone)!}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center w-7 h-7 rounded-full bg-green-500 hover:bg-green-600 text-white transition-colors flex-shrink-0"
+                            aria-label="Abrir WhatsApp"
+                            title="Abrir WhatsApp"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+                      </div>
                     </td>
                     <td className="px-2 sm:px-3 py-2 sm:py-3">
                       <div className="text-xs sm:text-sm text-white truncate">{r.services?.name ?? "—"}</div>
