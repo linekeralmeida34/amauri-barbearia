@@ -63,6 +63,24 @@ export const Hero = () => {
                   Nossos Barbeiros
                 </Link>
               </Button>
+
+              {/* Consultar Agendamento -> área do cliente */}
+              <Button
+                asChild
+                size="lg"
+                className="
+                  bg-black/80 text-white border border-barbershop-gold
+                  font-semibold text-lg px-6 py-4 md:px-8 md:py-6
+                  transform-gpu transition-transform duration-200 ease-out
+                  hover:scale-[1.03] active:scale-[0.98] hover:bg-black
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-barbershop-gold focus-visible:ring-offset-2
+                "
+              >
+                <Link to="/cliente/login" aria-label="Consultar meus agendamentos">
+                  <Clock className="mr-2 h-5 w-5" />
+                  Consultar Agendamento
+                </Link>
+              </Button>
             </div>
 
             {/* Botão de instalação PWA - mais visível no mobile */}

@@ -716,3 +716,171 @@ export async function setBusinessHours(
 
   if (error) throw error;
 }
+
+/* =========================
+   Área do Cliente
+========================= */
+
+export type CustomerBooking = {
+  id: string;
+  starts_at: string; // timestamptz
+  status: "pending" | "confirmed" | "canceled";
+  customer_name: string | null;
+  phone: string | null;
+  price: number | null;
+  payment_method: PaymentMethod;
+  duration_min: number | null;
+  services?: { name: string | null } | null;
+  barbers?: { name: string | null; id?: string } | null;
+};
+
+/** Busca agendamentos de um cliente por telefone */
+export async function fetchCustomerBookings(phone: string): Promise<CustomerBooking[]> {
+  const normalized = normalizePhone(phone);
+  if (!normalized || normalized.length !== 11) {
+    throw new Error("Telefone inválido");
+  }
+
+  // Usa a função RPC diretamente (mais confiável, bypassa RLS)
+  // Se a RPC não existir, tenta consulta direta como fallback
+  try {
+    const { data: rpcData, error: rpcError } = await supabase.rpc("get_customer_bookings", {
+      p_phone: normalized,
+    });
+
+    if (!rpcError && rpcData !== null) {
+      console.log("[fetchCustomerBookings] Função RPC executada com sucesso, retornando", rpcData?.length || 0, "agendamentos");
+
+      // Converte o resultado da RPC para o formato esperado
+      return (rpcData ?? []).map((row: any) => ({
+        id: String(row.id),
+        starts_at: row.starts_at,
+        status: row.status as "pending" | "confirmed" | "canceled",
+        customer_name: row.customer_name,
+        phone: row.phone,
+        price: Number(row.price ?? 0),
+        payment_method: row.payment_method as PaymentMethod,
+        duration_min: row.duration_min,
+        services: row.service_name ? { name: row.service_name } : null,
+        barbers: row.barber_name ? { name: row.barber_name, id: String(row.barber_id) } : null,
+      })) as CustomerBooking[];
+    }
+
+    // Se a RPC não existir, tenta consulta direta
+    if (rpcError && (rpcError.message?.includes("does not exist") || rpcError.message?.includes("function"))) {
+      console.warn("[fetchCustomerBookings] Função RPC não encontrada, tentando consulta direta...");
+    } else if (rpcError) {
+      throw rpcError;
+    }
+  } catch (rpcErr: any) {
+    // Se a RPC falhar por outro motivo, tenta consulta direta
+    if (!rpcErr?.message?.includes("does not exist") && !rpcErr?.message?.includes("function")) {
+      throw rpcErr;
+    }
+    console.warn("[fetchCustomerBookings] Função RPC não disponível, tentando consulta direta...");
+  }
+
+  // Fallback: Tenta consulta direta (pode falhar se RLS estiver habilitado)
+  let { data, error } = await supabase
+    .from("bookings")
+    .select(
+      `
+      id,
+      starts_at,
+      status,
+      customer_name,
+      phone,
+      price,
+      payment_method,
+      duration_min,
+      services ( name ),
+      barbers!barber_id ( id, name )
+    `
+    )
+    .eq("phone", normalized)
+    .order("starts_at", { ascending: false }); // Mais recentes primeiro
+
+  // Se der erro de permissão (401, 42501, ou qualquer erro), tenta usar a função RPC (SECURITY DEFINER)
+  if (error) {
+    const errorCode = (error as any).code;
+    const errorMessage = error.message || "";
+    const isPermissionError = 
+      errorCode === "42501" || 
+      errorCode === "PGRST301" ||
+      errorMessage.toLowerCase().includes("permission") ||
+      errorMessage.toLowerCase().includes("unauthorized") ||
+      errorMessage.toLowerCase().includes("denied");
+
+    if (isPermissionError) {
+      console.warn("[fetchCustomerBookings] Erro de permissão detectado, tentando função RPC...", { errorCode, errorMessage });
+    } else {
+      // Mesmo que não seja erro de permissão explícito, tenta RPC como fallback
+      console.warn("[fetchCustomerBookings] Erro na consulta direta, tentando função RPC como fallback...", { errorCode, errorMessage });
+    }
+    
+    try {
+      const { data: rpcData, error: rpcError } = await supabase.rpc("get_customer_bookings", {
+        p_phone: normalized,
+      });
+
+      if (rpcError) {
+        console.error("[fetchCustomerBookings] Erro na função RPC:", rpcError);
+        // Se a função RPC também falhar, lança o erro original
+        const errorMessage = rpcError.message || error.message || "Erro ao buscar agendamentos";
+        const enhancedError = new Error(errorMessage);
+        (enhancedError as any).code = (rpcError as any).code || errorCode;
+        throw enhancedError;
+      }
+
+      console.log("[fetchCustomerBookings] Função RPC executada com sucesso, retornando", rpcData?.length || 0, "agendamentos");
+
+      // Converte o resultado da RPC para o formato esperado
+      return (rpcData ?? []).map((row: any) => ({
+        id: String(row.id),
+        starts_at: row.starts_at,
+        status: row.status as "pending" | "confirmed" | "canceled",
+        customer_name: row.customer_name,
+        phone: row.phone,
+        price: Number(row.price ?? 0),
+        payment_method: row.payment_method as PaymentMethod,
+        duration_min: row.duration_min,
+        services: row.service_name ? { name: row.service_name } : null,
+        barbers: row.barber_name ? { name: row.barber_name, id: String(row.barber_id) } : null,
+      })) as CustomerBooking[];
+    } catch (rpcErr) {
+      // Se a RPC também falhar, lança o erro original
+      console.error("[fetchCustomerBookings] Erro ao tentar RPC:", rpcErr);
+      const errorMessage = error.message || "Erro ao buscar agendamentos";
+      const enhancedError = new Error(errorMessage);
+      (enhancedError as any).code = (error as any).code;
+      throw enhancedError;
+    }
+  }
+
+  // Se não houve erro, retorna os dados
+  return (data ?? []) as CustomerBooking[];
+}
+
+/** Cancela um agendamento (apenas pelo cliente) */
+export async function cancelCustomerBooking(bookingId: string): Promise<void> {
+  const { error } = await supabase
+    .from("bookings")
+    .update({ status: "canceled" })
+    .eq("id", bookingId);
+
+  if (error) throw error;
+}
+
+/** Verifica se um agendamento pode ser cancelado pelo cliente */
+export function canCustomerCancelBooking(booking: CustomerBooking): boolean {
+  // Cliente só pode cancelar se:
+  // 1. Status não é "canceled"
+  // 2. Agendamento está no futuro (pelo menos 2 horas antes)
+  if (booking.status === "canceled") return false;
+
+  const bookingDate = new Date(booking.starts_at);
+  const now = new Date();
+  const twoHoursFromNow = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+
+  return bookingDate > twoHoursFromNow;
+}

@@ -28,6 +28,8 @@ import AdminBarbers from "./routes/AdminBarbers";
 import AdminServices from "./routes/AdminServices";
 import AdminSettings from "./routes/AdminSettings";
 import BarberLogin from "./routes/BarberLogin";
+import CustomerLogin from "./routes/CustomerLogin";
+import CustomerBookings from "./routes/CustomerBookings";
 import { Users, Scissors, Plus, Settings } from "lucide-react";
 import { useBarberAuth } from "@/hooks/useBarberAuth";
 import { PWAInstallButton } from "@/components/PWAInstallButton";
@@ -270,6 +272,8 @@ export default function App() {
             <Route path="/agendar" element={<BookingFlow />} />
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/barber/login" element={<BarberLogin />} />
+            <Route path="/cliente/login" element={<CustomerLogin />} />
+            <Route path="/cliente/agendamentos" element={<CustomerBookings />} />
 
             {/* 🔒 Tudo sob /admin protegido por AdminGuard (usa <Outlet />) */}
             <Route element={<AdminGuard />}>

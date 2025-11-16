@@ -37,6 +37,11 @@ const Index = () => {
                 Agendar
               </NavLink>
 
+              {/* >>> Área do Cliente <<< */}
+              <NavLink to="/cliente/login" className="text-barbershop-dark hover:text-primary transition-colors">
+                Meus Agendamentos
+              </NavLink>
+
               <NavLink to="/?a=contato" className="text-barbershop-dark hover:text-primary transition-colors">
                 Contato
               </NavLink>
@@ -159,6 +164,13 @@ const Index = () => {
                   <Link to="/agendar" aria-label="Ir para a página de agendamento">
                     <Clock className="h-4 w-4 mr-2" />
                     Agendar Agora
+                  </Link>
+                </Button>
+                
+                {/* Link para área do cliente */}
+                <Button asChild variant="outline" className="w-full border-barbershop-gold text-barbershop-gold hover:bg-barbershop-gold hover:text-barbershop-dark">
+                  <Link to="/cliente/login" aria-label="Consultar meus agendamentos">
+                    Meus Agendamentos
                   </Link>
                 </Button>
                 
