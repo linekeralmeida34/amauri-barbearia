@@ -24,7 +24,14 @@ CREATE POLICY "Allow public read for customer area"
   FOR SELECT
   USING (true); -- Permite leitura pública
 
--- 4. Cria política que permite UPDATE apenas para cancelamento pelo cliente
+-- 4. Cria política que permite INSERT (criação de agendamento)
+-- Necessário para que clientes e admin/barbeiros possam criar novos agendamentos
+CREATE POLICY "Allow public insert bookings"
+  ON public.bookings
+  FOR INSERT
+  WITH CHECK (true);
+
+-- 5. Cria política que permite UPDATE apenas para cancelamento pelo cliente
 -- Cliente só pode cancelar agendamentos futuros (2h antes) que não foram cancelados pelo admin
 CREATE POLICY "Allow customers to cancel their bookings"
   ON public.bookings
@@ -111,6 +118,9 @@ GRANT EXECUTE ON FUNCTION public.get_customer_bookings(TEXT) TO anon, authentica
 -- Comentários
 COMMENT ON POLICY "Allow public read for customer area" ON public.bookings IS 
   'Permite leitura pública de agendamentos para área do cliente (consulta por telefone)';
+
+COMMENT ON POLICY "Allow public insert bookings" ON public.bookings IS 
+  'Permite criar novos agendamentos (clientes e admin/barbeiros)';
 
 COMMENT ON POLICY "Allow customers to cancel their bookings" ON public.bookings IS 
   'Permite que clientes cancelem seus próprios agendamentos (apenas futuros, com 2h de antecedência)';
