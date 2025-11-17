@@ -74,6 +74,7 @@ export const Hero = () => {
                   transform-gpu transition-transform duration-200 ease-out
                   hover:scale-[1.03] active:scale-[0.98] hover:bg-black
                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-barbershop-gold focus-visible:ring-offset-2
+                  md:hidden
                 "
               >
                 <Link to="/cliente/login" aria-label="Consultar meus agendamentos">
