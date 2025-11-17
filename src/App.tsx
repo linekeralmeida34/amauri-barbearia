@@ -30,7 +30,8 @@ import AdminSettings from "./routes/AdminSettings";
 import BarberLogin from "./routes/BarberLogin";
 import CustomerLogin from "./routes/CustomerLogin";
 import CustomerBookings from "./routes/CustomerBookings";
-import { Users, Scissors, Plus, Settings } from "lucide-react";
+import AdminAnalytics from "./routes/AdminAnalytics";
+import { Users, Scissors, Plus, Settings, BarChart3 } from "lucide-react";
 import { useBarberAuth } from "@/hooks/useBarberAuth";
 import { PWAInstallButton } from "@/components/PWAInstallButton";
 
@@ -186,6 +187,18 @@ function AdminPanelPlaceholder() {
                       </Link>
                     </Button>
                   )}
+                  {(finalIsAdmin || barber) && (
+                    <Button
+                      asChild
+                      size="sm"
+                      className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark text-xs sm:text-sm px-2 sm:px-3"
+                    >
+                      <Link to="/admin/analytics" aria-label="Analytics de desempenho">
+                        <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4" />
+                        <span className="hidden sm:inline sm:ml-2">Analytics</span>
+                      </Link>
+                    </Button>
+                  )}
                 </div>
               )}
 
@@ -282,6 +295,7 @@ export default function App() {
               <Route path="/admin/barbeiros" element={<AdminBarbers />} />
               <Route path="/admin/servicos" element={<AdminServices />} />
               <Route path="/admin/configuracoes" element={<AdminSettings />} />
+              <Route path="/admin/analytics" element={<AdminAnalytics />} />
             </Route>
 
             {/* 404 */}
