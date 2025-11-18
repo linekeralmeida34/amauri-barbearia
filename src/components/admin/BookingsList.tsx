@@ -569,13 +569,37 @@ export default function BookingsList() {
     }
 
     // Atualizar estado local imediatamente para feedback visual
-    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...updateData } : r)));
+    // Preserva todos os campos existentes, apenas atualiza o status e canceled_by_admin
+    setRows((prev) => prev.map((r) => {
+      if (r.id === id) {
+        return {
+          ...r,
+          ...updateData,
+          // Garante que relacionamentos são preservados
+          services: r.services,
+          barbers: r.barbers,
+        };
+      }
+      return r;
+    }));
 
     // Atualizar no banco
     const { error } = await supabase.from("bookings").update(updateData).eq("id", id);
     if (error) {
-      // Se der erro, reverter a mudança local
-      setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status: currentBooking?.status || "pending", canceled_by_admin: currentBooking?.canceled_by_admin || false } : r)));
+      // Se der erro, reverter a mudança local preservando relacionamentos
+      setRows((prev) => prev.map((r) => {
+        if (r.id === id) {
+          return {
+            ...r,
+            status: currentBooking?.status || "pending",
+            canceled_by_admin: currentBooking?.canceled_by_admin || false,
+            // Preserva relacionamentos
+            services: r.services,
+            barbers: r.barbers,
+          };
+        }
+        return r;
+      }));
       console.error("Erro ao atualizar status:", error);
     }
   }
@@ -628,7 +652,19 @@ export default function BookingsList() {
           }
           if (payload.eventType === "UPDATE") {
             setRows((prev) =>
-              prev.map((r) => (r.id === (payload.new as any).id ? (payload.new as any) : r))
+              prev.map((r) => {
+                if (r.id === (payload.new as any).id) {
+                  // Faz merge dos dados novos com os existentes para preservar relacionamentos
+                  return {
+                    ...r,
+                    ...(payload.new as any),
+                    // Preserva relacionamentos se não vierem no payload
+                    services: (payload.new as any).services || r.services,
+                    barbers: (payload.new as any).barbers || r.barbers,
+                  };
+                }
+                return r;
+              })
             );
           }
           if (payload.eventType === "DELETE") {

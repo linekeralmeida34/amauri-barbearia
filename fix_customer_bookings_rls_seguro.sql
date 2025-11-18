@@ -31,26 +31,37 @@ CREATE POLICY "Allow public insert bookings"
   FOR INSERT
   WITH CHECK (true);
 
--- 5. Cria política que permite UPDATE apenas para cancelamento pelo cliente
+-- 5. Cria política que permite UPDATE para usuários autenticados (admin/barbeiros)
+-- Permite que admin e barbeiros autenticados atualizem qualquer campo dos agendamentos
+CREATE POLICY "Allow authenticated users to update bookings"
+  ON public.bookings
+  FOR UPDATE
+  USING (auth.uid() IS NOT NULL)
+  WITH CHECK (auth.uid() IS NOT NULL);
+
+-- 6. Cria política que permite UPDATE apenas para cancelamento pelo cliente (anon)
 -- Cliente só pode cancelar agendamentos futuros (2h antes) que não foram cancelados pelo admin
 CREATE POLICY "Allow customers to cancel their bookings"
   ON public.bookings
   FOR UPDATE
   USING (
     -- Permite atualizar apenas se:
-    -- 1. Status não é 'canceled'
-    -- 2. Agendamento está no futuro (pelo menos 2 horas antes)
-    -- 3. Não foi cancelado pelo admin
-    status != 'canceled' 
+    -- 1. Usuário não está autenticado (anon)
+    -- 2. Status não é 'canceled'
+    -- 3. Agendamento está no futuro (pelo menos 2 horas antes)
+    -- 4. Não foi cancelado pelo admin
+    auth.uid() IS NULL
+    AND status != 'canceled' 
     AND starts_at > (NOW() + INTERVAL '2 hours')
     AND (canceled_by_admin IS NULL OR canceled_by_admin = false)
   )
   WITH CHECK (
     -- Permite apenas mudar status para 'canceled'
-    status = 'canceled'
+    auth.uid() IS NULL
+    AND status = 'canceled'
   );
 
--- 5. Cria função RPC como alternativa segura (SECURITY DEFINER)
+-- 7. Cria função RPC como alternativa segura (SECURITY DEFINER)
 -- Esta função bypassa RLS de forma controlada
 DROP FUNCTION IF EXISTS public.get_customer_bookings(TEXT);
 
@@ -122,8 +133,11 @@ COMMENT ON POLICY "Allow public read for customer area" ON public.bookings IS
 COMMENT ON POLICY "Allow public insert bookings" ON public.bookings IS 
   'Permite criar novos agendamentos (clientes e admin/barbeiros)';
 
+COMMENT ON POLICY "Allow authenticated users to update bookings" ON public.bookings IS 
+  'Permite que usuários autenticados (admin/barbeiros) atualizem qualquer campo dos agendamentos';
+
 COMMENT ON POLICY "Allow customers to cancel their bookings" ON public.bookings IS 
-  'Permite que clientes cancelem seus próprios agendamentos (apenas futuros, com 2h de antecedência)';
+  'Permite que clientes anônimos cancelem seus próprios agendamentos (apenas futuros, com 2h de antecedência)';
 
 COMMENT ON FUNCTION public.get_customer_bookings IS 
   'Função SECURITY DEFINER que permite consultar agendamentos por telefone, bypassando RLS de forma controlada.';
