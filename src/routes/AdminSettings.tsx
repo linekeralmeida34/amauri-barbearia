@@ -39,6 +39,15 @@ type UiBusinessHours = {
   lunch_end: string;   // "" => sem almoço
 };
 
+// Helper para formatar "YYYY-MM-DD" em "DD/MM/YYYY" sem problemas de fuso horário
+function formatYMDToBR(day: string | null | undefined): string {
+  if (!day) return "";
+  const parts = day.split("T")[0].split("-"); // garante só a parte da data
+  if (parts.length !== 3) return day;
+  const [y, m, d] = parts;
+  return `${d}/${m}/${y}`;
+}
+
 function todayLocalYMD(): string {
   const d = new Date();
   const y = d.getFullYear();
@@ -553,7 +562,7 @@ export default function AdminSettings() {
                                   )}
                                   {!block.is_global && block.day && (
                                     <span className="text-xs text-white/60">
-                                      {new Date(block.day).toLocaleDateString("pt-BR")}
+                                      {formatYMDToBR(block.day)}
                                     </span>
                                   )}
                                 </div>
@@ -768,6 +777,10 @@ export default function AdminSettings() {
                               const hasWeekdays = rangeWeekdays.length > 0;
                               const isGlobal = !hasDates && !hasWeekdays && !rangeStartDate && !rangeEndDate;
 
+                              // Declarados aqui para serem usados também na parte de recarregar a lista
+                              let startDate = rangeStartDate;
+                              let endDate = rangeEndDate;
+
                               // Se tem período ou dias da semana, usa a função de range
                               if (hasDates || hasWeekdays) {
                                 // Validações
@@ -776,9 +789,6 @@ export default function AdminSettings() {
                                   setSavingBlock(false);
                                   return;
                                 }
-
-                                let startDate = rangeStartDate;
-                                let endDate = rangeEndDate;
 
                                 if (!hasDates) {
                                   // Nenhum período escolhido: aplica a partir de hoje por alguns anos
@@ -792,15 +802,27 @@ export default function AdminSettings() {
                                   endDate = `${y}-${m}-${d}`;
                                 }
 
-                                // Usa função de faixa de datas para criar bloqueios em múltiplos dias
-                                await adminSetBarberDayBlockRange(
-                                  selectedBarberId,
-                                  startDate!,
-                                  endDate!,
-                                  blockStartInput,
-                                  blockEndInput,
-                                  hasWeekdays ? rangeWeekdays : null
-                                );
+                                // Se for apenas um dia e não tiver dias da semana, usa addBarberDayBlock (suporta nome)
+                                if (hasDates && startDate === endDate && !hasWeekdays) {
+                                  await addBarberDayBlock(
+                                    selectedBarberId,
+                                    startDate,
+                                    blockStartInput,
+                                    blockEndInput,
+                                    blockNameInput || null,
+                                    false
+                                  );
+                                } else {
+                                  // Múltiplos dias ou dias da semana: usa função de range (não suporta nome ainda)
+                                  await adminSetBarberDayBlockRange(
+                                    selectedBarberId,
+                                    startDate!,
+                                    endDate!,
+                                    blockStartInput,
+                                    blockEndInput,
+                                    hasWeekdays ? rangeWeekdays : null
+                                  );
+                                }
                               } else {
                                 // Bloqueio único: dia específico ou global
                                 const dayToUse = isGlobal ? null : selectedDayForBlocks;
@@ -823,8 +845,13 @@ export default function AdminSettings() {
                               setRangeEndDate("");
                               setRangeWeekdays([]);
 
-                              // Recarrega a lista
-                              const blocks = await fetchBarberDayBlocks(selectedBarberId, selectedDayForBlocks);
+                              // Recarrega a lista - se criou bloqueio em período, mostra na primeira data do período
+                              let dateToLoad = selectedDayForBlocks;
+                              if (hasDates && startDate) {
+                                dateToLoad = startDate;
+                                setSelectedDayForBlocks(startDate);
+                              }
+                              const blocks = await fetchBarberDayBlocks(selectedBarberId, dateToLoad);
                               setBlocksList(blocks);
                             } catch (err: any) {
                               console.error("Erro ao adicionar fechamento:", err);

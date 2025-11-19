@@ -352,16 +352,11 @@ export default function AdminBookingCreate() {
     setLoadingSlots(true);
     listAvailableTimes(selectedBarber.id, selectedDate, totalDuration)
       .then((serverSlots: string[]) => {
-        // Aplica bloqueio do dia (fechar de X até Y => remove horários >= X e <= Y)
-        let filtered = serverSlots;
-        if (dayBlock.start_time && dayBlock.end_time) {
-          filtered = serverSlots.filter((t) => {
-            // Remove horários que estão dentro do intervalo bloqueado (inclusive)
-            return t < dayBlock.start_time! || t > dayBlock.end_time!;
-          });
-        }
-        setSlots(filtered);
-        if (selectedTime && !filtered.includes(selectedTime)) {
+        // Nota: Os bloqueios já são considerados pela função SQL list_available_times
+        // que verifica TODOS os bloqueios (múltiplos bloqueios por dia)
+        // Não precisamos aplicar filtro adicional aqui
+        setSlots(serverSlots);
+        if (selectedTime && !serverSlots.includes(selectedTime)) {
           setSelectedTime("");
         }
       })

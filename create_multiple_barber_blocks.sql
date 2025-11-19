@@ -214,6 +214,89 @@ END;
 $$;
 
 -- ============================================
+-- Atualiza função set_barber_day_block para suportar múltiplos bloqueios
+-- ============================================
+
+DROP FUNCTION IF EXISTS public.set_barber_day_block(uuid, date, time, time);
+CREATE OR REPLACE FUNCTION public.set_barber_day_block(
+  p_barber_id UUID,
+  p_day DATE DEFAULT NULL,
+  p_start_hhmm TIME DEFAULT NULL,
+  p_end_hhmm TIME DEFAULT NULL
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_user_email TEXT;
+  v_is_admin BOOLEAN := false;
+  v_barber_email TEXT;
+  v_barber_is_admin BOOLEAN := false;
+BEGIN
+  -- Obter email do usuário autenticado
+  SELECT email INTO v_user_email FROM auth.users WHERE id = auth.uid();
+  
+  -- Verificar se é admin na tabela admin_users
+  SELECT EXISTS (
+    SELECT 1 FROM public.admin_users
+    WHERE user_id = auth.uid() AND role IN ('owner', 'admin')
+  ) INTO v_is_admin;
+  
+  -- Verificar se o barbeiro logado tem is_admin = true
+  SELECT COALESCE(is_admin, false) INTO v_barber_is_admin
+  FROM public.barbers
+  WHERE email = v_user_email;
+  
+  -- Se não for admin (nem na tabela admin_users nem is_admin no barbers), verificar se o barbeiro_id pertence ao usuário logado
+  IF NOT v_is_admin AND NOT v_barber_is_admin THEN
+    -- Buscar email do barbeiro
+    SELECT email INTO v_barber_email FROM public.barbers WHERE id = p_barber_id;
+    
+    -- Se o email do barbeiro não corresponder ao email do usuário, negar acesso
+    IF v_barber_email IS NULL OR v_barber_email != v_user_email THEN
+      RAISE EXCEPTION 'Você só pode fechar horários para você mesmo.';
+    END IF;
+  END IF;
+  
+  -- Validação: se um está preenchido, o outro também deve estar
+  IF (p_start_hhmm IS NOT NULL AND p_end_hhmm IS NULL) OR 
+     (p_start_hhmm IS NULL AND p_end_hhmm IS NOT NULL) THEN
+    RAISE EXCEPTION 'Ambos os horários (início e fim) devem ser preenchidos ou ambos vazios.';
+  END IF;
+  
+  -- Validação: start_time deve ser menor que end_time
+  IF p_start_hhmm IS NOT NULL AND p_end_hhmm IS NOT NULL AND p_start_hhmm >= p_end_hhmm THEN
+    RAISE EXCEPTION 'O horário de início deve ser menor que o horário de fim.';
+  END IF;
+  
+  -- Se ambos são NULL, remove o bloqueio
+  IF p_start_hhmm IS NULL AND p_end_hhmm IS NULL THEN
+    IF p_day IS NULL THEN
+      -- Remover TODOS os bloqueios globais do barbeiro
+      DELETE FROM public.barber_day_blocks WHERE barber_id = p_barber_id AND day IS NULL;
+    ELSE
+      -- Remover TODOS os bloqueios do dia específico
+      DELETE FROM public.barber_day_blocks WHERE barber_id = p_barber_id AND day = p_day;
+    END IF;
+    RETURN;
+  END IF;
+  
+  -- Caso contrário, insere novo bloqueio (permite múltiplos)
+  IF p_day IS NULL THEN
+    -- Global: remove todos os globais anteriores e insere novo
+    DELETE FROM public.barber_day_blocks WHERE barber_id = p_barber_id AND day IS NULL;
+    INSERT INTO public.barber_day_blocks (barber_id, day, start_time, end_time, is_global, updated_at)
+    VALUES (p_barber_id, NULL, p_start_hhmm, p_end_hhmm, true, NOW());
+  ELSE
+    -- Específico do dia: insere novo (permite múltiplos no mesmo dia)
+    INSERT INTO public.barber_day_blocks (barber_id, day, start_time, end_time, is_global, updated_at)
+    VALUES (p_barber_id, p_day, p_start_hhmm, p_end_hhmm, false, NOW());
+  END IF;
+END;
+$$;
+
+-- ============================================
 -- Atualiza função get_barber_day_block para manter compatibilidade
 -- (retorna o primeiro bloqueio encontrado, para não quebrar código existente)
 -- ============================================
@@ -285,15 +368,33 @@ SECURITY DEFINER
 AS $$
 DECLARE
   v_tz TEXT := 'America/Sao_Paulo';
-  v_day_start_local TIME := TIME '09:00';
-  v_day_end_local   TIME := TIME '17:00';
-  v_lunch_start     TIME := TIME '12:00';
-  v_lunch_end       TIME := TIME '13:00';
+  v_day_start_local TIME;
+  v_day_end_local   TIME;
+  v_lunch_start     TIME;
+  v_lunch_end       TIME;
   v_day_start_ts    TIMESTAMPTZ;
   v_day_end_ts      TIMESTAMPTZ;
 BEGIN
   IF p_duration_min IS NULL OR p_duration_min <= 0 THEN
     RETURN;
+  END IF;
+
+  -- Busca horário de funcionamento do estabelecimento
+  SELECT 
+    COALESCE(open_time, TIME '09:00'),
+    COALESCE(close_time, TIME '18:00'),
+    lunch_start,
+    lunch_end
+  INTO v_day_start_local, v_day_end_local, v_lunch_start, v_lunch_end
+  FROM public.business_hours
+  LIMIT 1;
+  
+  -- Se não existir registro, usa valores padrão
+  IF v_day_start_local IS NULL THEN
+    v_day_start_local := TIME '09:00';
+    v_day_end_local := TIME '18:00';
+    v_lunch_start := TIME '12:00';
+    v_lunch_end := TIME '13:00';
   END IF;
 
   -- Constrói início/fim do dia em timestamptz a partir do horário local
@@ -357,7 +458,8 @@ BEGIN
   )
   SELECT to_char(local_time, 'HH24:MI') AS slot
   FROM without_overlap
-  WHERE (local_time < v_day_end_local)
+  -- Garante que o serviço cabe dentro do horário de funcionamento (não ultrapassa o fechamento)
+  WHERE (local_time + make_interval(mins => p_duration_min)) <= v_day_end_local
   GROUP BY slot
   ORDER BY slot;
 END;

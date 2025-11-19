@@ -372,14 +372,9 @@ export const BookingFlow = () => {
         if (isTodayLocal(selectedDate)) {
           filtered = serverSlots.filter((t) => hmGte(t, nowHM));
         }
-        // Aplica bloqueio do dia (fechar de X até Y => remove horários >= X e <= Y)
-        if (dayBlock.start_time && dayBlock.end_time) {
-          filtered = filtered.filter((t) => {
-            // Remove horários que estão dentro do intervalo bloqueado (inclusive)
-            // Mantém apenas horários < start_time OU > end_time
-            return !(t >= dayBlock.start_time! && t <= dayBlock.end_time!);
-          });
-        }
+        // Nota: Os bloqueios já são considerados pela função SQL list_available_times
+        // que verifica TODOS os bloqueios (múltiplos bloqueios por dia)
+        // Não precisamos aplicar filtro adicional aqui
         setSlots(filtered);
         if (selectedTime && !filtered.includes(selectedTime)) setSelectedTime("");
       })
