@@ -409,6 +409,16 @@ export type BarberDayBlock = {
   end_time: string | null;   // "HH:MM" ou null
 };
 
+export type BarberDayBlockItem = {
+  id: string;
+  name: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  day: string | null;
+  is_global: boolean;
+  created_at: string;
+};
+
 /**
  * Obtém o intervalo de bloqueio (start_time e end_time) para um barbeiro em um dia específico.
  * Retorna { start_time: null, end_time: null } se não houver fechamento configurado.
@@ -598,6 +608,98 @@ export async function adminSetBarberDayCutoff(
     await adminSetBarberDayBlock(barberId, dayYMD, cutoffHM, "23:59");
   } else {
     await adminSetBarberDayBlock(barberId, dayYMD, null, null);
+  }
+}
+
+/**
+ * Lista TODOS os bloqueios de um barbeiro em um dia (incluindo globais)
+ * Implementado via RPC 'get_barber_day_blocks(p_barber_id, p_day)'
+ */
+export async function fetchBarberDayBlocks(
+  barberId: string,
+  dayYMD: string
+): Promise<BarberDayBlockItem[]> {
+  if (!barberId || !dayYMD) return [];
+  
+  try {
+    const { data, error } = await supabase.rpc("get_barber_day_blocks", {
+      p_barber_id: String(barberId),
+      p_day: dayYMD,
+    });
+    
+    if (error) {
+      console.warn("[fetchBarberDayBlocks] RPC ausente ou falhou:", error.message);
+      return [];
+    }
+    
+    if (!data || !Array.isArray(data)) return [];
+    
+    return data.map((item: any) => ({
+      id: String(item.id),
+      name: item.name || null,
+      start_time: item.start_time ? String(item.start_time).slice(0, 5) : null,
+      end_time: item.end_time ? String(item.end_time).slice(0, 5) : null,
+      day: item.day || null,
+      is_global: Boolean(item.is_global),
+      created_at: item.created_at || "",
+    }));
+  } catch (e) {
+    console.warn("[fetchBarberDayBlocks] erro:", e);
+    return [];
+  }
+}
+
+/**
+ * Adiciona um novo bloqueio para um barbeiro
+ * Implementado via RPC 'add_barber_day_block(...)'
+ */
+export async function addBarberDayBlock(
+  barberId: string,
+  dayYMD: string | null,
+  startTime: string,
+  endTime: string,
+  name: string | null = null,
+  isGlobal: boolean = false
+): Promise<string> {
+  if (!barberId || !startTime || !endTime) {
+    throw new Error("Barbeiro, horário de início e fim são obrigatórios.");
+  }
+  
+  if (startTime >= endTime) {
+    throw new Error("O horário de início deve ser menor que o horário de fim.");
+  }
+  
+  const { data, error } = await supabase.rpc("add_barber_day_block", {
+    p_barber_id: String(barberId),
+    p_day: dayYMD || null,
+    p_start_hhmm: startTime,
+    p_end_hhmm: endTime,
+    p_name: name || null,
+    p_is_global: isGlobal,
+  });
+  
+  if (error) {
+    throw error;
+  }
+  
+  return String(data);
+}
+
+/**
+ * Remove um bloqueio específico pelo ID
+ * Implementado via RPC 'remove_barber_day_block(p_block_id)'
+ */
+export async function removeBarberDayBlock(blockId: string): Promise<void> {
+  if (!blockId) {
+    throw new Error("ID do bloqueio é obrigatório.");
+  }
+  
+  const { error } = await supabase.rpc("remove_barber_day_block", {
+    p_block_id: String(blockId),
+  });
+  
+  if (error) {
+    throw error;
   }
 }
 

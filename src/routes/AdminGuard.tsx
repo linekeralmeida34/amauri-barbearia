@@ -97,8 +97,8 @@ export default function AdminGuard() {
 
   if (!authorized) {
     const from = encodeURIComponent(loc.pathname + loc.search);
-    // Redirecionar para login de barbeiro se não for admin
-    return <Navigate to={`/barber/login?from=${from}`} replace />;
+    // Redirecionar para login de admin
+    return <Navigate to={`/admin/login?from=${from}`} replace />;
   }
 
   return <Outlet />;

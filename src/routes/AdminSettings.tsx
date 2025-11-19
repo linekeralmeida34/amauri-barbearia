@@ -7,10 +7,14 @@ import {
   type BusinessHours,
   type Barber,
   type BarberDayBlock,
+  type BarberDayBlockItem,
   fetchActiveBarbers,
   fetchBarberDayBlock,
+  fetchBarberDayBlocks,
   adminSetBarberDayBlock,
   adminSetBarberDayBlockRange,
+  addBarberDayBlock,
+  removeBarberDayBlock,
 } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,7 +28,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { Clock, Save, Loader2, Check, Settings, Scissors } from "lucide-react";
+import { Clock, Save, Loader2, Check, Settings, Scissors, Plus, Trash2, X } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 // Estado usado na UI: sempre strings ("" ou "HH:MM"); conversão para null é feita na hora de salvar
@@ -66,8 +70,11 @@ export default function AdminSettings() {
   });
   const [blockStartInput, setBlockStartInput] = useState<string>("");
   const [blockEndInput, setBlockEndInput] = useState<string>("");
+  const [blockNameInput, setBlockNameInput] = useState<string>("");
   const [loadingBlock, setLoadingBlock] = useState(false);
   const [savingBlock, setSavingBlock] = useState(false);
+  const [blocksList, setBlocksList] = useState<BarberDayBlockItem[]>([]);
+  const [selectedDayForBlocks, setSelectedDayForBlocks] = useState<string>(todayLocalYMD());
 
   // Estado para bloqueio por período / dias da semana (UI)
   const [rangeStartDate, setRangeStartDate] = useState<string>("");
@@ -112,35 +119,50 @@ export default function AdminSettings() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Carrega o bloqueio global atual ao trocar o barbeiro selecionado
+  // Carrega os bloqueios ao trocar o barbeiro ou data selecionada
   useEffect(() => {
     if (!selectedBarberId) {
       setDayBlock({ start_time: null, end_time: null });
       setBlockStartInput("");
       setBlockEndInput("");
+      setBlockNameInput("");
       setRangeStartDate("");
       setRangeEndDate("");
       setRangeWeekdays([]);
+      setBlocksList([]);
       return;
     }
 
     setLoadingBlock(true);
-    // Usa a data de hoje apenas para consultar; a função já faz fallback para bloqueio global
-    fetchBarberDayBlock(selectedBarberId, todayLocalYMD())
+    // Carrega bloqueio único (compatibilidade)
+    fetchBarberDayBlock(selectedBarberId, selectedDayForBlocks)
       .then((block) => {
         setDayBlock(block);
         setBlockStartInput(block.start_time || "");
         setBlockEndInput(block.end_time || "");
       })
       .catch((err) => {
-        console.error("Erro ao carregar bloqueio global do barbeiro:", err);
+        console.error("Erro ao carregar bloqueio do barbeiro:", err);
         setDayBlock({ start_time: null, end_time: null });
         setBlockStartInput("");
         setBlockEndInput("");
+      });
+    
+    // Carrega lista de TODOS os bloqueios
+    fetchBarberDayBlocks(selectedBarberId, selectedDayForBlocks)
+      .then((blocks) => {
+        setBlocksList(blocks);
+      })
+      .catch((err) => {
+        console.error("Erro ao carregar lista de bloqueios:", err);
+        setBlocksList([]);
       })
       .finally(() => setLoadingBlock(false));
+  }, [selectedBarberId, selectedDayForBlocks]);
 
-    // Carrega preferências de período/dias salvas localmente (por barbeiro)
+  // Carrega preferências de período/dias salvas localmente (por barbeiro)
+  useEffect(() => {
+    if (!selectedBarberId) return;
     try {
       const key = `barber_block_ui:${selectedBarberId}`;
       const raw = window.localStorage.getItem(key);
@@ -453,8 +475,8 @@ export default function AdminSettings() {
                     <span>Bloqueios de Horário por Barbeiro</span>
                   </CardTitle>
                   <CardDescription className="text-white/70 text-xs sm:text-sm mt-1 sm:mt-2">
-                    Configure intervalos em que cada barbeiro não pode receber agendamentos
-                    (por exemplo: pausa fixa diária).
+                    Configure múltiplos intervalos em que cada barbeiro não pode receber agendamentos.
+                    Você pode adicionar vários fechamentos (ex: das 16h em diante, depois das 14h às 14h30).
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3 sm:space-y-6 p-3 sm:p-6 pt-0 min-w-0 box-border">
@@ -482,48 +504,171 @@ export default function AdminSettings() {
 
                     <div className="min-w-0 box-border">
                       <Label className="text-xs sm:text-base font-semibold mb-1 sm:mb-2 block text-white">
-                        Intervalo de bloqueio no dia
+                        Data para visualizar bloqueios
                       </Label>
-                      <div className="flex items-center gap-1 sm:gap-2 min-w-0 box-border">
-                        <Input
-                          type="time"
-                          value={blockStartInput}
-                          onChange={(e) => setBlockStartInput(e.target.value)}
-                          className="bg-white/5 border border-white/20 text-white placeholder:text-white/40 focus-visible:ring-amber-500 focus-visible:border-amber-500 text-base flex-1 min-w-0 box-border"
-                          step={900}
-                          placeholder="Início"
-                        />
-                        <span className="text-white/60 text-xs whitespace-nowrap flex-shrink-0">até</span>
-                        <Input
-                          type="time"
-                          value={blockEndInput}
-                          onChange={(e) => setBlockEndInput(e.target.value)}
-                          className="bg-white/5 border border-white/20 text-white placeholder:text-white/40 focus-visible:ring-amber-500 focus-visible:border-amber-500 text-base flex-1 min-w-0 box-border"
-                          step={900}
-                          placeholder="Fim"
-                        />
-                      </div>
+                      <Input
+                        type="date"
+                        value={selectedDayForBlocks}
+                        onChange={(e) => setSelectedDayForBlocks(e.target.value)}
+                        className="bg-white/5 border border-white/20 text-white text-base w-full box-border"
+                      />
                       <p className="text-xs text-white/60 mt-1">
-                        Defina o intervalo de horário que ficará indisponível para agendamentos.
-                        Se deixar vazio e selecionar dias da semana, o barbeiro ficará indisponível o dia inteiro nesses dias.
+                        Selecione uma data para ver os bloqueios aplicados. Bloqueios globais aparecem em todas as datas.
                       </p>
                     </div>
                   </div>
 
-                  {/* Bloco: Período e dias da semana (opcional) */}
+                  {/* Lista de Fechamentos Existentes */}
                   {selectedBarberId && (
-                    <div className="mt-4 pt-4 border-t border-white/20 flex flex-col gap-3 sm:gap-4 box-border">
-                      <div>
+                    <div className="mt-4 pt-4 border-t border-white/20">
+                      <div className="flex items-center justify-between mb-3">
+                        <Label className="text-xs sm:text-base font-semibold text-white">
+                          Fechamentos Configurados
+                        </Label>
+                        {loadingBlock && (
+                          <Loader2 className="h-4 w-4 animate-spin text-white/60" />
+                        )}
+                      </div>
+                      
+                      {blocksList.length === 0 ? (
+                        <p className="text-xs text-white/60 py-4 text-center">
+                          Nenhum fechamento configurado para este barbeiro nesta data.
+                        </p>
+                      ) : (
+                        <div className="space-y-2">
+                          {blocksList.map((block, index) => (
+                            <div
+                              key={block.id}
+                              className="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded-lg"
+                            >
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-xs sm:text-sm font-medium text-white">
+                                    {block.name || `Fechamento ${index + 1}`}
+                                  </span>
+                                  {block.is_global && (
+                                    <span className="text-xs px-2 py-0.5 bg-amber-500/20 text-amber-300 rounded">
+                                      Global
+                                    </span>
+                                  )}
+                                  {!block.is_global && block.day && (
+                                    <span className="text-xs text-white/60">
+                                      {new Date(block.day).toLocaleDateString("pt-BR")}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-xs sm:text-sm text-white/80 mt-1">
+                                  {block.start_time} até {block.end_time}
+                                </div>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={async () => {
+                                  if (!confirm("Deseja remover este fechamento?")) return;
+                                  setSavingBlock(true);
+                                  try {
+                                    await removeBarberDayBlock(block.id);
+                                    // Recarrega a lista
+                                    const blocks = await fetchBarberDayBlocks(selectedBarberId, selectedDayForBlocks);
+                                    setBlocksList(blocks);
+                                  } catch (err: any) {
+                                    console.error("Erro ao remover fechamento:", err);
+                                    setError(err.message || "Erro ao remover fechamento.");
+                                  } finally {
+                                    setSavingBlock(false);
+                                  }
+                                }}
+                                disabled={savingBlock}
+                                className="text-red-400 hover:text-red-300 hover:bg-red-500/10 h-8 w-8 p-0"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Formulário para Adicionar Novo Fechamento */}
+                  {selectedBarberId && (
+                    <div className="mt-4 pt-4 border-t border-white/20">
+                      <Label className="text-xs sm:text-base font-semibold mb-3 block text-white">
+                        Adicionar Novo Fechamento
+                      </Label>
+                      
+                      <div className="space-y-3">
+                        <div className="min-w-0 box-border">
+                          <Label className="text-xs sm:text-sm text-white/80 mb-1 block">
+                            Nome do fechamento (opcional)
+                          </Label>
+                          <Input
+                            type="text"
+                            value={blockNameInput}
+                            onChange={(e) => setBlockNameInput(e.target.value)}
+                            placeholder="Ex: Fechamento 1, Pausa almoço, etc."
+                            className="bg-white/5 border border-white/20 text-white text-sm w-full box-border"
+                          />
+                        </div>
+
+                        <div className="min-w-0 box-border">
+                          <Label className="text-xs sm:text-sm text-white/80 mb-1 block">
+                            Horário
+                          </Label>
+                          <div className="flex items-center gap-1 sm:gap-2 min-w-0 box-border">
+                            <Input
+                              type="time"
+                              value={blockStartInput}
+                              onChange={(e) => setBlockStartInput(e.target.value)}
+                              className="bg-white/5 border border-white/20 text-white placeholder:text-white/40 focus-visible:ring-amber-500 focus-visible:border-amber-500 text-base flex-1 min-w-0 box-border"
+                              step={900}
+                              placeholder="Início"
+                            />
+                            <span className="text-white/60 text-xs whitespace-nowrap flex-shrink-0">até</span>
+                            <Input
+                              type="time"
+                              value={blockEndInput}
+                              onChange={(e) => setBlockEndInput(e.target.value)}
+                              className="bg-white/5 border border-white/20 text-white placeholder:text-white/40 focus-visible:ring-amber-500 focus-visible:border-amber-500 text-base flex-1 min-w-0 box-border"
+                              step={900}
+                              placeholder="Fim"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            id="isGlobalBlock"
+                            checked={!rangeStartDate && !rangeEndDate && rangeWeekdays.length === 0}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setRangeStartDate("");
+                                setRangeEndDate("");
+                                setRangeWeekdays([]);
+                              }
+                            }}
+                            className="w-4 h-4 text-amber-500 bg-white/5 border-white/20 rounded focus:ring-amber-500"
+                          />
+                          <Label htmlFor="isGlobalBlock" className="text-xs sm:text-sm text-white/80 cursor-pointer">
+                            Aplicar para todos os dias (bloqueio global)
+                          </Label>
+                        </div>
+                      </div>
+
+                      {/* Período e dias da semana (opcional) */}
+                      <div className="mt-4 pt-4 border-t border-white/20">
                         <Label className="text-xs sm:text-base font-semibold mb-1 sm:mb-2 block text-white">
                           Período e dias da semana (opcional)
                         </Label>
-                        <p className="text-xs text-white/60 mb-2">
-                          Se não informar período nem dias da semana, o bloqueio será aplicado para todos os dias.
+                        <p className="text-xs text-white/60 mb-3">
+                          Se não informar período nem dias da semana, o bloqueio será aplicado apenas no dia selecionado acima.
                           Se escolher apenas dias da semana, o bloqueio valerá para esses dias, a partir de hoje.
                           Se definir período, o bloqueio valerá apenas entre as datas informadas.
-                          Se selecionar apenas dias sem horário, o barbeiro ficará indisponível o dia inteiro nesses dias.
                         </p>
-                        <div className="min-w-0 box-border">
+                        
+                        <div className="min-w-0 box-border mb-3">
                           <Label className="text-xs sm:text-sm text-white/80 mb-1 block">
                             Período (opcional)
                           </Label>
@@ -544,117 +689,94 @@ export default function AdminSettings() {
                               className="bg-white/5 border border-white/20 text-white text-sm sm:text-base flex-1 min-w-0"
                             />
                           </div>
+                          <div className="flex justify-end mt-2 box-border">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                setRangeStartDate("");
+                                setRangeEndDate("");
+                              }}
+                              className="h-7 px-3 text-[11px] sm:text-xs bg-transparent border-white/30 text-white hover:bg-white/10"
+                            >
+                              Limpar período
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex justify-end mt-2 box-border">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => {
-                              setRangeStartDate("");
-                              setRangeEndDate("");
-                            }}
-                            className="h-7 px-3 text-[11px] sm:text-xs bg-transparent border-white/30 text-white hover:bg-white/10"
-                          >
-                            Limpar período
-                          </Button>
+
+                        <div className="min-w-0 box-border">
+                          <Label className="text-xs sm:text-sm text-white/80 mb-1 block">
+                            Dias da semana (opcional)
+                          </Label>
+                          <div className="grid grid-cols-4 sm:grid-cols-7 gap-1 sm:gap-2 text-xs sm:text-sm">
+                            {[
+                              { label: "Seg", iso: 1 },
+                              { label: "Ter", iso: 2 },
+                              { label: "Qua", iso: 3 },
+                              { label: "Qui", iso: 4 },
+                              { label: "Sex", iso: 5 },
+                              { label: "Sáb", iso: 6 },
+                              { label: "Dom", iso: 7 },
+                            ].map((d) => {
+                              const active = rangeWeekdays.includes(d.iso);
+                              return (
+                                <button
+                                  key={d.iso}
+                                  type="button"
+                                  onClick={() => {
+                                    setRangeWeekdays((prev) =>
+                                      prev.includes(d.iso)
+                                        ? prev.filter((x) => x !== d.iso)
+                                        : [...prev, d.iso]
+                                    );
+                                  }}
+                                  className={`px-2 py-1 rounded-md border text-xs sm:text-sm transition-colors ${
+                                    active
+                                      ? "bg-barbershop-gold text-barbershop-dark border-barbershop-gold"
+                                      : "bg-white/5 text-white border-white/20 hover:bg-white/10"
+                                  }`}
+                                >
+                                  {d.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <p className="text-[11px] sm:text-xs text-white/60 mt-1">
+                            Se nada for selecionado, o bloqueio será aplicado apenas no dia selecionado acima.
+                          </p>
                         </div>
                       </div>
 
-                      <div className="min-w-0 box-border">
-                        <Label className="text-xs sm:text-sm text-white/80 mb-1 block">
-                          Dias da semana (opcional)
-                        </Label>
-                        <div className="grid grid-cols-4 sm:grid-cols-7 gap-1 sm:gap-2 text-xs sm:text-sm">
-                          {[
-                            { label: "Seg", iso: 1 },
-                            { label: "Ter", iso: 2 },
-                            { label: "Qua", iso: 3 },
-                            { label: "Qui", iso: 4 },
-                            { label: "Sex", iso: 5 },
-                            { label: "Sáb", iso: 6 },
-                            { label: "Dom", iso: 7 },
-                          ].map((d) => {
-                            const active = rangeWeekdays.includes(d.iso);
-                            return (
-                              <button
-                                key={d.iso}
-                                type="button"
-                                onClick={() => {
-                                  setRangeWeekdays((prev) =>
-                                    prev.includes(d.iso)
-                                      ? prev.filter((x) => x !== d.iso)
-                                      : [...prev, d.iso]
-                                  );
-                                }}
-                                className={`px-2 py-1 rounded-md border text-xs sm:text-sm transition-colors ${
-                                  active
-                                    ? "bg-barbershop-gold text-barbershop-dark border-barbershop-gold"
-                                    : "bg-white/5 text-white border-white/20 hover:bg-white/10"
-                                }`}
-                              >
-                                {d.label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                        <p className="text-[11px] sm:text-xs text-white/60 mt-1">
-                          Se nada for selecionado, o bloqueio será aplicado em todos os dias entre as datas.
-                        </p>
-                      </div>
-
-                      {/* Botões de ação e status - logo abaixo dos dias da semana */}
-                      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-3 box-border">
+                      {/* Botão para adicionar fechamento */}
+                      <div className="mt-4 flex gap-2">
                         <Button
-                          disabled={
-                            savingBlock || 
-                            loadingBlock || 
-                            (!blockStartInput && !blockEndInput && rangeWeekdays.length === 0 && !rangeStartDate && !rangeEndDate)
-                          }
                           onClick={async () => {
-                            if (!selectedBarberId) return;
+                            if (!selectedBarberId || !blockStartInput || !blockEndInput) {
+                              setError("Preencha o horário de início e fim.");
+                              return;
+                            }
 
-                            const hasDates = !!rangeStartDate && !!rangeEndDate;
-                            const hasWeekdays = rangeWeekdays.length > 0;
-                            const hasTime = !!blockStartInput && !!blockEndInput;
-
-                            // Validações
-                            if (hasTime && blockStartInput >= blockEndInput) {
+                            if (blockStartInput >= blockEndInput) {
                               setError("O horário de início deve ser menor que o horário de fim.");
-                              return;
-                            }
-
-                            if (hasDates && rangeStartDate > rangeEndDate) {
-                              setError("A data inicial deve ser menor ou igual à data final.");
-                              return;
-                            }
-
-                            // Se não tem horário nem dias selecionados nem período, não pode salvar
-                            if (!hasTime && !hasWeekdays && !hasDates) {
-                              setError("Selecione pelo menos: horário, dias da semana ou período.");
                               return;
                             }
 
                             setError(null);
                             setSavingBlock(true);
                             try {
-                              if (!hasDates && !hasWeekdays) {
-                                // Apenas horário -> bloqueio global permanente
-                                if (!hasTime) {
-                                  setError("Para bloqueio global, é necessário informar o horário.");
+                              const hasDates = !!rangeStartDate && !!rangeEndDate;
+                              const hasWeekdays = rangeWeekdays.length > 0;
+                              const isGlobal = !hasDates && !hasWeekdays && !rangeStartDate && !rangeEndDate;
+
+                              // Se tem período ou dias da semana, usa a função de range
+                              if (hasDates || hasWeekdays) {
+                                // Validações
+                                if (hasDates && rangeStartDate > rangeEndDate) {
+                                  setError("A data inicial deve ser menor ou igual à data final.");
                                   setSavingBlock(false);
                                   return;
                                 }
-                                await adminSetBarberDayBlock(
-                                  selectedBarberId,
-                                  null,
-                                  blockStartInput,
-                                  blockEndInput
-                                );
-                              } else {
-                                // Remove qualquer bloqueio global antes de aplicar o por período/dias
-                                await adminSetBarberDayBlock(selectedBarberId, null, null, null);
 
-                                // Usa função de faixa de datas
                                 let startDate = rangeStartDate;
                                 let endDate = rangeEndDate;
 
@@ -670,89 +792,62 @@ export default function AdminSettings() {
                                   endDate = `${y}-${m}-${d}`;
                                 }
 
-                                // Se não tem horário, passa null para bloquear o dia inteiro
+                                // Usa função de faixa de datas para criar bloqueios em múltiplos dias
                                 await adminSetBarberDayBlockRange(
                                   selectedBarberId,
                                   startDate!,
                                   endDate!,
-                                  hasTime ? blockStartInput : null,
-                                  hasTime ? blockEndInput : null,
+                                  blockStartInput,
+                                  blockEndInput,
                                   hasWeekdays ? rangeWeekdays : null
+                                );
+                              } else {
+                                // Bloqueio único: dia específico ou global
+                                const dayToUse = isGlobal ? null : selectedDayForBlocks;
+                                
+                                await addBarberDayBlock(
+                                  selectedBarberId,
+                                  dayToUse,
+                                  blockStartInput,
+                                  blockEndInput,
+                                  blockNameInput || null,
+                                  isGlobal
                                 );
                               }
 
-                              // Atualiza visualmente com o bloqueio global atual (se houver)
-                              const today = todayLocalYMD();
-                              const latestBlock = await fetchBarberDayBlock(selectedBarberId, today);
-                              setDayBlock(latestBlock);
-                              setBlockStartInput(latestBlock.start_time || "");
-                              setBlockEndInput(latestBlock.end_time || "");
-                            } catch (err) {
-                              console.error("Erro ao aplicar bloqueio:", err);
-                              setError("Não foi possível aplicar o bloqueio. Tente novamente.");
-                            } finally {
-                              setSavingBlock(false);
-                            }
-                          }}
-                          className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark w-full sm:w-auto text-xs sm:text-base h-8 sm:h-10 box-border"
-                        >
-                          {savingBlock ? (
-                            <>
-                              <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 animate-spin flex-shrink-0" />
-                              <span className="hidden sm:inline">Salvando...</span>
-                              <span className="sm:hidden">Salvando</span>
-                            </>
-                          ) : (
-                            <>
-                              <span className="hidden sm:inline">Aplicar bloqueio</span>
-                              <span className="sm:hidden">Aplicar</span>
-                            </>
-                          )}
-                        </Button>
-
-                        <Button
-                          disabled={savingBlock || loadingBlock}
-                          onClick={async () => {
-                            if (!selectedBarberId) return;
-                            setError(null);
-                            setSavingBlock(true);
-                            try {
-                              // Remove TODOS os bloqueios do barbeiro (globais e por dia),
-                              // inclusive os criados por período/dias da semana.
-                              await adminSetBarberDayBlock(selectedBarberId, null, null, null);
-                              setDayBlock({ start_time: null, end_time: null });
+                              // Limpa o formulário
                               setBlockStartInput("");
                               setBlockEndInput("");
-                              // Também limpa período e dias selecionados na UI
+                              setBlockNameInput("");
                               setRangeStartDate("");
                               setRangeEndDate("");
                               setRangeWeekdays([]);
-                              try {
-                                const key = `barber_block_ui:${selectedBarberId}`;
-                                window.localStorage.removeItem(key);
-                              } catch {
-                                // ignore storage errors
-                              }
-                            } catch (err) {
-                              console.error("Erro ao remover bloqueio de barbeiro:", err);
-                              setError("Não foi possível remover o bloqueio. Tente novamente.");
+
+                              // Recarrega a lista
+                              const blocks = await fetchBarberDayBlocks(selectedBarberId, selectedDayForBlocks);
+                              setBlocksList(blocks);
+                            } catch (err: any) {
+                              console.error("Erro ao adicionar fechamento:", err);
+                              setError(err.message || "Erro ao adicionar fechamento.");
                             } finally {
                               setSavingBlock(false);
                             }
                           }}
-                          className="bg-transparent border border-white/40 text-white hover:bg-white/10 hover:text-white disabled:opacity-60 disabled:cursor-not-allowed w-full sm:w-auto text-xs sm:text-base h-8 sm:h-10 box-border"
+                          disabled={savingBlock || !blockStartInput || !blockEndInput}
+                          className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark w-full sm:w-auto"
                         >
-                          <span className="hidden sm:inline">Reabrir horário completo</span>
-                          <span className="sm:hidden">Reabrir</span>
+                          {savingBlock ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Adicionando...
+                            </>
+                          ) : (
+                            <>
+                              <Plus className="h-4 w-4 mr-2" />
+                              Adicionar Fechamento
+                            </>
+                          )}
                         </Button>
-                      </div>
-
-                      <div className="text-xs text-white/70 mt-1">
-                        {loadingBlock
-                          ? "Carregando bloqueio atual..."
-                          : dayBlock.start_time && dayBlock.end_time
-                          ? `Atualmente bloqueado de ${dayBlock.start_time} até ${dayBlock.end_time}.`
-                          : "Nenhum bloqueio global cadastrado para este barbeiro."}
                       </div>
                     </div>
                   )}
