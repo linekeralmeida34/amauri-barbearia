@@ -267,12 +267,24 @@ export type CreateBookingResult =
   | { ok: true }
   | { ok: false; reason: "CONFLICT" | "VALIDATION" | "UNKNOWN"; message: string };
 
+export type UpdateBookingInput = {
+  booking_id: string;
+  customer_name?: string;
+  phone?: string;
+  starts_at_iso?: string;
+  service_id?: string;
+  barber_id?: string;
+  price?: number;
+  payment_method?: PaymentMethod | null;
+  status?: "pending" | "confirmed" | "canceled";
+};
+
 /** Normaliza telefone BR para 11 dígitos (DDD + 9 + número).
  *  - Remove tudo que não for número
  *  - Se vier com código do país (+55...), mantém apenas os ÚLTIMOS 11 dígitos
  *    (ex.: "+55 (83) 9..." -> "8399...")
  */
-function normalizePhone(brPhone: string | null | undefined) {
+export function normalizePhone(brPhone: string | null | undefined) {
   if (!brPhone) return null;
   const digits = brPhone.replace(/\D/g, "");
   if (!digits.length) return null;
@@ -372,6 +384,104 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
     ok: false,
     reason: "UNKNOWN",
     message: "Não foi possível concluir o agendamento. Tente novamente.",
+  };
+}
+
+/**
+ * Atualiza um agendamento existente
+ */
+export async function updateBooking(input: UpdateBookingInput): Promise<CreateBookingResult> {
+  if (!input.booking_id) {
+    return { ok: false, reason: "VALIDATION", message: "ID do agendamento é obrigatório." };
+  }
+
+  const payload: any = {};
+
+  // Atualiza apenas os campos fornecidos
+  if (input.customer_name !== undefined) {
+    payload.customer_name = input.customer_name.trim();
+  }
+  
+  if (input.phone !== undefined) {
+    const normalizedPhone = normalizePhone(input.phone);
+    if (normalizedPhone && normalizedPhone.length !== 11) {
+      return { ok: false, reason: "VALIDATION", message: "Informe um WhatsApp válido com 11 dígitos (DDD + 9 + número)." };
+    }
+    payload.phone = normalizedPhone;
+  }
+
+  if (input.starts_at_iso !== undefined) {
+    if (!input.starts_at_iso || isNaN(Date.parse(input.starts_at_iso))) {
+      return { ok: false, reason: "VALIDATION", message: "Data/hora inválidas." };
+    }
+    payload.starts_at = input.starts_at_iso;
+  }
+
+  if (input.service_id !== undefined) {
+    const svcId = String(input.service_id);
+    if (svcId.length < 10) {
+      return { ok: false, reason: "VALIDATION", message: "Selecione um serviço válido." };
+    }
+    payload.service_id = svcId;
+  }
+
+  if (input.barber_id !== undefined) {
+    const brbId = String(input.barber_id);
+    if (brbId.length < 10) {
+      return { ok: false, reason: "VALIDATION", message: "Selecione um barbeiro válido." };
+    }
+    payload.barber_id = brbId;
+  }
+
+  if (input.price !== undefined) {
+    payload.price = Number(input.price);
+  }
+
+  if (input.payment_method !== undefined) {
+    payload.payment_method = input.payment_method || null;
+  }
+
+  if (input.status !== undefined) {
+    payload.status = input.status;
+  }
+
+  // Se não há nada para atualizar
+  if (Object.keys(payload).length === 0) {
+    return { ok: true };
+  }
+
+  const { error } = await supabase
+    .from("bookings")
+    .update(payload)
+    .eq("id", input.booking_id);
+
+  if (!error) return { ok: true };
+
+  // Tratamento de conflito (constraint de overlap)
+  const code = (error as any)?.code || "";
+  const msg = (error as any)?.message?.toLowerCase?.() || "";
+  const details = (error as any)?.details?.toLowerCase?.() || "";
+
+  const looksLikeConflict =
+    code === "23P01" ||
+    msg.includes("bookings_no_overlap") ||
+    details.includes("bookings_no_overlap") ||
+    msg.includes("overlap") ||
+    details.includes("overlap");
+
+  if (looksLikeConflict) {
+    return {
+      ok: false,
+      reason: "CONFLICT",
+      message: "Esse horário já foi reservado para este barbeiro. Escolha outro horário.",
+    };
+  }
+
+  console.error("[updateBooking] update error:", error);
+  return {
+    ok: false,
+    reason: "UNKNOWN",
+    message: "Não foi possível atualizar o agendamento. Tente novamente.",
   };
 }
 

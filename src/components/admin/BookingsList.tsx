@@ -3,6 +3,27 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useBarberAuth } from "@/hooks/useBarberAuth";
 import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { 
+  updateBooking,
+  fetchActiveServices,
+  fetchActiveBarbers,
+  listAvailableTimes,
+  type Service as ApiService,
+  type Barber as ApiBarber,
+  type PaymentMethod as ApiPaymentMethod,
+  normalizePhone,
+} from "@/lib/api";
+import { 
   Calendar, 
   Clock, 
   Users, 
@@ -19,7 +40,10 @@ import {
   Shield,
   Lock,
   MessageCircle,
-  Gift
+  Gift,
+  Edit,
+  Save,
+  Loader2
 } from "lucide-react";
 
 /** ---------- Tipos ---------- */
@@ -221,6 +245,7 @@ function MobileListItem({
   onToggle, 
   onStatusChange, 
   onPaymentMethodChange,
+  onEdit,
   canCancel,
   isAdmin 
 }: {
@@ -229,6 +254,7 @@ function MobileListItem({
   onToggle: (id: string) => void;
   onStatusChange: (id: string, status: BookingStatus) => void;
   onPaymentMethodChange: (id: string, method: PaymentMethod) => void;
+  onEdit: (booking: BookingRow) => void;
   canCancel: boolean;
   isAdmin: boolean;
 }) {
@@ -299,25 +325,39 @@ function MobileListItem({
               )}
             </div>
             
-            {booking.status !== "canceled" || isAdmin ? (
-              <select
-                value={booking.status}
-                onChange={(e) => onStatusChange(booking.id, e.target.value as BookingStatus)}
-                className="rounded-lg bg-white/5 border border-white/20 text-white px-3 py-1.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
-                style={{ 
-                  colorScheme: 'dark',
-                  fontSize: '16px',
-                  minHeight: '44px'
-                }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <option value="pending" className="bg-gray-800 text-white">Pendente</option>
-                <option value="confirmed" className="bg-gray-800 text-white">Confirmado</option>
-                {canCancel && (
-                  <option value="canceled" className="bg-gray-800 text-white">Cancelado</option>
-                )}
-              </select>
-            ) : null}
+            <div className="flex items-center gap-2">
+              {booking.status !== "canceled" && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit(booking);
+                  }}
+                  className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 transition-colors"
+                  title="Editar agendamento"
+                >
+                  <Edit className="w-4 h-4" />
+                </button>
+              )}
+              {booking.status !== "canceled" || isAdmin ? (
+                <select
+                  value={booking.status}
+                  onChange={(e) => onStatusChange(booking.id, e.target.value as BookingStatus)}
+                  className="rounded-lg bg-white/5 border border-white/20 text-white px-3 py-1.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+                  style={{ 
+                    colorScheme: 'dark',
+                    fontSize: '16px',
+                    minHeight: '44px'
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <option value="pending" className="bg-gray-800 text-white">Pendente</option>
+                  <option value="confirmed" className="bg-gray-800 text-white">Confirmado</option>
+                  {canCancel && (
+                    <option value="canceled" className="bg-gray-800 text-white">Cancelado</option>
+                  )}
+                </select>
+              ) : null}
+            </div>
           </div>
 
           {/* Informações detalhadas */}
@@ -446,6 +486,26 @@ export default function BookingsList() {
   
   /** estado para controlar itens expandidos na visualização mobile */
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+
+  /** estado para modal de edição */
+  const [editingBooking, setEditingBooking] = useState<BookingRow | null>(null);
+  const [editForm, setEditForm] = useState({
+    customer_name: "",
+    phone: "",
+    date: "",
+    time: "",
+    service_id: "",
+    barber_id: "",
+    price: "",
+    payment_method: "" as PaymentMethod | "",
+    status: "pending" as BookingStatus,
+  });
+  const [editServices, setEditServices] = useState<ApiService[]>([]);
+  const [editServiceSearch, setEditServiceSearch] = useState<string>("");
+  const [editBarbers, setEditBarbers] = useState<ApiBarber[]>([]);
+  const [editAvailableTimes, setEditAvailableTimes] = useState<string[]>([]);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   /** toggle para expandir/colapsar item na visualização mobile */
   const toggleExpanded = (bookingId: string) => {
@@ -620,6 +680,143 @@ export default function BookingsList() {
       console.error("Erro ao atualizar método de pagamento:", error);
     }
   }
+
+  /** --------- abrir modal de edição --------- */
+  async function handleEdit(booking: BookingRow) {
+    setEditingBooking(booking);
+    setEditError(null);
+    
+    // Buscar serviços e barbeiros
+    try {
+      const [servicesData, barbersData] = await Promise.all([
+        fetchActiveServices(),
+        fetchActiveBarbers(),
+      ]);
+      setEditServices(servicesData);
+      setEditBarbers(barbersData);
+    } catch (err) {
+      console.error("Erro ao carregar dados:", err);
+      setEditError("Erro ao carregar serviços e barbeiros.");
+    }
+
+    // Preencher formulário com dados atuais
+    const startsAt = new Date(booking.starts_at);
+    const dateStr = startsAt.toISOString().split('T')[0];
+    const timeStr = `${String(startsAt.getHours()).padStart(2, '0')}:${String(startsAt.getMinutes()).padStart(2, '0')}`;
+    
+    // Buscar service_id e barber_id do agendamento
+    const { data: bookingData } = await supabase
+      .from("bookings")
+      .select("service_id, barber_id, duration_min")
+      .eq("id", booking.id)
+      .single();
+
+    setEditForm({
+      customer_name: booking.customer_name || "",
+      phone: booking.phone || "",
+      date: dateStr,
+      time: timeStr,
+      service_id: bookingData?.service_id || "",
+      barber_id: bookingData?.barber_id || "",
+      price: booking.price?.toString() || "",
+      payment_method: booking.payment_method || "",
+      status: booking.status,
+    });
+
+    // Carregar horários disponíveis se tiver service_id e barber_id
+    if (bookingData?.service_id && bookingData?.barber_id && bookingData?.duration_min) {
+      try {
+        const times = await listAvailableTimes(bookingData.barber_id, dateStr, bookingData.duration_min);
+        setEditAvailableTimes(times);
+      } catch (err) {
+        console.error("Erro ao carregar horários:", err);
+      }
+    }
+  }
+
+  /** --------- salvar edição --------- */
+  async function handleSaveEdit() {
+    if (!editingBooking) return;
+
+    setEditLoading(true);
+    setEditError(null);
+
+    try {
+      // Validar campos obrigatórios (apenas serviço, data e horário)
+      if (!editForm.service_id) {
+        setEditError("Serviço é obrigatório.");
+        setEditLoading(false);
+        return;
+      }
+
+      if (!editForm.date || !editForm.time) {
+        setEditError("Data e horário são obrigatórios.");
+        setEditLoading(false);
+        return;
+      }
+
+      // Converter data/hora para ISO
+      const [year, month, day] = editForm.date.split("-").map(Number);
+      const [hours, minutes] = editForm.time.split(":").map(Number);
+      const startsAtISO = new Date(year, month - 1, day, hours, minutes, 0).toISOString();
+
+      // Preparar dados para atualização (apenas campos permitidos)
+      const updateData: any = {
+        booking_id: editingBooking.id,
+        starts_at_iso: startsAtISO,
+        service_id: editForm.service_id,
+      };
+
+      const result = await updateBooking(updateData);
+
+      if (!result.ok) {
+        setEditError(result.message || "Erro ao atualizar agendamento.");
+        setEditLoading(false);
+        return;
+      }
+
+      // Atualizar lista
+      await fetchAll();
+      setEditingBooking(null);
+      setEditForm({
+        customer_name: "",
+        phone: "",
+        date: "",
+        time: "",
+        service_id: "",
+        barber_id: "",
+        price: "",
+        payment_method: "",
+        status: "pending",
+      });
+    } catch (err: any) {
+      console.error("Erro ao salvar edição:", err);
+      setEditError(err.message || "Erro ao salvar alterações.");
+    } finally {
+      setEditLoading(false);
+    }
+  }
+
+  /** --------- carregar horários disponíveis ao mudar data/barbeiro/serviço --------- */
+  useEffect(() => {
+    if (!editingBooking || !editForm.date || !editForm.barber_id || !editForm.service_id) {
+      setEditAvailableTimes([]);
+      return;
+    }
+
+    const selectedService = editServices.find(s => s.id === editForm.service_id);
+    if (!selectedService) {
+      setEditAvailableTimes([]);
+      return;
+    }
+
+    listAvailableTimes(editForm.barber_id, editForm.date, selectedService.duration_min)
+      .then(times => setEditAvailableTimes(times))
+      .catch(err => {
+        console.error("Erro ao carregar horários:", err);
+        setEditAvailableTimes([]);
+      });
+  }, [editForm.date, editForm.barber_id, editForm.service_id, editingBooking, editServices]);
 
   /** --------- realtime --------- */
   useEffect(() => {
@@ -909,7 +1106,8 @@ export default function BookingsList() {
               }`}
               style={{ 
                 colorScheme: 'dark', 
-                fontSize: '16px'
+                fontSize: '16px',
+                minHeight: '44px'
               }}
             >
               <option value="" className="bg-gray-800 text-white">Todos os status</option>
@@ -973,7 +1171,8 @@ export default function BookingsList() {
               }`}
               style={{ 
                 colorScheme: 'dark', 
-                fontSize: '16px'
+                fontSize: '16px',
+                minHeight: '44px'
               }}
             >
               <option value="" className="bg-gray-800 text-white">Todas as formas</option>
@@ -1003,7 +1202,9 @@ export default function BookingsList() {
                   : 'border-white/20 bg-white/5 text-white'
               }`}
               style={{ 
-                fontSize: '16px'
+                colorScheme: 'dark',
+                fontSize: '16px',
+                minHeight: '44px'
               }}
             />
           </div>
@@ -1026,7 +1227,9 @@ export default function BookingsList() {
                   : 'border-white/20 bg-white/5 text-white'
               }`}
               style={{ 
-                fontSize: '16px'
+                colorScheme: 'dark',
+                fontSize: '16px',
+                minHeight: '44px'
               }}
             />
           </div>
@@ -1124,6 +1327,9 @@ export default function BookingsList() {
                   </th>
                   <th className="w-20 px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
                     Status
+                  </th>
+                  <th className="w-16 px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
+                    Ações
                   </th>
                 </tr>
               </thead>
@@ -1235,6 +1441,17 @@ export default function BookingsList() {
                         </select>
                       )}
                     </td>
+                    <td className="px-2 sm:px-3 py-2 sm:py-3">
+                      {r.status !== "canceled" && (
+                        <button
+                          onClick={() => handleEdit(r)}
+                          className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 transition-colors"
+                          title="Editar agendamento"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                      )}
+                    </td>
                   </tr>
                   );
                 })}
@@ -1288,6 +1505,7 @@ export default function BookingsList() {
             onToggle={toggleExpanded}
             onStatusChange={updateStatus}
             onPaymentMethodChange={updatePaymentMethod}
+            onEdit={handleEdit}
             canCancel={finalCanCancel}
             isAdmin={finalIsAdmin}
           />
@@ -1305,6 +1523,123 @@ export default function BookingsList() {
           </div>
         )}
       </div>
+
+      {/* Modal de Edição */}
+      <Dialog open={!!editingBooking} onOpenChange={(open) => !open && setEditingBooking(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-slate-900 border-slate-700 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-white">Editar Agendamento</DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Altere as informações do agendamento abaixo
+            </DialogDescription>
+          </DialogHeader>
+
+          {editError && (
+            <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 text-red-400 text-sm">
+              {editError}
+            </div>
+          )}
+
+          <div className="space-y-4">
+            {/* Serviço */}
+            <div>
+              <Label htmlFor="edit-service" className="text-white">Serviço</Label>
+              <Input
+                placeholder="Buscar serviço..."
+                value={editServiceSearch}
+                onChange={(e) => setEditServiceSearch(e.target.value)}
+                className="mb-2 bg-slate-800 border-slate-600 text-white h-10"
+              />
+              <select
+                id="edit-service"
+                value={editForm.service_id}
+                onChange={(e) => setEditForm({ ...editForm, service_id: e.target.value })}
+                className="w-full rounded-lg bg-slate-800 border border-slate-600 text-white px-3 py-2 focus:ring-2 focus:ring-amber-500 h-11"
+                style={{ colorScheme: 'dark' }}
+              >
+                <option value="">Selecione um serviço</option>
+                {editServices
+                  .filter((s) =>
+                    s.name.toLowerCase().includes(editServiceSearch.toLowerCase())
+                  )
+                  .map((s) => (
+                    <option key={s.id} value={s.id} className="bg-slate-800">
+                      {s.name} -{" "}
+                      {s.price.toLocaleString("pt-BR", {
+                        style: "currency",
+                        currency: "BRL",
+                      })}
+                    </option>
+                  ))}
+              </select>
+            </div>
+
+            {/* Data */}
+            <div>
+              <Label htmlFor="edit-date" className="text-white">Data</Label>
+              <input
+                id="edit-date"
+                type="date"
+                value={editForm.date}
+                onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+                className="w-full rounded-lg bg-slate-800 border border-slate-600 text-white px-3 py-2 h-11 focus:ring-2 focus:ring-amber-500 focus:outline-none appearance-none"
+                style={{ colorScheme: "dark", WebkitAppearance: "none", MozAppearance: "none" }}
+                min={new Date().toISOString().split("T")[0]}
+              />
+            </div>
+
+            {/* Horário */}
+            <div>
+              <Label htmlFor="edit-time" className="text-white">Horário</Label>
+              <select
+                id="edit-time"
+                value={editForm.time}
+                onChange={(e) => setEditForm({ ...editForm, time: e.target.value })}
+                className="w-full rounded-lg bg-slate-800 border border-slate-600 text-white px-3 py-2 focus:ring-2 focus:ring-amber-500 h-11"
+                style={{ colorScheme: 'dark' }}
+              >
+                <option value="">Selecione um horário</option>
+                {editAvailableTimes.map((time) => (
+                  <option key={time} value={time} className="bg-slate-800">
+                    {time}
+                  </option>
+                ))}
+              </select>
+              {editAvailableTimes.length === 0 && editForm.date && editForm.service_id && (
+                <p className="text-amber-400 text-xs mt-1">Nenhum horário disponível para esta data</p>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="flex flex-col sm:flex-row sm:justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setEditingBooking(null)}
+              disabled={editLoading}
+              className="w-full sm:w-auto bg-slate-800 border-slate-600 text-white hover:bg-slate-700"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSaveEdit}
+              disabled={editLoading}
+              className="w-full sm:w-auto bg-amber-500 hover:bg-amber-600 text-white"
+            >
+              {editLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  Salvar
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
