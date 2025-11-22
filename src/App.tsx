@@ -34,6 +34,7 @@ import AdminAnalytics from "./routes/AdminAnalytics";
 import { Users, Scissors, Plus, Settings, BarChart3 } from "lucide-react";
 import { useBarberAuth } from "@/hooks/useBarberAuth";
 import { PWAInstallButton } from "@/components/PWAInstallButton";
+import { PWAUpdateListener } from "@/components/PWAUpdateListener";
 
 
 const queryClient = new QueryClient();
@@ -275,6 +276,8 @@ export default function App() {
           
           {/* Manifest switcher para PWA */}
           <ManifestSwitcher />
+          {/* Listener para avisar sobre novas versões do PWA */}
+          <PWAUpdateListener />
 
           {/* "Admin (dev)" apenas na home */}
           <AdminDevLink />
