@@ -6,6 +6,7 @@ import {
   fetchActiveBarbers, 
   createBooking,
   listAvailableTimes,
+  clearAvailableTimesCache,
   fetchBarberDayBlock,
   type BarberDayBlock,
   CreateBookingInput,
@@ -341,30 +342,38 @@ export default function AdminBookingCreate() {
   // Calcula duração total dos serviços selecionados
   const totalDuration = selectedServices.reduce((sum, service) => sum + service.duration_min, 0);
   
-  // Carrega horários disponíveis (admin pode agendar qualquer horário), respeitando fechamento do dia
+  // Carrega horários disponíveis (admin pode agendar qualquer horário), respeitando fechamento do dia (COM DEBOUNCE)
   useEffect(() => {
     if (!selectedBarber || selectedServices.length === 0 || !selectedDate) {
       setSlots([]);
       setSelectedTime("");
+      setLoadingSlots(false);
       return;
     }
     
-    setLoadingSlots(true);
-    listAvailableTimes(selectedBarber.id, selectedDate, totalDuration)
-      .then((serverSlots: string[]) => {
-        // Nota: Os bloqueios já são considerados pela função SQL list_available_times
-        // que verifica TODOS os bloqueios (múltiplos bloqueios por dia)
-        // Não precisamos aplicar filtro adicional aqui
-        setSlots(serverSlots);
-        if (selectedTime && !serverSlots.includes(selectedTime)) {
+    // Debounce: aguarda 300ms antes de fazer a requisição (evita múltiplas chamadas)
+    const timeoutId = setTimeout(() => {
+      setLoadingSlots(true);
+      listAvailableTimes(selectedBarber.id, selectedDate, totalDuration)
+        .then((serverSlots: string[]) => {
+          // Nota: Os bloqueios já são considerados pela função SQL list_available_times
+          // que verifica TODOS os bloqueios (múltiplos bloqueios por dia)
+          // Não precisamos aplicar filtro adicional aqui
+          setSlots(serverSlots);
+          if (selectedTime && !serverSlots.includes(selectedTime)) {
+            setSelectedTime("");
+          }
+        })
+        .catch((err) => {
+          console.error("Erro ao carregar horários:", err);
+          setSlots([]);
           setSelectedTime("");
-        }
-      })
-      .catch(() => {
-        setSlots([]);
-        setSelectedTime("");
-      })
-      .finally(() => setLoadingSlots(false));
+        })
+        .finally(() => setLoadingSlots(false));
+    }, 300); // 300ms de debounce
+
+    // Cleanup: cancela o timeout se as dependências mudarem antes de completar
+    return () => clearTimeout(timeoutId);
   }, [selectedBarber, selectedServices, selectedDate, dayBlock, totalDuration]);
   
   const stepsOrder: BookingStep[] = isAdmin
@@ -522,6 +531,11 @@ export default function AdminBookingCreate() {
         allSuccess = false;
         lastError = result.message || "Erro ao criar agendamento";
         break;
+      }
+      
+      // Limpa cache de horários para atualizar disponibilidade
+      if (selectedBarber && selectedDate) {
+        clearAvailableTimesCache(String(selectedBarber.id), selectedDate);
       }
 
       // Próximo serviço começa quando o anterior termina
@@ -759,8 +773,9 @@ export default function AdminBookingCreate() {
                     Escolha o{selectedServices.length > 0 ? "s" : ""} serviço{selectedServices.length > 0 ? "s" : ""}, barbeiro e a data.
                   </div>
                 ) : loadingSlots ? (
-                  <div className="text-sm text-muted-foreground">
-                    Carregando horários…
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Carregando horários disponíveis...</span>
                   </div>
                 ) : slots.length === 0 ? (
                   <div className="text-sm text-muted-foreground">

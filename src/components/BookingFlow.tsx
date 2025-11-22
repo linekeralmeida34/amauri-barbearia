@@ -22,6 +22,7 @@ import {
   fetchActiveBarbers,
   createBooking,
   listAvailableTimes,
+  clearAvailableTimesCache,
   findCustomerByPhone,
   upsertCustomer,
   fetchBarberDayBlock,
@@ -326,7 +327,7 @@ export const BookingFlow = () => {
   // Calcula duração total dos serviços selecionados
   const totalDuration = selectedServices.reduce((sum, service) => sum + service.duration, 0);
   
-  // Carrega SLOTS DINÂMICOS quando barbeiro + serviço + data estiverem definidos
+  // Carrega SLOTS DINÂMICOS quando barbeiro + serviço + data estiverem definidos (COM DEBOUNCE)
   useEffect(() => {
     const hasUUID = (id: string | number | undefined | null) =>
       !!id && String(id).length >= 10; // heurística simples: UUID do Supabase
@@ -337,6 +338,7 @@ export const BookingFlow = () => {
     if (!selectedBarber || selectedServices.length === 0 || !selectedDate) {
       setSlots([]);
       setSelectedTime("");
+      setLoadingSlots(false);
       return;
     }
 
@@ -356,33 +358,46 @@ export const BookingFlow = () => {
       }
       setSlots(staticFiltered);
       if (selectedTime && !staticFiltered.includes(selectedTime)) setSelectedTime("");
+      setLoadingSlots(false);
       return;
     }
 
-    // Caso normal: buscar na RPC usando duração total
-    setLoadingSlots(true);
-    listAvailableTimes(
-      String(selectedBarber.id),
-      selectedDate,
-      totalDuration
-    )
-      .then((serverSlots: string[]) => {
-        const nowHM = nowLocalHM();
-        let filtered = serverSlots;
-        if (isTodayLocal(selectedDate)) {
-          filtered = serverSlots.filter((t) => hmGte(t, nowHM));
-        }
-        // Nota: Os bloqueios já são considerados pela função SQL list_available_times
-        // que verifica TODOS os bloqueios (múltiplos bloqueios por dia)
-        // Não precisamos aplicar filtro adicional aqui
-        setSlots(filtered);
-        if (selectedTime && !filtered.includes(selectedTime)) setSelectedTime("");
-      })
-      .catch(() => {
-        setSlots([]);
-        setSelectedTime("");
-      })
-      .finally(() => setLoadingSlots(false));
+    // Debounce: aguarda 300ms antes de fazer a requisição (evita múltiplas chamadas)
+    const timeoutId = setTimeout(() => {
+      // Caso normal: buscar na RPC usando duração total
+      setLoadingSlots(true);
+      listAvailableTimes(
+        String(selectedBarber.id),
+        selectedDate,
+        totalDuration
+      )
+        .then((serverSlots: string[]) => {
+          const nowHM = nowLocalHM();
+          let filtered = serverSlots;
+          if (isTodayLocal(selectedDate)) {
+            filtered = serverSlots.filter((t) => hmGte(t, nowHM));
+          }
+          // Nota: Os bloqueios já são considerados pela função SQL list_available_times
+          // que verifica TODOS os bloqueios (múltiplos bloqueios por dia)
+          // Não precisamos aplicar filtro adicional aqui
+          setSlots(filtered);
+          if (selectedTime && !filtered.includes(selectedTime)) setSelectedTime("");
+        })
+        .catch((err) => {
+          console.error("Erro ao carregar horários:", err);
+          setSlots([]);
+          setSelectedTime("");
+          // Mostra erro apenas se não for timeout (timeout já usa cache)
+          if (!err.message?.includes("Timeout")) {
+            setTimeError("Erro ao carregar horários. Tente novamente.");
+            setTimeout(() => setTimeError(null), 5000);
+          }
+        })
+        .finally(() => setLoadingSlots(false));
+    }, 300); // 300ms de debounce
+
+    // Cleanup: cancela o timeout se as dependências mudarem antes de completar
+    return () => clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedBarber, selectedServices, selectedDate, dayBlock, totalDuration]);
 
@@ -639,6 +654,10 @@ export const BookingFlow = () => {
     setSubmitting(false);
 
     if (allSuccess) {
+      // Limpa cache de horários para atualizar disponibilidade
+      if (selectedBarber && selectedDate) {
+        clearAvailableTimesCache(String(selectedBarber.id), selectedDate);
+      }
       setCurrentStep("confirmation");
       return;
     }
@@ -995,8 +1014,9 @@ export const BookingFlow = () => {
                     Escolha o serviço, barbeiro e a data.
                   </div>
                 ) : loadingSlots ? (
-                  <div className="text-sm text-muted-foreground">
-                    Carregando horários…
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-barbershop-gold"></div>
+                    <span>Carregando horários disponíveis...</span>
                   </div>
                 ) : effectiveSlots.length === 0 ? (
                   <div className="text-sm text-muted-foreground">

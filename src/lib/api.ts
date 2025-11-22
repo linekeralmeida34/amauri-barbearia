@@ -486,8 +486,51 @@ export async function updateBooking(input: UpdateBookingInput): Promise<CreateBo
 }
 
 /* =========================
-   Horários disponíveis (RPC)
+   Horários disponíveis (RPC) - COM CACHE E TIMEOUT
 ========================= */
+
+// Cache simples em memória (expira após 2 minutos)
+const availableTimesCache = new Map<string, { data: string[]; timestamp: number }>();
+const CACHE_TTL = 2 * 60 * 1000; // 2 minutos
+const RPC_TIMEOUT = 10000; // 10 segundos
+
+function getCacheKey(barberId: string, dayYMD: string, durationMin: number): string {
+  return `${barberId}-${dayYMD}-${durationMin}`;
+}
+
+function getCachedTimes(barberId: string, dayYMD: string, durationMin: number): string[] | null {
+  const key = getCacheKey(barberId, dayYMD, durationMin);
+  const cached = availableTimesCache.get(key);
+  
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data;
+  }
+  
+  // Remove entrada expirada
+  if (cached) {
+    availableTimesCache.delete(key);
+  }
+  
+  return null;
+}
+
+function setCachedTimes(barberId: string, dayYMD: string, durationMin: number, data: string[]): void {
+  const key = getCacheKey(barberId, dayYMD, durationMin);
+  availableTimesCache.set(key, { data, timestamp: Date.now() });
+}
+
+// Limpa cache antigo periodicamente (evita vazamento de memória)
+if (typeof window !== 'undefined') {
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, value] of availableTimesCache.entries()) {
+      if (now - value.timestamp >= CACHE_TTL) {
+        availableTimesCache.delete(key);
+      }
+    }
+  }, 60000); // Limpa a cada 1 minuto
+}
+
 export async function listAvailableTimes(
   barberId: string | number,
   dayYMD: string,      // "YYYY-MM-DD"
@@ -498,16 +541,59 @@ export async function listAvailableTimes(
   // Se ainda estiver no fallback (ex.: 1, 2, 3), não chama a RPC (ela espera UUID)
   if (id.length < 10) return [];
 
-  const { data, error } = await supabase.rpc("list_available_times", {
+  // Verifica cache primeiro
+  const cached = getCachedTimes(id, dayYMD, durationMin);
+  if (cached !== null) {
+    return cached;
+  }
+
+  // Cria promise com timeout
+  const rpcPromise = supabase.rpc("list_available_times", {
     p_barber_id: id,
     p_day: dayYMD,
     p_duration_min: durationMin,
   });
 
-  if (error) throw error;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new Error("Timeout: A requisição demorou muito para responder")), RPC_TIMEOUT);
+  });
 
-  // data = [{ slot: "HH:MM" }, ...]
-  return (data ?? []).map((r: any) => r.slot);
+  try {
+    const { data, error } = await Promise.race([rpcPromise, timeoutPromise]);
+
+    if (error) throw error;
+
+    // data = [{ slot: "HH:MM" }, ...]
+    const slots = (data ?? []).map((r: any) => r.slot);
+    
+    // Salva no cache
+    setCachedTimes(id, dayYMD, durationMin, slots);
+    
+    return slots;
+  } catch (err: any) {
+    // Se for timeout, tenta retornar cache mesmo que expirado (melhor que nada)
+    const expiredCache = availableTimesCache.get(getCacheKey(id, dayYMD, durationMin));
+    if (expiredCache) {
+      console.warn("[listAvailableTimes] Timeout, usando cache expirado:", err.message);
+      return expiredCache.data;
+    }
+    throw err;
+  }
+}
+
+// Função para limpar cache manualmente (útil após criar/cancelar agendamento)
+export function clearAvailableTimesCache(barberId?: string, dayYMD?: string): void {
+  if (barberId && dayYMD) {
+    // Limpa cache específico
+    for (const key of availableTimesCache.keys()) {
+      if (key.startsWith(`${barberId}-${dayYMD}-`)) {
+        availableTimesCache.delete(key);
+      }
+    }
+  } else {
+    // Limpa todo o cache
+    availableTimesCache.clear();
+  }
 }
 
 /* =========================

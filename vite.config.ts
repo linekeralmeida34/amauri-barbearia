@@ -29,38 +29,10 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  // Mantemos a configuração padrão de chunks do Vite.
+  // Se os avisos de bundle grande voltarem a incomodar, podemos
+  // revisitar uma estratégia de divisão mais simples e bem testada.
   build: {
-    rollupOptions: {
-      output: {
-        manualChunks: (id) => {
-          // Separa bibliotecas grandes em chunks próprios
-          if (id.includes('node_modules')) {
-            // React e React DOM
-            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
-              return 'vendor-react';
-            }
-            // Supabase
-            if (id.includes('@supabase')) {
-              return 'vendor-supabase';
-            }
-            // Radix UI (componentes UI)
-            if (id.includes('@radix-ui')) {
-              return 'vendor-ui';
-            }
-            // Lucide (ícones)
-            if (id.includes('lucide-react')) {
-              return 'vendor-icons';
-            }
-            // TanStack Query
-            if (id.includes('@tanstack')) {
-              return 'vendor-query';
-            }
-            // Outras dependências grandes
-            return 'vendor-other';
-          }
-        },
-      },
-    },
     chunkSizeWarningLimit: 600, // Aumenta um pouco o limite (padrão é 500kb)
   },
 }));
