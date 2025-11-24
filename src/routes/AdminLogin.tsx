@@ -14,6 +14,7 @@ import {
 import { PWAInstallButton } from "@/components/PWAInstallButton";
 import heroImage from "@/assets/barbershop-hero.jpg";
 import { Calendar } from "lucide-react";
+import { trackAdminLogin } from "@/lib/analytics";
 
 export default function AdminLogin() {
   const nav = useNavigate();
@@ -29,6 +30,10 @@ export default function AdminLogin() {
     setLoading(true);
     try {
       await signInWithEmailPassword(email.trim(), password);
+      
+      // Rastreia login de admin
+      trackAdminLogin(email.trim());
+      
       const from = new URLSearchParams(loc.search).get("from") || "/admin";
       nav(from, { replace: true });
     } catch (error: any) {

@@ -1159,14 +1159,50 @@ export async function fetchCustomerBookings(phone: string): Promise<CustomerBook
   return (data ?? []) as CustomerBooking[];
 }
 
-/** Cancela um agendamento (apenas pelo cliente) */
-export async function cancelCustomerBooking(bookingId: string): Promise<void> {
-  const { error } = await supabase
-    .from("bookings")
-    .update({ status: "canceled" })
-    .eq("id", bookingId);
+/** Cancela um agendamento (apenas pelo cliente).
+ *
+ * Usa exclusivamente a função RPC cancel_customer_booking criada pelo script
+ * fix_customer_cancel_booking.sql. Assim garantimos a mesma regra de negócio
+ * para web e mobile, sem depender de UPDATE direto sujeito a RLS.
+ */
+export async function cancelCustomerBooking(bookingId: string, phone: string): Promise<void> {
+  const { error } = await supabase.rpc("cancel_customer_booking", {
+    p_booking_id: bookingId,
+    p_phone: phone,
+  });
 
-  if (error) throw error;
+  if (!error) return;
+
+  // Tratamento de erros mais amigável
+  const message = error.message || "";
+
+  if (message.includes("Telefone inválido")) {
+    throw new Error("Telefone inválido. Verifique o número e tente novamente.");
+  }
+  if (message.includes("não pertence")) {
+    throw new Error("Este agendamento não pertence a este telefone.");
+  }
+  if (message.includes("já está cancelado")) {
+    throw new Error("Este agendamento já está cancelado.");
+  }
+  if (message.includes("cancelado pelo administrador")) {
+    throw new Error("Este agendamento foi cancelado pelo administrador.");
+  }
+  if (message.includes("2 horas de antecedência")) {
+    throw new Error("Agendamentos só podem ser cancelados com pelo menos 2 horas de antecedência.");
+  }
+  if (message.includes("não encontrado")) {
+    throw new Error("Agendamento não encontrado.");
+  }
+  if (message.includes("permission") || message.includes("RLS") || error.code === "42501") {
+    throw new Error("Você não tem permissão para cancelar este agendamento. Verifique as políticas RLS ou fale com a barbearia.");
+  }
+  if (message.includes("Could not find the function") || message.includes("does not exist")) {
+    throw new Error("Função de cancelamento não encontrada no banco. Confirme se o script fix_customer_cancel_booking.sql foi aplicado no Supabase.");
+  }
+
+  // Qualquer outro erro cai aqui
+  throw new Error(`Erro ao cancelar agendamento: ${message || "tente novamente mais tarde."}`);
 }
 
 /** Verifica se um agendamento pode ser cancelado pelo cliente */

@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Phone, ArrowRight, Loader2, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { findCustomerByPhone } from "@/lib/api";
+import { trackCustomerLogin, trackClick } from "@/lib/analytics";
 
 export default function CustomerLogin() {
   const navigate = useNavigate();
@@ -32,6 +33,9 @@ export default function CustomerLogin() {
       const customer = await findCustomerByPhone(digits);
 
       if (customer) {
+        // Rastreia login de cliente
+        trackCustomerLogin(digits);
+        
         // Cliente encontrado: redireciona para área do cliente
         navigate(`/cliente/agendamentos?phone=${digits}`);
       } else {

@@ -35,6 +35,7 @@ import { Users, Scissors, Plus, Settings, BarChart3 } from "lucide-react";
 import { useBarberAuth } from "@/hooks/useBarberAuth";
 import { PWAInstallButton } from "@/components/PWAInstallButton";
 import { PWAUpdateListener } from "@/components/PWAUpdateListener";
+import { trackPageView } from "@/lib/analytics";
 
 
 const queryClient = new QueryClient();
@@ -45,6 +46,24 @@ function ScrollToTop() {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [pathname]);
+  return null;
+}
+
+/** Rastreia mudanças de rota no GA4 */
+function GARouteTracker() {
+  const location = useLocation();
+  
+  useEffect(() => {
+    // Em HashRouter, o pathname já é a parte depois do #
+    const path = location.pathname + location.search + location.hash;
+    const title = document.title;
+    
+    // Pequeno delay para garantir que o título foi atualizado
+    setTimeout(() => {
+      trackPageView(path, title);
+    }, 100);
+  }, [location.pathname, location.search, location.hash]);
+  
   return null;
 }
 
@@ -273,6 +292,9 @@ export default function App() {
           {/* Helpers de rolagem */}
           <ScrollToTop />
           <ScrollToAnchorFromSearch />
+          
+          {/* Rastreamento GA4 */}
+          <GARouteTracker />
           
           {/* Manifest switcher para PWA */}
           <ManifestSwitcher />

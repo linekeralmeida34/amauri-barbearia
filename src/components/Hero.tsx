@@ -3,6 +3,7 @@ import { Calendar, Clock, Scissors, Users } from "lucide-react";
 import heroImage from "@/assets/barbershop-hero.jpg";
 import { Link } from "react-router-dom";
 import { PWAInstallButton } from "@/components/PWAInstallButton";
+import { trackClick } from "@/lib/analytics";
 
 export const Hero = () => {
   return (
@@ -39,7 +40,11 @@ export const Hero = () => {
                            font-semibold text-lg px-6 py-4 md:px-8 md:py-6 shadow-glow
                            transition-all duration-300 hover:scale-105"
               >
-                <Link to="/agendar" aria-label="Ir para a página de agendamento">
+                <Link 
+                  to="/agendar" 
+                  aria-label="Ir para a página de agendamento"
+                  onClick={() => trackClick('Agendar Horário', 'button', { location: 'hero' })}
+                >
                   <Calendar className="mr-2 h-5 w-5" />
                   Agendar Horário
                 </Link>
@@ -58,7 +63,11 @@ export const Hero = () => {
                   dark:bg-white dark:text-gray-600 dark:sm:text-neutral-900 dark:hover:bg-neutral-200
                 "
               >
-                <Link to="/?a=barbeiros" aria-label="Ir para a seção de barbeiros">
+                <Link 
+                  to="/?a=barbeiros" 
+                  aria-label="Ir para a seção de barbeiros"
+                  onClick={() => trackClick('Nossos Barbeiros', 'button', { location: 'hero' })}
+                >
                   <Users className="mr-2 h-5 w-5" />
                   Nossos Barbeiros
                 </Link>
@@ -77,7 +86,11 @@ export const Hero = () => {
                   md:hidden
                 "
               >
-                <Link to="/cliente/login" aria-label="Consultar meus agendamentos">
+                <Link 
+                  to="/cliente/login" 
+                  aria-label="Consultar meus agendamentos"
+                  onClick={() => trackClick('Consultar Agendamento', 'button', { location: 'hero' })}
+                >
                   <Clock className="mr-2 h-5 w-5" />
                   Consultar Agendamento
                 </Link>

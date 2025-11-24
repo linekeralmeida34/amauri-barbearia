@@ -32,6 +32,7 @@ import {
 } from "@/lib/api";
 import { Combobox } from "@/components/ui/combobox";
 import { joaoPessoaNeighborhoods, searchNeighborhoods } from "@/data/neighborhoods";
+import { trackBookingCreated, trackClick } from "@/lib/analytics";
 
 type BookingStep = "phone" | "customerRegistration" | "service" | "barber" | "datetime" | "details" | "confirmation";
 
@@ -658,6 +659,14 @@ export const BookingFlow = () => {
       if (selectedBarber && selectedDate) {
         clearAvailableTimesCache(String(selectedBarber.id), selectedDate);
       }
+      
+      // Rastreia agendamento criado
+      if (selectedServices.length > 0 && selectedBarber) {
+        const totalPrice = selectedServices.reduce((sum, s) => sum + Number(s.price), 0);
+        const serviceNames = selectedServices.map(s => s.name).join(', ');
+        trackBookingCreated(serviceNames, selectedBarber.name, totalPrice);
+      }
+      
       setCurrentStep("confirmation");
       return;
     }

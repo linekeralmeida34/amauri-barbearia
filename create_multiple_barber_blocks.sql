@@ -415,7 +415,15 @@ BEGIN
   ),
   filtered_lunch AS (
     SELECT * FROM labeled
-    WHERE NOT (local_time >= v_lunch_start AND local_time < v_lunch_end)
+    WHERE 
+      -- Se não houver horário de almoço configurado, não filtramos nada
+      v_lunch_start IS NULL OR v_lunch_end IS NULL OR
+      -- Remove QUALQUER horário que tenha interseção com o intervalo de almoço
+      -- (não apenas os que começam dentro do almoço)
+      NOT (
+        local_time < v_lunch_end
+        AND local_time_end > v_lunch_start
+      )
   ),
   filtered_block AS (
     SELECT f.*

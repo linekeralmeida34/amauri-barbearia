@@ -39,6 +39,7 @@ import {
   type CustomerBooking,
 } from "@/lib/api";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { trackBookingCanceled, trackClick } from "@/lib/analytics";
 
 // Mesmo link de WhatsApp usado na home (Index.tsx)
 const BARBERSHOP_WHATSAPP_URL = "https://wa.me/message/FVJDVARVMA2XE1";
@@ -171,11 +172,16 @@ export default function CustomerBookings() {
   }
 
   async function handleConfirmCancel() {
-    if (!bookingToCancel) return;
+    if (!bookingToCancel || !phone) return;
 
     setCanceling(true);
+    setError(null); // Limpa erros anteriores
     try {
-      await cancelCustomerBooking(bookingToCancel.id);
+      await cancelCustomerBooking(bookingToCancel.id, phone);
+      
+      // Rastreia cancelamento
+      trackBookingCanceled(bookingToCancel.id, 'customer_cancel');
+      
       // Atualiza o status localmente
       setBookings((prev) =>
         prev.map((b) => (b.id === bookingToCancel.id ? { ...b, status: "canceled" as const } : b))
@@ -184,7 +190,9 @@ export default function CustomerBookings() {
       setBookingToCancel(null);
     } catch (err: any) {
       console.error("Erro ao cancelar agendamento:", err);
-      setError("Erro ao cancelar agendamento. Tente novamente.");
+      // Usa a mensagem de erro específica se disponível
+      const errorMessage = err?.message || "Erro ao cancelar agendamento. Tente novamente.";
+      setError(errorMessage);
     } finally {
       setCanceling(false);
     }
@@ -615,7 +623,7 @@ export default function CustomerBookings() {
 
       {/* Dialog de confirmação de cancelamento */}
       <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-[95vw] sm:max-w-lg mx-4">
           <AlertDialogHeader>
             <AlertDialogTitle>Cancelar Agendamento?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -633,12 +641,21 @@ export default function CustomerBookings() {
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={canceling}>Não, manter</AlertDialogCancel>
+          <AlertDialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
+            <AlertDialogCancel 
+              disabled={canceling} 
+              className="w-full sm:w-auto order-2 sm:order-1"
+            >
+              Não, manter
+            </AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleConfirmCancel}
+              onClick={(e) => {
+                e.preventDefault();
+                handleConfirmCancel();
+              }}
               disabled={canceling}
-              className="bg-red-600 hover:bg-red-700"
+              className="w-full sm:w-auto bg-red-600 hover:bg-red-700 order-1 sm:order-2 touch-manipulation"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
             >
               {canceling ? (
                 <>
@@ -720,7 +737,10 @@ function BookingCard({
 
       {/* Detalhes expandido */}
       {expanded && (
-        <div className="border-t border-white/10 p-4 space-y-4 text-sm">
+        <div 
+          className="border-t border-white/10 p-4 space-y-4 text-sm"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1">
               <p className="text-white/60 text-xs">Barbeiro</p>
@@ -754,10 +774,16 @@ function BookingCard({
           <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-white/5">
             {canCancel && (
               <Button
+                type="button"
                 variant="destructive"
                 size="sm"
-                onClick={onCancel}
-                className="w-full sm:w-auto"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onCancel();
+                }}
+                className="w-full sm:w-auto touch-manipulation"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
               >
                 <XCircle className="h-4 w-4 mr-2" />
                 Cancelar Agendamento
@@ -766,16 +792,19 @@ function BookingCard({
 
             {whatsappLink && booking.status !== "canceled" && (
               <Button
+                type="button"
                 variant="outline"
                 size="sm"
                 asChild
-                className="w-full sm:w-auto border-green-500/60 text-green-400 hover:bg-green-500/10"
+                className="w-full sm:w-auto border-green-500/60 text-green-400 hover:bg-green-500/10 touch-manipulation"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
               >
                 <a
                   href={whatsappLink}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2"
+                  onClick={(e) => e.stopPropagation()}
                 >
                   <MessageCircle className="h-4 w-4" />
                   Falar com a Barbearia
