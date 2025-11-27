@@ -760,11 +760,16 @@ export default function BookingsList() {
       const [hours, minutes] = editForm.time.split(":").map(Number);
       const startsAtISO = new Date(year, month - 1, day, hours, minutes, 0).toISOString();
 
+      // Buscar o preço do serviço selecionado
+      const selectedService = editServices.find(s => s.id === editForm.service_id);
+      const servicePrice = selectedService ? selectedService.price : Number(editForm.price) || 0;
+
       // Preparar dados para atualização (apenas campos permitidos)
       const updateData: any = {
         booking_id: editingBooking.id,
         starts_at_iso: startsAtISO,
         service_id: editForm.service_id,
+        price: servicePrice, // Atualiza o preço com base no serviço selecionado
       };
 
       const result = await updateBooking(updateData);
@@ -796,6 +801,21 @@ export default function BookingsList() {
       setEditLoading(false);
     }
   }
+
+  /** --------- atualizar preço quando serviço muda --------- */
+  useEffect(() => {
+    if (!editingBooking || !editForm.service_id || editServices.length === 0) {
+      return;
+    }
+
+    const selectedService = editServices.find(s => s.id === editForm.service_id);
+    if (selectedService && editForm.price !== selectedService.price.toString()) {
+      setEditForm(prev => ({
+        ...prev,
+        price: selectedService.price.toString()
+      }));
+    }
+  }, [editForm.service_id, editServices, editingBooking]);
 
   /** --------- carregar horários disponíveis ao mudar data/barbeiro/serviço --------- */
   useEffect(() => {
@@ -1553,7 +1573,15 @@ export default function BookingsList() {
               <select
                 id="edit-service"
                 value={editForm.service_id}
-                onChange={(e) => setEditForm({ ...editForm, service_id: e.target.value })}
+                onChange={(e) => {
+                  const newServiceId = e.target.value;
+                  const selectedService = editServices.find(s => s.id === newServiceId);
+                  setEditForm({ 
+                    ...editForm, 
+                    service_id: newServiceId,
+                    price: selectedService ? selectedService.price.toString() : editForm.price
+                  });
+                }}
                 className="w-full rounded-lg bg-slate-800 border border-slate-600 text-white px-3 py-2 focus:ring-2 focus:ring-amber-500 h-11"
                 style={{ colorScheme: 'dark' }}
               >
