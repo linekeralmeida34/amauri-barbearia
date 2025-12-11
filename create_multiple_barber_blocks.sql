@@ -429,7 +429,8 @@ BEGIN
     SELECT f.*
     FROM filtered_lunch f
     WHERE NOT EXISTS (
-      -- Verifica se o horário está dentro de QUALQUER bloqueio (específico do dia ou global)
+      -- Verifica se o horário tem interseção com QUALQUER bloqueio (específico do dia ou global)
+      -- Dois intervalos se sobrepõem se: start1 < end2 AND start2 < end1
       SELECT 1
       FROM public.barber_day_blocks bdb
       WHERE bdb.barber_id = p_barber_id
@@ -440,14 +441,10 @@ BEGIN
         AND bdb.start_time IS NOT NULL
         AND bdb.end_time IS NOT NULL
         AND (
-          -- O horário de início está dentro do bloqueio
-          (f.local_time >= bdb.start_time AND f.local_time <= bdb.end_time)
-          OR
-          -- O horário de fim está dentro do bloqueio
-          (f.local_time_end >= bdb.start_time AND f.local_time_end <= bdb.end_time)
-          OR
-          -- O bloqueio está completamente dentro do horário do serviço
-          (bdb.start_time >= f.local_time AND bdb.end_time <= f.local_time_end)
+          -- Verifica interseção: os intervalos se sobrepõem se:
+          -- serviço começa antes do bloqueio terminar E bloqueio começa antes do serviço terminar
+          f.local_time < bdb.end_time
+          AND bdb.start_time < f.local_time_end
         )
     )
   ),
