@@ -507,6 +507,14 @@ export default function BookingsList() {
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
+  /** --------- visão rápida de disponibilidade por barbeiro --------- */
+  const [availabilityDate, setAvailabilityDate] = useState<string>(todayYMD());
+  const [availabilityBarberId, setAvailabilityBarberId] = useState<string>("");
+  const [availabilityDuration, setAvailabilityDuration] = useState<number>(45);
+  const [availabilitySlots, setAvailabilitySlots] = useState<string[]>([]);
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
+  const [availabilityError, setAvailabilityError] = useState<string | null>(null);
+
   /** toggle para expandir/colapsar item na visualização mobile */
   const toggleExpanded = (bookingId: string) => {
     setExpandedItems(prev => {
@@ -547,10 +555,19 @@ export default function BookingsList() {
               console.error("[BookingsList] Erro ao buscar barbeiros:", allBarbsError);
               setBarbers([]);
             } else {
-              setBarbers((allBarbs ?? []) as BarberLite[]);
+              const list = (allBarbs ?? []) as BarberLite[];
+              setBarbers(list);
+              // Se ainda não houver barbeiro selecionado na visão de disponibilidade, define o primeiro
+              if (!availabilityBarberId && list.length > 0) {
+                setAvailabilityBarberId(list[0].id);
+              }
             }
           } else {
-            setBarbers((barbs ?? []) as BarberLite[]);
+            const list = (barbs ?? []) as BarberLite[];
+            setBarbers(list);
+            if (!availabilityBarberId && list.length > 0) {
+              setAvailabilityBarberId(list[0].id);
+            }
           }
         } catch (error) {
           console.error("[BookingsList] Erro inesperado ao buscar barbeiros:", error);
@@ -558,7 +575,11 @@ export default function BookingsList() {
         }
       } else {
         // Barbeiro comum só vê a si mesmo
-        setBarbers([{ id: barber?.id || "", name: barber?.name || "" }]);
+        const selfList = [{ id: barber?.id || "", name: barber?.name || "" }];
+        setBarbers(selfList);
+        if (!availabilityBarberId && barber?.id) {
+          setAvailabilityBarberId(barber.id);
+        }
       }
 
       // Bookings - filtrar por barbeiro se não for admin
@@ -817,6 +838,30 @@ export default function BookingsList() {
     }
   }, [editForm.service_id, editServices, editingBooking]);
 
+  /** --------- carregar visão rápida de disponibilidade --------- */
+  useEffect(() => {
+    if (!availabilityBarberId || !availabilityDate || !availabilityDuration) {
+      setAvailabilitySlots([]);
+      return;
+    }
+
+    setAvailabilityLoading(true);
+    setAvailabilityError(null);
+
+    listAvailableTimes(availabilityBarberId, availabilityDate, availabilityDuration)
+      .then((slots) => {
+        setAvailabilitySlots(slots);
+      })
+      .catch((err) => {
+        console.error("[BookingsList] Erro ao carregar disponibilidade:", err);
+        setAvailabilitySlots([]);
+        setAvailabilityError("Não foi possível carregar os horários disponíveis.");
+      })
+      .finally(() => {
+        setAvailabilityLoading(false);
+      });
+  }, [availabilityBarberId, availabilityDate, availabilityDuration]);
+
   /** --------- carregar horários disponíveis ao mudar data/barbeiro/serviço --------- */
   useEffect(() => {
     if (!editingBooking || !editForm.date || !editForm.barber_id || !editForm.service_id) {
@@ -1050,9 +1095,103 @@ export default function BookingsList() {
               <span className="sm:hidden">{loading ? "..." : "Atualizar"}</span>
             </button>
           </div>
+      </div>
+
+      {/* Visão rápida de horários disponíveis por barbeiro */}
+      <div className="space-y-3 mt-4 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+          <div>
+            <h2 className="text-sm sm:text-base font-semibold text-white flex items-center gap-2">
+              <Clock className="w-4 h-4 text-barbershop-gold" />
+              Horários disponíveis por barbeiro
+            </h2>
+            <p className="text-xs sm:text-sm text-white/60">
+              Visualize rapidamente os horários livres para um barbeiro em uma data, já considerando bloqueios e agendamentos.
+            </p>
+          </div>
         </div>
 
-        {/* Cards de Estatísticas */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+          {/* Barbeiro */}
+          <div className="space-y-1 min-w-0">
+            <label className="text-xs text-white/70 block">Barbeiro</label>
+            <select
+              value={availabilityBarberId}
+              onChange={(e) => setAvailabilityBarberId(e.target.value)}
+              className="w-full h-11 rounded-lg bg-white/5 border border-white/20 text-white px-3 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent min-w-0"
+              style={{ colorScheme: "dark" }}
+            >
+              {finalIsAdmin && (
+                <option value="" className="bg-gray-900 text-white">
+                  Selecione um barbeiro
+                </option>
+              )}
+              {barbers.map((b) => (
+                <option key={b.id} value={b.id} className="bg-gray-900 text-white">
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Data */}
+          <div className="space-y-1 min-w-0">
+            <label className="text-xs text-white/70 block">Data</label>
+            <input
+              type="date"
+              value={availabilityDate}
+              onChange={(e) => setAvailabilityDate(e.target.value)}
+              className="w-full h-11 rounded-lg bg-white/5 border border-white/20 text-white px-3 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent min-w-0"
+              style={{ colorScheme: "dark", WebkitAppearance: "none", MozAppearance: "none" }}
+              min={todayYMD()}
+            />
+          </div>
+
+          {/* Duração */}
+          <div className="space-y-1 min-w-0">
+            <label className="text-xs text-white/70 block">Duração do serviço</label>
+            <select
+              value={availabilityDuration}
+              onChange={(e) => setAvailabilityDuration(Number(e.target.value))}
+              className="w-full h-11 rounded-lg bg-white/5 border border-white/20 text-white px-3 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent min-w-0"
+              style={{ colorScheme: "dark" }}
+            >
+              <option value={30}>30 min</option>
+              <option value={45}>45 min</option>
+              <option value={60}>60 min</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="mt-1 mb-4">
+          {availabilityLoading ? (
+            <p className="text-xs text-white/60">Carregando horários livres...</p>
+          ) : availabilityError ? (
+            <p className="text-xs text-red-400">{availabilityError}</p>
+          ) : !availabilityBarberId ? (
+            <p className="text-xs text-white/60">
+              Selecione um barbeiro para ver os horários disponíveis.
+            </p>
+          ) : availabilitySlots.length === 0 ? (
+            <p className="text-xs text-white/60">
+              Nenhum horário disponível para este barbeiro nesta data com essa duração.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {availabilitySlots.map((slot) => (
+                <span
+                  key={slot}
+                  className="px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-400/40"
+                >
+                  {slot}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Cards de Estatísticas */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
           <StatsCard
             icon={Calendar}

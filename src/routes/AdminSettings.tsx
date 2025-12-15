@@ -519,7 +519,8 @@ export default function AdminSettings() {
                         type="date"
                         value={selectedDayForBlocks}
                         onChange={(e) => setSelectedDayForBlocks(e.target.value)}
-                        className="bg-white/5 border border-white/20 text-white text-base w-full box-border"
+                    className="bg-white/5 border border-white/20 text-white text-base w-full h-11 px-3 box-border"
+                    style={{ colorScheme: "dark", WebkitAppearance: "none", MozAppearance: "none" }}
                       />
                       <p className="text-xs text-white/60 mt-1">
                         Selecione uma data para ver os bloqueios aplicados. Bloqueios globais aparecem em todas as datas.

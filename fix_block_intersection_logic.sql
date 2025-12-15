@@ -124,3 +124,4 @@ $$;
 
 COMMENT ON FUNCTION public.list_available_times IS 'Lista horários disponíveis para agendamento, considerando bloqueios e agendamentos existentes. Corrigida a lógica de interseção de bloqueios.';
 
+
