@@ -18,41 +18,42 @@ export function useBarberAuth() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        // Verificar se há dados salvos no localStorage
-        const savedData = localStorage.getItem("barber_data");
-        if (savedData) {
-          try {
-            const barberData = JSON.parse(savedData);
-            setBarber(barberData);
-          } catch (error) {
-            console.error("Erro ao carregar dados do barbeiro:", error);
-            localStorage.removeItem("barber_data");
-          }
-        }
-        
         // Verificar sessão do Supabase
         const { data: session } = await supabase.auth.getSession();
-        if (session?.session?.user) {
-          // Se há sessão mas não há dados do barbeiro, buscar na tabela
-          if (!savedData) {
-            const { data: barberData } = await supabase
-              .from("barbers")
-              .select("id, name, email, is_admin, can_cancel_bookings, can_create_bookings")
-              .eq("email", session.session.user.email)
-              .single();
-            
-            if (barberData) {
-              setBarber({
-                id: barberData.id,
-                name: barberData.name,
-                email: barberData.email,
-                is_admin: barberData.is_admin,
-                can_cancel_bookings: barberData.can_cancel_bookings,
-                can_create_bookings: barberData.can_create_bookings
-              });
-            }
-          }
+        const user = session?.session?.user ?? null;
+
+        // Se não houver sessão válida, limpar cache local para evitar acesso sem token
+        if (!user) {
+          localStorage.removeItem("barber_data");
+          setBarber(null);
+          return;
         }
+
+        // Sempre sincroniza com a sessão atual para evitar cache de outro barbeiro
+        const userEmail = (user.email ?? "").toLowerCase();
+        const { data: barberData, error: barberError } = await supabase
+          .from("barbers")
+          .select("id, name, email, is_admin, can_cancel_bookings, can_create_bookings")
+          .ilike("email", userEmail)
+          .single();
+
+        if (barberError || !barberData) {
+          // Se não existe barbeiro cadastrado para este login, limpa cache para evitar falso acesso
+          localStorage.removeItem("barber_data");
+          setBarber(null);
+          return;
+        }
+
+        const normalized = {
+          id: barberData.id,
+          name: barberData.name,
+          email: barberData.email,
+          is_admin: barberData.is_admin,
+          can_cancel_bookings: barberData.can_cancel_bookings,
+          can_create_bookings: barberData.can_create_bookings,
+        };
+        setBarber(normalized);
+        localStorage.setItem("barber_data", JSON.stringify(normalized));
       } catch (error) {
         console.error("Erro na verificação de autenticação:", error);
       } finally {
@@ -73,7 +74,11 @@ export function useBarberAuth() {
     }
   };
 
-  const isAdmin = barber?.is_admin || barber?.name?.toLowerCase() === "amauri" || false;
+  const isAdmin =
+    barber?.is_admin ||
+    barber?.email?.toLowerCase() === "amauri@barbearia.com" ||
+    barber?.name?.toLowerCase() === "amauri" ||
+    false;
   // Verificar permissões: admin ou permissão específica do barbeiro
   const canCancelBookings = isAdmin || barber?.can_cancel_bookings || false;
   const canCreateBookings = isAdmin || barber?.can_create_bookings || false;

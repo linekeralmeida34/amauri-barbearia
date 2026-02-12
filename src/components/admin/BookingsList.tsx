@@ -99,6 +99,16 @@ function fmtPhoneBR(raw: string | null | undefined) {
   return raw;
 }
 
+function dateKeyFromIso(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const dt = new Date(iso);
+  if (Number.isNaN(dt.getTime())) return "";
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, "0");
+  const d = String(dt.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 function fmtPaymentMethod(method: PaymentMethod): string {
   const methods = {
     credit_card: "Cartão de Crédito",
@@ -223,14 +233,14 @@ function StatsCard({ icon: Icon, title, value, subtitle, color = "text-blue-600"
   valueSize?: string;
 }) {
   return (
-    <div className="bg-gradient-to-br from-slate-700/50 to-slate-800/50 backdrop-blur-sm border border-slate-600/50 rounded-xl p-4 hover:from-slate-600/50 hover:to-slate-700/50 transition-all duration-200 hover:scale-105 hover:shadow-lg">
+    <div className="bg-[#212133] backdrop-blur-sm border border-[#3d3d5c] rounded-xl p-4 hover:bg-[#28283D] transition-all duration-200 hover:scale-[1.02] hover:shadow-lg">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-slate-300 text-sm font-medium">{title}</p>
           <p className={`text-white ${valueSize} font-bold mt-1`}>{value}</p>
           <p className="text-slate-400 text-xs mt-1">{subtitle}</p>
         </div>
-        <div className={`p-3 rounded-lg bg-gradient-to-br from-slate-600/60 to-slate-700/60 ${color} shadow-lg`}>
+        <div className={`p-3 rounded-lg bg-[#28283D] ${color} shadow-lg`}>
           <Icon className="w-6 h-6" />
         </div>
       </div>
@@ -582,39 +592,53 @@ export default function BookingsList() {
         }
       }
 
-      // Bookings - filtrar por barbeiro se não for admin
-      let query = supabase
-        .from("bookings")
-        .select(
+      // Bookings - buscar em páginas (Supabase limita 1000 registros por request)
+      const pageSize = 1000;
+      let from = 0;
+      const allRows: BookingRow[] = [];
+
+      while (true) {
+        let pageQuery = supabase
+          .from("bookings")
+          .select(
+            `
+            id,
+            starts_at,
+            status,
+            customer_name,
+            phone,
+            price,
+            payment_method,
+            canceled_by_admin,
+            services ( name, commission_percentage ),
+            barbers!barber_id ( id, name ),
+            created_by_barber:barbers!created_by_barber_id ( id, name )
           `
-          id,
-          starts_at,
-          status,
-          customer_name,
-          phone,
-          price,
-          payment_method,
-          canceled_by_admin,
-          services ( name, commission_percentage ),
-          barbers!barber_id ( id, name ),
-          created_by_barber:barbers!created_by_barber_id ( id, name )
-        `
-        );
+          )
+          .order("starts_at", { ascending: true })
+          .range(from, from + pageSize - 1);
 
-      // Se não for admin, filtrar apenas agendamentos do barbeiro logado
-      if (!finalIsAdmin && barber?.id) {
-        query = query.eq("barber_id", barber.id);
+        // Se não for admin, filtrar apenas agendamentos do barbeiro logado
+        if (!finalIsAdmin && barber?.id) {
+          pageQuery = pageQuery.eq("barber_id", barber.id);
+        }
+
+        const { data, error } = await pageQuery;
+        if (error) {
+          console.error("[BookingsList] Erro ao buscar agendamentos:", error);
+          throw error;
+        }
+
+        const page = (data ?? []) as BookingRow[];
+        allRows.push(...page);
+
+        if (page.length < pageSize) {
+          break;
+        }
+        from += pageSize;
       }
 
-      const { data, error } = await query.order("starts_at", { ascending: true });
-
-      if (error) {
-        console.error("[BookingsList] Erro ao buscar agendamentos:", error);
-        throw error;
-      }
-      
-      
-      setRows((data ?? []) as BookingRow[]);
+      setRows(allRows);
     } finally {
       setLoading(false);
     }
@@ -955,16 +979,20 @@ export default function BookingsList() {
       list = list.filter((r) => r.payment_method === paymentFilter);
     }
     if (dateFrom) {
-      const fromTs = new Date(dateFrom + "T00:00:00").getTime();
-      list = list.filter((r) => new Date(r.starts_at).getTime() >= fromTs);
+      list = list.filter((r) => {
+        const bookingDate = dateKeyFromIso(r.starts_at);
+        return bookingDate !== "" && bookingDate >= dateFrom;
+      });
     }
     if (dateTo) {
-      const toTs = new Date(dateTo + "T23:59:59").getTime();
-      list = list.filter((r) => new Date(r.starts_at).getTime() <= toTs);
+      list = list.filter((r) => {
+        const bookingDate = dateKeyFromIso(r.starts_at);
+        return bookingDate !== "" && bookingDate <= dateTo;
+      });
     }
     if (todayOnly) {
-      const today = new Date().toDateString();
-      list = list.filter((r) => new Date(r.starts_at).toDateString() === today);
+      const today = todayYMD();
+      list = list.filter((r) => dateKeyFromIso(r.starts_at) === today);
     }
 
     list.sort(
@@ -979,8 +1007,8 @@ export default function BookingsList() {
     const pending = rows.filter(r => r.status === 'pending').length;
     const confirmed = rows.filter(r => r.status === 'confirmed').length;
     const canceled = rows.filter(r => r.status === 'canceled').length;
-    const today = new Date().toDateString();
-    const todayBookings = rows.filter(r => new Date(r.starts_at).toDateString() === today).length;
+    const today = todayYMD();
+    const todayBookings = rows.filter(r => dateKeyFromIso(r.starts_at) === today).length;
     
     // Calcular receita total considerando comissão (apenas agendamentos confirmados)
     const totalRevenue = rows
@@ -1001,8 +1029,8 @@ export default function BookingsList() {
     const pending = filtered.filter(r => r.status === 'pending').length;
     const confirmed = filtered.filter(r => r.status === 'confirmed').length;
     const canceled = filtered.filter(r => r.status === 'canceled').length;
-    const today = new Date().toDateString();
-    const todayBookings = filtered.filter(r => new Date(r.starts_at).toDateString() === today).length;
+    const today = todayYMD();
+    const todayBookings = filtered.filter(r => dateKeyFromIso(r.starts_at) === today).length;
     
     // Calcular receita total dos dados filtrados considerando comissão (apenas agendamentos confirmados)
     const totalRevenue = filtered
@@ -1019,7 +1047,7 @@ export default function BookingsList() {
 
   /** --------- verificar se há filtros ativos --------- */
   const hasActiveFilters = useMemo(() => {
-    return statusFilter || barberFilter || paymentFilter || dateFrom || dateTo || todayOnly;
+    return Boolean(statusFilter || barberFilter || paymentFilter || dateFrom || dateTo || todayOnly);
   }, [statusFilter, barberFilter, paymentFilter, dateFrom, dateTo, todayOnly]);
 
   /** --------- limpar filtros --------- */
@@ -1029,7 +1057,7 @@ export default function BookingsList() {
     setPaymentFilter("");
     setDateFrom("");
     setDateTo("");
-    setTodayOnly(true); // Mantém marcado por padrão
+    setTodayOnly(true);
   }
 
   /** --------- funções de fechamento de horários --------- */
@@ -1057,7 +1085,7 @@ export default function BookingsList() {
   return (
     <div className="w-full space-y-6">
       {/* Header com Estatísticas */}
-      <div className="bg-gradient-to-br from-slate-800/90 via-slate-900/95 to-black/90 backdrop-blur-sm border border-slate-600/40 rounded-2xl p-6 shadow-2xl">
+      <div className="bg-[#212133] backdrop-blur-sm border border-[#3d3d5c] rounded-2xl p-6 shadow-2xl">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
           <div className="flex-1">
             <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-2">
@@ -1190,57 +1218,10 @@ export default function BookingsList() {
           )}
         </div>
       </div>
-
-      {/* Cards de Estatísticas */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-          <StatsCard
-            icon={Calendar}
-            title="Total"
-            value={hasActiveFilters ? filteredStats.total : originalStats.total}
-            subtitle={hasActiveFilters ? "filtrados" : "agendamentos"}
-            color="text-cyan-400"
-          />
-          <StatsCard
-            icon={AlertTriangle}
-            title="Pendentes"
-            value={hasActiveFilters ? filteredStats.pending : originalStats.pending}
-            subtitle="aguardando"
-            color="text-orange-400"
-          />
-          <StatsCard
-            icon={CheckCircle}
-            title="Confirmados"
-            value={hasActiveFilters ? filteredStats.confirmed : originalStats.confirmed}
-            subtitle="aprovados"
-            color="text-emerald-400"
-          />
-          <StatsCard
-            icon={Clock}
-            title="Hoje"
-            value={hasActiveFilters ? filteredStats.todayBookings : originalStats.todayBookings}
-            subtitle="agendamentos"
-            color="text-purple-400"
-          />
-          <StatsCard
-            icon={DollarSign}
-            title="Receita Líquida"
-            value={fmtPriceBR(hasActiveFilters ? filteredStats.totalRevenue : originalStats.totalRevenue)}
-            subtitle={hasActiveFilters ? "filtrada" : "do barbeiro"}
-            color="text-emerald-400"
-            valueSize="text-lg"
-          />
-          <StatsCard
-            icon={XCircle}
-            title="Cancelados"
-            value={hasActiveFilters ? filteredStats.canceled : originalStats.canceled}
-            subtitle="cancelados"
-            color="text-red-400"
-          />
-        </div>
       </div>
 
       {/* Filtros Modernos */}
-      <div className="bg-gradient-to-br from-slate-800/30 to-slate-900/30 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6 shadow-xl">
+      <div className="bg-[#212133] backdrop-blur-sm border border-[#3d3d5c] rounded-xl p-6 shadow-xl">
         <div className="flex items-center gap-2 mb-4">
           <Filter className="w-5 h-5 text-cyan-400" />
           <h2 className="text-lg font-semibold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">Filtros</h2>
@@ -1432,12 +1413,58 @@ export default function BookingsList() {
         </div>
       </div>
 
+      {/* Cards de Estatísticas */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+        <StatsCard
+          icon={Calendar}
+          title="Total"
+          value={hasActiveFilters ? filteredStats.total : originalStats.total}
+          subtitle={hasActiveFilters ? "filtrados" : "agendamentos"}
+          color="text-cyan-400"
+        />
+        <StatsCard
+          icon={AlertTriangle}
+          title="Pendentes"
+          value={hasActiveFilters ? filteredStats.pending : originalStats.pending}
+          subtitle="aguardando"
+          color="text-orange-400"
+        />
+        <StatsCard
+          icon={CheckCircle}
+          title="Confirmados"
+          value={hasActiveFilters ? filteredStats.confirmed : originalStats.confirmed}
+          subtitle="aprovados"
+          color="text-emerald-400"
+        />
+        <StatsCard
+          icon={Clock}
+          title="Hoje"
+          value={hasActiveFilters ? filteredStats.todayBookings : originalStats.todayBookings}
+          subtitle="agendamentos"
+          color="text-purple-400"
+        />
+        <StatsCard
+          icon={DollarSign}
+          title="Receita Líquida"
+          value={fmtPriceBR(hasActiveFilters ? filteredStats.totalRevenue : originalStats.totalRevenue)}
+          subtitle={hasActiveFilters ? "filtrada" : "do barbeiro"}
+          color="text-emerald-400"
+          valueSize="text-lg"
+        />
+        <StatsCard
+          icon={XCircle}
+          title="Cancelados"
+          value={hasActiveFilters ? filteredStats.canceled : originalStats.canceled}
+          subtitle="cancelados"
+          color="text-red-400"
+        />
+      </div>
 
       {/* Tabela Desktop Moderna */}
       <div className="hidden md:block">
-        <div className="bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden shadow-2xl">
+        <div className="bg-[#212133] backdrop-blur-sm border border-[#3d3d5c] rounded-xl overflow-hidden shadow-2xl">
           {/* Contador de Resultados */}
-          <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-slate-700/50 bg-gradient-to-r from-slate-800/50 to-slate-900/50">
+          <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-[#3d3d5c] bg-[#28283D]">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-cyan-400" />
@@ -1461,7 +1488,7 @@ export default function BookingsList() {
           </div>
           <div className="overflow-x-auto">
             <table className="w-full table-fixed">
-              <thead className="bg-gradient-to-r from-slate-800/60 to-slate-900/60">
+              <thead className="bg-[#28283D]">
                 <tr>
                   <th className="w-32 px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-semibold text-white/80 uppercase tracking-wider">
                     Data/Hora
@@ -1634,7 +1661,7 @@ export default function BookingsList() {
       {/* Cards Mobile Modernos */}
       <div className="md:hidden space-y-4">
         {/* Contador de Resultados Mobile */}
-        <div className="bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 shadow-xl">
+        <div className="bg-[#212133] backdrop-blur-sm border border-[#3d3d5c] rounded-xl p-4 shadow-xl">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4 text-cyan-400" />
@@ -1685,7 +1712,7 @@ export default function BookingsList() {
 
       {/* Modal de Edição */}
       <Dialog open={!!editingBooking} onOpenChange={(open) => !open && setEditingBooking(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-slate-900 border-slate-700 text-white">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-[#212133] border-[#3d3d5c] text-white">
           <DialogHeader>
             <DialogTitle className="text-white">Editar Agendamento</DialogTitle>
             <DialogDescription className="text-slate-400">
