@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Link } from "react-router-dom";
+import heroImage from "@/assets/barbershop-hero.jpg";
 import { useBarberAuth } from "@/hooks/useBarberAuth";
 import { fetchActiveBarbers } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -265,7 +266,11 @@ export default function AdminAnalytics() {
 
   return (
     <section className="min-h-screen relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-barbershop-dark via-barbershop-brown/80 to-black" />
+      <div
+        className="absolute inset-0 bg-center bg-cover"
+        style={{ backgroundImage: `url(${heroImage})`, opacity: 0.5 }}
+      />
+      <div className="absolute inset-0 bg-gradient-to-br from-black/75 via-black/60 to-black/80" />
       <div className="relative z-10">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-6">
           <header className="bg-gradient-to-br from-slate-900/80 via-slate-900/60 to-slate-900/30 border border-white/10 rounded-2xl p-6 sm:p-8 shadow-2xl text-white">

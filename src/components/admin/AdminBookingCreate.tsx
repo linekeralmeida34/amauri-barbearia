@@ -754,7 +754,6 @@ export default function AdminBookingCreate() {
                   type="date"
                   value={selectedDate}
                   min={todayLocalYMD()}
-                  max={todayLocalYMD()}
                   onChange={(e) => {
                     setSelectedDate(e.target.value);
                     setError(null);
@@ -1132,7 +1131,7 @@ export default function AdminBookingCreate() {
                 <Button
                   variant="outline"
                   onClick={() => navigate("/admin")}
-                  className="bg-[#F4D06F] hover:bg-[#E9C85F] text-[#1A1A1A] font-semibold rounded-xl px-4 py-2.5"
+                  className="border-[#E2C56B] text-[#4A3A14] hover:bg-[#F4D06F]/20 rounded-xl px-4 py-2.5"
                 >
                   ← Voltar ao Admin
                 </Button>
@@ -1184,7 +1183,7 @@ export default function AdminBookingCreate() {
                 <Button
                   variant="outline"
                   onClick={() => navigate("/admin")}
-                  className="flex-1 bg-[#F4D06F] hover:bg-[#E9C85F] text-[#1A1A1A] font-semibold rounded-xl"
+                  className="flex-1 border-[#E2C56B] text-[#4A3A14] hover:bg-[#F4D06F]/20 rounded-xl"
                 >
                   Admin →
                 </Button>

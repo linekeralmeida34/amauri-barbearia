@@ -1,6 +1,7 @@
 // src/routes/AdminSettings.tsx
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import heroImage from "@/assets/barbershop-hero.jpg";
 import {
   getBusinessHours,
   setBusinessHours as setBusinessHoursApi,
@@ -269,8 +270,11 @@ export default function AdminSettings() {
 
   return (
     <section className="min-h-screen relative overflow-x-hidden w-full">
-      {/* Fundo igual ao painel admin */}
-      <div className="absolute inset-0 bg-gradient-to-br from-barbershop-dark via-barbershop-brown/80 to-black" />
+      <div
+        className="absolute inset-0 bg-center bg-cover"
+        style={{ backgroundImage: `url(${heroImage})`, opacity: 0.7 }}
+      />
+      <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-barbershop-brown/40 to-black/70" />
       <div className="relative z-10 w-full min-w-0">
         {/* Topbar */}
         <header className="w-full border-b border-white/10 bg-black/30 backdrop-blur">

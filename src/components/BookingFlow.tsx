@@ -1303,7 +1303,8 @@ export const BookingFlow = () => {
               <div className="flex gap-2">
                 <Button
                   asChild
-                  className="bg-[#F4D06F] hover:bg-[#E9C85F] text-[#1A1A1A] font-semibold rounded-xl px-4 py-2.5"
+                  variant="outline"
+                  className="border-[#E2C56B] text-[#4A3A14] hover:bg-[#F4D06F]/20 rounded-xl px-4 py-2.5"
                 >
                   <Link to="/#hero" aria-label="Voltar ao início">
                     ← Início
@@ -1360,7 +1361,8 @@ export const BookingFlow = () => {
                 </Button>
                 <Button
                   asChild
-                  className="flex-1 bg-[#F4D06F] hover:bg-[#E9C85F] text-[#1A1A1A] font-semibold rounded-xl"
+                  variant="outline"
+                  className="flex-1 border-[#E2C56B] text-[#4A3A14] hover:bg-[#F4D06F]/20 rounded-xl"
                 >
                   <Link to="/#hero" aria-label="Voltar ao início">
                     Início →
@@ -1373,7 +1375,8 @@ export const BookingFlow = () => {
           <div className="mt-6 flex justify-center">
             <Button
               asChild
-              className="bg-[#F4D06F] hover:bg-[#E9C85F] text-[#1A1A1A] font-semibold rounded-xl px-4 py-2.5"
+              variant="outline"
+              className="border-[#E2C56B] text-[#4A3A14] hover:bg-[#F4D06F]/20 rounded-xl px-4 py-2.5"
             >
               <Link to="/#hero" aria-label="Voltar ao início">
                 ← Voltar ao início
