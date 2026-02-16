@@ -65,7 +65,12 @@ export type RelatorioMktJson = {
   sugestao_upsell_balcao?: SugestaoUpsellBalcao;
 };
 
-const WEBHOOK_URL = import.meta.env.VITE_N8N_MKT_WEBHOOK_URL as string | undefined;
+const WEBHOOK_URL = import.meta.env.PROD
+  ? "/api/n8n-marketing"
+  : (import.meta.env.VITE_N8N_MKT_WEBHOOK_URL as string | undefined);
+const WEBHOOK_CONFIG_HINT = import.meta.env.PROD
+  ? "Configure N8N_MKT_WEBHOOK_URL nas variáveis da Vercel."
+  : "Configure VITE_N8N_MKT_WEBHOOK_URL no .env.";
 const STORAGE_RELATORIO_KEY = "mkt_relatorio";
 const STORAGE_RELATORIO_AT_KEY = "mkt_relatorio_at";
 const STORAGE_LAST_FETCH_KEY = "mkt_last_fetch_at";
@@ -471,7 +476,7 @@ export default function AdminMarketing() {
 
   const buscarN8N = useCallback(async () => {
     if (!WEBHOOK_URL) {
-      setError("Configure VITE_N8N_MKT_WEBHOOK_URL no .env para buscar do N8N.");
+      setError(`${WEBHOOK_CONFIG_HINT} Depois atualize a página para buscar do N8N.`);
       return;
     }
     if (lastFetchAt && Date.now() - lastFetchAt < ONE_DAY_MS) {
@@ -573,7 +578,7 @@ export default function AdminMarketing() {
             <p className="text-sm text-white/60">
               {WEBHOOK_URL
                 ? "Clique em Atualizar do N8N para buscar o relatório ou cole o JSON manualmente abaixo."
-                : "Configure VITE_N8N_MKT_WEBHOOK_URL no .env, ou cole o retorno do nó Message a model."}
+                : `${WEBHOOK_CONFIG_HINT} Ou cole o retorno do nó Message a model.`}
             </p>
           </CardHeader>
           <CardContent className="space-y-3">
