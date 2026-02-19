@@ -77,6 +77,10 @@ function fmtPhoneBR(raw: string | null | undefined) {
   return raw;
 }
 
+function hasPromotion(booking: CustomerBooking): boolean {
+  return Boolean(booking.promo_aplicada || (booking.promo_discount_value ?? 0) > 0);
+}
+
 /** Badge de status */
 function StatusBadge({ status }: { status: CustomerBooking["status"] }) {
   const config = {
@@ -755,6 +759,16 @@ function BookingCard({
                 <DollarSign className="h-4 w-4" />
                 {fmtPriceBR(booking.price)}
               </p>
+              {hasPromotion(booking) && (
+                <div className="text-[11px] text-amber-300 leading-tight">
+                  <p>Promoção aplicada: {booking.promo_aplicada || "Campanha ativa"}</p>
+                  {booking.original_price != null && booking.original_price !== booking.price && (
+                    <p>
+                      De {fmtPriceBR(booking.original_price)} por {fmtPriceBR(booking.price)}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
             <div className="space-y-1">
               <p className="text-white/60 text-xs">Telefone cadastrado</p>

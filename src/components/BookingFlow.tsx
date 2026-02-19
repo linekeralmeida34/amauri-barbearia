@@ -21,6 +21,8 @@ import {
   fetchActiveServices,
   fetchActiveBarbers,
   createBooking,
+  fetchCustomerBookings,
+  validateMarketingCoupon,
   listAvailableTimes,
   clearAvailableTimesCache,
   findCustomerByPhone,
@@ -156,8 +158,35 @@ export const BookingFlow = () => {
   const [checkingCustomer, setCheckingCustomer] = useState(false);
   const [filteredNeighborhoods, setFilteredNeighborhoods] = useState<string[]>(joaoPessoaNeighborhoods);
   const [neighborhoodSearch, setNeighborhoodSearch] = useState("");
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCouponCode, setAppliedCouponCode] = useState<string | null>(null);
+  const [couponPreviewPercent, setCouponPreviewPercent] = useState<number | null>(null);
+  const [couponPreviewCampaign, setCouponPreviewCampaign] = useState<string | null>(null);
+  const [couponFeedback, setCouponFeedback] = useState<string | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
+  const [confirmedServices, setConfirmedServices] = useState<
+    Array<{
+      name: string;
+      duration: number;
+      price: number;
+      originalPrice: number | null;
+      promoApplied: string | null;
+    }>
+  >([]);
 
   const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    if (!appliedCouponCode) return;
+    const current = couponCode.trim().toUpperCase();
+    if (current !== appliedCouponCode) {
+      setAppliedCouponCode(null);
+      setCouponPreviewPercent(null);
+      setCouponPreviewCampaign(null);
+      setCouponFeedback(null);
+    }
+  }, [couponCode, appliedCouponCode]);
 
   // Filtro de bairros
   useEffect(() => {
@@ -596,6 +625,9 @@ export const BookingFlow = () => {
       return;
     }
 
+    // Evita exibir resumo antigo em um novo envio
+    setConfirmedServices([]);
+
     // trava extra: não deixa marcar passado (mesmo que o usuário force)
     const minDate = todayLocalYMD();
     const nowHM = nowLocalHM();
@@ -624,6 +656,7 @@ export const BookingFlow = () => {
     let currentStartTime = new Date(starts_at_iso);
     let allSuccess = true;
     let lastError: CreateBookingResult | null = null;
+    const createdSlots: Array<{ serviceName: string; duration: number; startsAtISO: string }> = [];
 
     for (const service of selectedServices) {
       const serviceStartISO = currentStartTime.toISOString();
@@ -640,6 +673,7 @@ export const BookingFlow = () => {
         duration_min: service.duration,
         price: Number(service.price),
         created_by: "client",
+        coupon_code: appliedCouponCode || undefined,
       });
 
       if (!res.ok) {
@@ -647,6 +681,11 @@ export const BookingFlow = () => {
         lastError = res;
         break;
       }
+      createdSlots.push({
+        serviceName: service.name,
+        duration: service.duration,
+        startsAtISO: serviceStartISO,
+      });
 
       // Próximo serviço começa quando o anterior termina
       currentStartTime = new Date(currentStartTime.getTime() + service.duration * 60 * 1000);
@@ -658,6 +697,62 @@ export const BookingFlow = () => {
       // Limpa cache de horários para atualizar disponibilidade
       if (selectedBarber && selectedDate) {
         clearAvailableTimesCache(String(selectedBarber.id), selectedDate);
+      }
+
+      // Recarrega agendamentos para exibir preço final já com promoção aplicada no banco
+      try {
+        const latest = await fetchCustomerBookings(customerDetails.phone.trim());
+        const usedBookingIds = new Set<string>();
+        const mapped = createdSlots.map((slot) => {
+          const slotTs = new Date(slot.startsAtISO).getTime();
+          const candidates = latest.filter((b) => {
+            if (usedBookingIds.has(b.id)) return false;
+            const bookingTs = new Date(b.starts_at).getTime();
+            const sameMinute = Math.abs(bookingTs - slotTs) < 3 * 60 * 1000;
+            const sameService =
+              (b.services?.name || "").toLowerCase().trim() === slot.serviceName.toLowerCase().trim();
+            return sameMinute && sameService;
+          });
+
+          const match = candidates.length > 0
+            ? candidates.sort(
+                (a, b) =>
+                  Math.abs(new Date(a.starts_at).getTime() - slotTs) -
+                  Math.abs(new Date(b.starts_at).getTime() - slotTs)
+              )[0]
+            : latest
+                .filter((b) => !usedBookingIds.has(b.id))
+                .filter((b) => Math.abs(new Date(b.starts_at).getTime() - slotTs) < 3 * 60 * 1000)
+                .sort(
+                  (a, b) =>
+                    Math.abs(new Date(a.starts_at).getTime() - slotTs) -
+                    Math.abs(new Date(b.starts_at).getTime() - slotTs)
+                )[0];
+
+          if (match?.id) {
+            usedBookingIds.add(match.id);
+          }
+
+          return {
+            name: slot.serviceName,
+            duration: slot.duration,
+            price: match?.price ?? selectedServices.find((s) => s.name === slot.serviceName)?.price ?? 0,
+            originalPrice: match?.original_price ?? null,
+            promoApplied: match?.promo_aplicada ?? null,
+          };
+        });
+        setConfirmedServices(mapped);
+      } catch (e) {
+        console.warn("[BookingFlow] Não foi possível recarregar agendamento com promoção:", e);
+        setConfirmedServices(
+          selectedServices.map((s) => ({
+            name: s.name,
+            duration: s.duration,
+            price: Number(s.price),
+            originalPrice: null,
+            promoApplied: null,
+          }))
+        );
       }
       
       // Rastreia agendamento criado
@@ -702,6 +797,45 @@ export const BookingFlow = () => {
       }
       default:
         return false;
+    }
+  };
+
+  const handleApplyCoupon = async () => {
+    setCouponError(null);
+    setCouponFeedback(null);
+    const code = couponCode.trim().toUpperCase();
+    if (!code) {
+      setCouponError("Digite o cupom para aplicar.");
+      return;
+    }
+    if (customerDetails.phone.replace(/\D/g, "").length !== 11) {
+      setCouponError("Informe um telefone válido para validar o cupom.");
+      return;
+    }
+
+    setValidatingCoupon(true);
+    try {
+      const result = await validateMarketingCoupon(customerDetails.phone, code);
+      if (!result.ok || !result.discount_percent) {
+        setAppliedCouponCode(null);
+        setCouponPreviewPercent(null);
+        setCouponPreviewCampaign(null);
+        setCouponError(result.message || "Cupom inválido.");
+        return;
+      }
+      setAppliedCouponCode(result.coupon_code || code);
+      setCouponPreviewPercent(Number(result.discount_percent));
+      setCouponPreviewCampaign(result.campaign_title || null);
+      setCouponFeedback(
+        `Cupom aplicado: ${result.coupon_code || code} (${Number(result.discount_percent).toFixed(2)}% de desconto)`
+      );
+    } catch (e: any) {
+      setAppliedCouponCode(null);
+      setCouponPreviewPercent(null);
+      setCouponPreviewCampaign(null);
+      setCouponError(e?.message || "Erro ao validar cupom.");
+    } finally {
+      setValidatingCoupon(false);
     }
   };
 
@@ -1134,11 +1268,34 @@ export const BookingFlow = () => {
                   rows={3}
                 />
               </div>
+              <div>
+                <Label htmlFor="coupon-code">Cupom (opcional)</Label>
+                <Input
+                  id="coupon-code"
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                  placeholder="Ex.: RECUPERA25"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Você também pode validar no próximo passo antes de confirmar.
+                </p>
+              </div>
             </div>
           </div>
         );
 
       case "confirmation":
+        const servicesToShow =
+          confirmedServices.length > 0
+            ? confirmedServices
+            : selectedServices.map((s) => ({
+                name: s.name,
+                duration: s.duration,
+                price: Number(s.price),
+                originalPrice: null,
+                promoApplied: null,
+              }));
+        const finalTotal = servicesToShow.reduce((sum, s) => sum + Number(s.price), 0);
         return (
           <div className="text-center">
             <div className="mb-6">
@@ -1167,9 +1324,17 @@ export const BookingFlow = () => {
                   <div className="flex justify-between items-start">
                     <span className="font-semibold">Serviço{selectedServices.length > 1 ? "s" : ""}:</span>
                     <div className="text-right">
-                      {selectedServices.map((service, idx) => (
-                        <div key={service.id}>
-                          {service.name} ({service.duration}min) - R$ {service.price}
+                      {servicesToShow.map((service, idx) => (
+                        <div key={`${service.name}-${idx}`}>
+                          {service.name} ({service.duration}min) - R$ {Number(service.price).toFixed(2)}
+                          {service.originalPrice != null && service.originalPrice !== service.price && (
+                            <div className="text-xs text-amber-700">
+                              De R$ {Number(service.originalPrice).toFixed(2)} por R$ {Number(service.price).toFixed(2)}
+                            </div>
+                          )}
+                          {service.promoApplied && (
+                            <div className="text-xs text-amber-700">{service.promoApplied}</div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -1194,7 +1359,7 @@ export const BookingFlow = () => {
                   </div>
                   <div className="flex justify-between items-center text-lg font-bold border-t pt-2">
                     <span>Total:</span>
-                    <span>R$ {selectedServices.reduce((sum, s) => sum + Number(s.price), 0).toFixed(2)}</span>
+                    <span>R$ {finalTotal.toFixed(2)}</span>
                   </div>
                 </div>
               </CardContent>
@@ -1399,12 +1564,38 @@ export const BookingFlow = () => {
             </DialogHeader>
 
             <div className="grid gap-4 py-4">
+              {(() => {
+                const modalServices = selectedServices.map((service) => {
+                  const basePrice = Number(service.price);
+                  const discount =
+                    couponPreviewPercent != null
+                      ? Math.round(basePrice * (couponPreviewPercent / 100) * 100) / 100
+                      : 0;
+                  const finalPrice = Math.max(basePrice - discount, 0);
+                  return {
+                    id: service.id,
+                    name: service.name,
+                    duration: service.duration,
+                    originalPrice: basePrice,
+                    finalPrice,
+                  };
+                });
+                const originalTotal = modalServices.reduce((sum, s) => sum + s.originalPrice, 0);
+                const finalTotal = modalServices.reduce((sum, s) => sum + s.finalPrice, 0);
+
+                return (
+                  <>
               <div className="grid grid-cols-3 items-start gap-4">
                 <Label className="font-semibold text-right">Serviço{selectedServices.length > 1 ? "s" : ""}:</Label>
                 <div className="col-span-2">
-                  {selectedServices.map((service) => (
+                  {modalServices.map((service) => (
                     <div key={service.id} className="mb-1">
-                      {service.name} ({service.duration}min) - R$ {service.price}
+                      {service.name} ({service.duration}min) - R$ {service.finalPrice.toFixed(2)}
+                      {couponPreviewPercent != null && service.finalPrice !== service.originalPrice && (
+                        <div className="text-xs text-amber-700">
+                          De R$ {service.originalPrice.toFixed(2)} por R$ {service.finalPrice.toFixed(2)}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -1439,9 +1630,44 @@ export const BookingFlow = () => {
               <div className="grid grid-cols-3 items-center gap-4">
                 <Label className="font-semibold text-right">Total:</Label>
                 <div className="col-span-2 font-bold">
-                  R$ {selectedServices.reduce((sum, s) => sum + Number(s.price), 0).toFixed(2)}
+                  R$ {finalTotal.toFixed(2)}
                 </div>
               </div>
+              <div className="grid grid-cols-3 items-center gap-4">
+                <Label htmlFor="confirm-coupon-code" className="font-semibold text-right">
+                  Cupom:
+                </Label>
+                <div className="col-span-2">
+                  <div className="flex gap-2">
+                    <Input
+                      id="confirm-coupon-code"
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                      placeholder="Ex.: CLIENTEVIP25"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleApplyCoupon}
+                      disabled={validatingCoupon}
+                    >
+                      {validatingCoupon ? "Validando..." : "Aplicar cupom"}
+                    </Button>
+                  </div>
+                  {couponFeedback && (
+                    <p className="text-xs text-emerald-700 mt-1">{couponFeedback}</p>
+                  )}
+                  {couponError && (
+                    <p className="text-xs text-red-600 mt-1">{couponError}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Opcional. A validação do cupom ocorre ao confirmar o agendamento.
+                  </p>
+                </div>
+              </div>
+                  </>
+                );
+              })()}
 
               <div className="mt-2 p-4 bg-muted rounded-lg">
                 <p className="text-sm text-muted-foreground">

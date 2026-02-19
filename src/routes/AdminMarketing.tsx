@@ -6,8 +6,11 @@ import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { supabase } from "@/lib/supabase";
 import {
   ArrowLeft,
   Megaphone,
@@ -63,6 +66,18 @@ export type RelatorioMktJson = {
   acao_trafego_pago?: AcaoTrafegoPago;
   estrategia_whatsapp?: EstrategiaWhatsapp;
   sugestao_upsell_balcao?: SugestaoUpsellBalcao;
+};
+
+type MarketingCoupon = {
+  id: string;
+  code: string;
+  discount_percent: number;
+  required_status_ia: string;
+  campaign_title: string | null;
+  is_active: boolean;
+  expires_at: string | null;
+  max_uses_per_phone: number;
+  created_at: string;
 };
 
 const WEBHOOK_URL = import.meta.env.PROD
@@ -430,6 +445,16 @@ export default function AdminMarketing() {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [lastFetchAt, setLastFetchAt] = useState<number | null>(null);
+  const [coupons, setCoupons] = useState<MarketingCoupon[]>([]);
+  const [couponCode, setCouponCode] = useState("");
+  const [couponDiscountPercent, setCouponDiscountPercent] = useState("25");
+  const [couponStatusIA, setCouponStatusIA] = useState("");
+  const [couponCampaignTitle, setCouponCampaignTitle] = useState("");
+  const [statusIAOptions, setStatusIAOptions] = useState<string[]>([]);
+  const [couponExpiresAt, setCouponExpiresAt] = useState("");
+  const [couponMaxUses, setCouponMaxUses] = useState("1");
+  const [savingCoupon, setSavingCoupon] = useState(false);
+  const [togglingCouponId, setTogglingCouponId] = useState<string | null>(null);
 
   useEffect(() => {
     setInitialLoad(false);
@@ -449,6 +474,42 @@ export default function AdminMarketing() {
       }
     }
   }, []);
+
+  const loadCoupons = useCallback(async () => {
+    const { data, error: couponsError } = await supabase
+      .from("marketing_coupons")
+      .select("id,code,discount_percent,required_status_ia,campaign_title,is_active,expires_at,max_uses_per_phone,created_at")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (couponsError) {
+      console.warn("[AdminMarketing] Erro ao carregar cupons:", couponsError.message);
+      return;
+    }
+    setCoupons((data ?? []) as MarketingCoupon[]);
+  }, []);
+
+  const loadStatusIAOptions = useCallback(async () => {
+    const { data, error: statusError } = await supabase
+      .from("vw_users_cluster")
+      .select("status_ia");
+    if (statusError) {
+      console.warn("[AdminMarketing] Erro ao carregar status_ia:", statusError.message);
+      return;
+    }
+    const distinct = Array.from(
+      new Set(
+        (data ?? [])
+          .map((row: any) => String(row.status_ia ?? "").trim())
+          .filter((v) => v.length > 0)
+      )
+    ).sort((a, b) => a.localeCompare(b, "pt-BR"));
+    setStatusIAOptions(distinct);
+  }, []);
+
+  useEffect(() => {
+    loadCoupons();
+    loadStatusIAOptions();
+  }, [loadCoupons, loadStatusIAOptions]);
 
   const persistRelatorio = (value: RelatorioMktJson) => {
     localStorage.setItem(STORAGE_RELATORIO_KEY, JSON.stringify(value));
@@ -526,6 +587,69 @@ export default function AdminMarketing() {
     navigator.clipboard.writeText(JSON.stringify(relatorio, null, 2));
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCreateCoupon = async () => {
+    if (!couponCode.trim()) {
+      setError("Informe o código do cupom.");
+      return;
+    }
+    const discount = Number(couponDiscountPercent);
+    if (!Number.isFinite(discount) || discount <= 0 || discount > 100) {
+      setError("Informe um desconto percentual válido entre 0 e 100.");
+      return;
+    }
+    if (!couponStatusIA.trim()) {
+      setError("Informe o status_ia permitido para o cupom.");
+      return;
+    }
+    const maxUses = Number(couponMaxUses);
+    if (!Number.isFinite(maxUses) || maxUses <= 0) {
+      setError("Informe um limite de uso por telefone válido.");
+      return;
+    }
+
+    setSavingCoupon(true);
+    setError(null);
+    try {
+      const { error: insertError } = await supabase.from("marketing_coupons").insert([
+        {
+          code: couponCode.trim().toUpperCase(),
+          discount_percent: discount,
+          required_status_ia: couponStatusIA.trim(),
+          campaign_title: couponCampaignTitle.trim() || null,
+          expires_at: couponExpiresAt ? new Date(couponExpiresAt + "T23:59:59").toISOString() : null,
+          max_uses_per_phone: Math.trunc(maxUses),
+          is_active: true,
+        },
+      ]);
+      if (insertError) throw insertError;
+
+      setCouponCode("");
+      setCouponCampaignTitle("");
+      setCouponExpiresAt("");
+      await loadCoupons();
+    } catch (e: any) {
+      setError(e?.message || "Erro ao criar cupom.");
+    } finally {
+      setSavingCoupon(false);
+    }
+  };
+
+  const handleToggleCouponActive = async (coupon: MarketingCoupon) => {
+    setTogglingCouponId(coupon.id);
+    try {
+      const { error: updateError } = await supabase
+        .from("marketing_coupons")
+        .update({ is_active: !coupon.is_active })
+        .eq("id", coupon.id);
+      if (updateError) throw updateError;
+      await loadCoupons();
+    } catch (e: any) {
+      setError(e?.message || "Erro ao atualizar status do cupom.");
+    } finally {
+      setTogglingCouponId(null);
+    }
   };
 
   const diag = relatorio?.diagnostico_faturamento;
@@ -623,6 +747,165 @@ export default function AdminMarketing() {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
+          </CardContent>
+        </Card>
+
+        <Card className="mb-6 bg-[#28283D] border-[#3d3d5c]">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2">
+              <Target className="w-5 h-5 text-barbershop-gold" />
+              Cupons de Marketing
+            </CardTitle>
+            <p className="text-sm text-white/60">
+              O cupom só será aplicado para telefones que existirem na `vw_users_cluster` com o `status_ia` informado.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="coupon-code" className="text-white">Código do cupom</Label>
+                <Input
+                  id="coupon-code"
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                  placeholder="RECUPERA25"
+                  className="bg-black/40 border-white/20 text-white"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="coupon-campaign-title" className="text-white">Título da campanha</Label>
+                <Input
+                  id="coupon-campaign-title"
+                  value={couponCampaignTitle}
+                  onChange={(e) => setCouponCampaignTitle(e.target.value)}
+                  placeholder="Ex.: Recuperação Fevereiro 2026"
+                  className="bg-black/40 border-white/20 text-white"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="coupon-percent" className="text-white">Desconto (%)</Label>
+                <Input
+                  id="coupon-percent"
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={couponDiscountPercent}
+                  onChange={(e) => setCouponDiscountPercent(e.target.value)}
+                  className="bg-black/40 border-white/20 text-white"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="coupon-status-ia" className="text-white">status_ia permitido</Label>
+                <select
+                  id="coupon-status-ia"
+                  value={couponStatusIA}
+                  onChange={(e) => setCouponStatusIA(e.target.value)}
+                  className="w-full h-10 rounded-md bg-black/40 border border-white/20 text-white px-3"
+                  style={{ colorScheme: "dark" }}
+                >
+                  <option value="">Selecione o status_ia</option>
+                  {statusIAOptions.map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="coupon-max-uses" className="text-white">Limite por telefone</Label>
+                <Input
+                  id="coupon-max-uses"
+                  type="number"
+                  min={1}
+                  value={couponMaxUses}
+                  onChange={(e) => setCouponMaxUses(e.target.value)}
+                  className="bg-black/40 border-white/20 text-white"
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="coupon-expiration" className="text-white">Validade (opcional)</Label>
+                <Input
+                  id="coupon-expiration"
+                  type="date"
+                  value={couponExpiresAt}
+                  onChange={(e) => setCouponExpiresAt(e.target.value)}
+                  className="bg-black/40 border-white/20 text-white"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                onClick={handleCreateCoupon}
+                disabled={savingCoupon}
+                className="bg-barbershop-gold hover:bg-barbershop-gold/90 text-barbershop-dark"
+              >
+                {savingCoupon ? "Salvando..." : "Criar cupom"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="border-[#3d3d5c] bg-[#28283D] text-white/90 hover:bg-white/10 hover:text-white hover:border-white/20"
+                onClick={loadCoupons}
+              >
+                Atualizar lista
+              </Button>
+            </div>
+
+            <div className="rounded-lg border border-white/10 overflow-hidden">
+              <div className="max-h-60 overflow-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-black/30">
+                    <tr>
+                      <th className="text-left p-2 text-white/70">Campanha</th>
+                      <th className="text-left p-2 text-white/70">Código</th>
+                      <th className="text-left p-2 text-white/70">% </th>
+                      <th className="text-left p-2 text-white/70">status_ia</th>
+                      <th className="text-left p-2 text-white/70">Ativo</th>
+                      <th className="text-left p-2 text-white/70">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {coupons.map((c) => (
+                      <tr key={c.id} className="border-t border-white/10">
+                        <td className="p-2 text-white/80">{c.campaign_title || "—"}</td>
+                        <td className="p-2 text-white">{c.code}</td>
+                        <td className="p-2 text-white">{Number(c.discount_percent).toFixed(2)}%</td>
+                        <td className="p-2 text-white/80">{c.required_status_ia}</td>
+                        <td className="p-2 text-white/80">{c.is_active ? "Sim" : "Não"}</td>
+                        <td className="p-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="default"
+                            disabled={togglingCouponId === c.id}
+                            className={
+                              c.is_active
+                                ? "bg-red-500/20 border border-red-400/60 text-red-100 hover:bg-red-500/35"
+                                : "bg-emerald-500/20 border border-emerald-400/60 text-emerald-100 hover:bg-emerald-500/35"
+                            }
+                            onClick={() => handleToggleCouponActive(c)}
+                          >
+                            {togglingCouponId === c.id
+                              ? "Salvando..."
+                              : c.is_active
+                              ? "Desativar"
+                              : "Ativar"}
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                    {coupons.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="p-3 text-white/50 text-center">
+                          Nenhum cupom cadastrado.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </CardContent>
         </Card>
 

@@ -57,6 +57,11 @@ type BookingRow = {
   customer_name: string | null;
   phone: string | null;
   price: number | null;
+  original_price: number | null;
+  promo_aplicada: string | null;
+  promo_discount_value: number | null;
+  promo_discount_percent: number | null;
+  promo_campaign: string | null;
   payment_method: PaymentMethod;
   canceled_by_admin: boolean;
   services?: { name: string | null; commission_percentage: number | null } | null;
@@ -119,6 +124,10 @@ function fmtPaymentMethod(method: PaymentMethod): string {
     null: "—"
   };
   return methods[method || "null"];
+}
+
+function hasPromotion(booking: BookingRow): boolean {
+  return Boolean(booking.promo_aplicada || (booking.promo_discount_value ?? 0) > 0);
 }
 
 /** Gera link do WhatsApp a partir do número (11 dígitos) */
@@ -422,6 +431,16 @@ function MobileListItem({
               <div className="text-emerald-400 font-semibold">
                 {fmtPriceBR(booking.price)}
               </div>
+              {hasPromotion(booking) && (
+                <div className="text-[11px] text-amber-300 leading-tight">
+                  <p>Promoção aplicada: {booking.promo_aplicada || "Campanha ativa"}</p>
+                  {booking.original_price != null && booking.original_price !== booking.price && (
+                    <p>
+                      De {fmtPriceBR(booking.original_price)} por {fmtPriceBR(booking.price)}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -608,6 +627,11 @@ export default function BookingsList() {
             customer_name,
             phone,
             price,
+            original_price,
+            promo_aplicada,
+            promo_discount_value,
+            promo_discount_percent,
+            promo_campaign,
             payment_method,
             canceled_by_admin,
             services ( name, commission_percentage ),
@@ -1585,6 +1609,16 @@ export default function BookingsList() {
                       <div className="text-xs sm:text-sm font-semibold text-amber-400">
                         {fmtPriceBR(r.price)}
                       </div>
+                      {hasPromotion(r) && (
+                        <div className="mt-1 text-[11px] text-amber-300 leading-tight">
+                          <p>{r.promo_aplicada || "Promoção aplicada"}</p>
+                          {r.original_price != null && r.original_price !== r.price && (
+                            <p>
+                              De {fmtPriceBR(r.original_price)} por {fmtPriceBR(r.price)}
+                            </p>
+                          )}
+                        </div>
+                      )}
                     </td>
                     <td className="px-2 sm:px-3 py-2 sm:py-3 hidden lg:table-cell">
                       <select

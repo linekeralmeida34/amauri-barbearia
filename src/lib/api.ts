@@ -261,6 +261,7 @@ export type CreateBookingInput = {
   payment_method?: PaymentMethod; // Forma de pagamento opcional
   created_by?: "client" | "barber" | "admin"; // Origem da criação do agendamento
   created_by_barber_id?: string; // ID do barbeiro que criou o agendamento (quando created_by = "barber")
+  coupon_code?: string; // Cupom informado pelo cliente
 };
 
 export type CreateBookingResult =
@@ -277,6 +278,14 @@ export type UpdateBookingInput = {
   price?: number;
   payment_method?: PaymentMethod | null;
   status?: "pending" | "confirmed" | "canceled";
+};
+
+export type CouponValidationResult = {
+  ok: boolean;
+  message: string;
+  coupon_code?: string;
+  discount_percent?: number;
+  campaign_title?: string | null;
 };
 
 /** Normaliza telefone BR para 11 dígitos (DDD + 9 + número).
@@ -337,6 +346,10 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
     created_by: (input.created_by || "client") as "client" | "barber" | "admin",
   };
 
+  if (input.coupon_code?.trim()) {
+    payload.coupon_code = input.coupon_code.trim().toUpperCase();
+  }
+
   // Adiciona customer_id se fornecido (UUID válido, não "temp")
   if (input.customer_id && 
       String(input.customer_id).length >= 10 && 
@@ -384,6 +397,44 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
     ok: false,
     reason: "UNKNOWN",
     message: "Não foi possível concluir o agendamento. Tente novamente.",
+  };
+}
+
+export async function validateMarketingCoupon(
+  phone: string,
+  couponCode: string
+): Promise<CouponValidationResult> {
+  const normalizedPhone = normalizePhone(phone);
+  const normalizedCoupon = couponCode.trim().toUpperCase();
+
+  if (!normalizedPhone || normalizedPhone.length !== 11) {
+    return { ok: false, message: "Informe um telefone válido com 11 dígitos." };
+  }
+  if (!normalizedCoupon) {
+    return { ok: false, message: "Informe o código do cupom." };
+  }
+
+  const { data, error } = await supabase.rpc("validate_marketing_coupon", {
+    p_phone: normalizedPhone,
+    p_coupon_code: normalizedCoupon,
+  });
+
+  if (error) {
+    return { ok: false, message: error.message || "Erro ao validar cupom." };
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) {
+    return { ok: false, message: "Não foi possível validar o cupom." };
+  }
+
+  return {
+    ok: Boolean(row.is_valid),
+    message: String(row.message || (row.is_valid ? "Cupom válido." : "Cupom inválido.")),
+    coupon_code: row.coupon_code || normalizedCoupon,
+    discount_percent:
+      row.discount_percent == null ? undefined : Number(row.discount_percent),
+    campaign_title: row.campaign_title ?? null,
   };
 }
 
@@ -1026,6 +1077,11 @@ export type CustomerBooking = {
   customer_name: string | null;
   phone: string | null;
   price: number | null;
+  original_price: number | null;
+  promo_aplicada: string | null;
+  promo_discount_value: number | null;
+  promo_discount_percent: number | null;
+  promo_campaign: string | null;
   payment_method: PaymentMethod;
   duration_min: number | null;
   services?: { name: string | null } | null;
@@ -1057,6 +1113,13 @@ export async function fetchCustomerBookings(phone: string): Promise<CustomerBook
         customer_name: row.customer_name,
         phone: row.phone,
         price: Number(row.price ?? 0),
+        original_price: row.original_price == null ? null : Number(row.original_price),
+        promo_aplicada: row.promo_aplicada ?? null,
+        promo_discount_value:
+          row.promo_discount_value == null ? null : Number(row.promo_discount_value),
+        promo_discount_percent:
+          row.promo_discount_percent == null ? null : Number(row.promo_discount_percent),
+        promo_campaign: row.promo_campaign ?? null,
         payment_method: row.payment_method as PaymentMethod,
         duration_min: row.duration_min,
         services: row.service_name ? { name: row.service_name } : null,
@@ -1089,6 +1152,11 @@ export async function fetchCustomerBookings(phone: string): Promise<CustomerBook
       customer_name,
       phone,
       price,
+      original_price,
+      promo_aplicada,
+      promo_discount_value,
+      promo_discount_percent,
+      promo_campaign,
       payment_method,
       duration_min,
       services ( name ),
@@ -1140,6 +1208,13 @@ export async function fetchCustomerBookings(phone: string): Promise<CustomerBook
         customer_name: row.customer_name,
         phone: row.phone,
         price: Number(row.price ?? 0),
+        original_price: row.original_price == null ? null : Number(row.original_price),
+        promo_aplicada: row.promo_aplicada ?? null,
+        promo_discount_value:
+          row.promo_discount_value == null ? null : Number(row.promo_discount_value),
+        promo_discount_percent:
+          row.promo_discount_percent == null ? null : Number(row.promo_discount_percent),
+        promo_campaign: row.promo_campaign ?? null,
         payment_method: row.payment_method as PaymentMethod,
         duration_min: row.duration_min,
         services: row.service_name ? { name: row.service_name } : null,
