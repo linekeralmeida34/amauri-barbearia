@@ -704,6 +704,12 @@ export const BookingFlow = () => {
         const latest = await fetchCustomerBookings(customerDetails.phone.trim());
         const usedBookingIds = new Set<string>();
         const mapped = createdSlots.map((slot) => {
+          const selectedService = selectedServices.find(
+            (s) =>
+              s.name.toLowerCase().trim() === slot.serviceName.toLowerCase().trim() &&
+              s.duration === slot.duration
+          );
+          const basePrice = Number(selectedService?.price ?? 0);
           const slotTs = new Date(slot.startsAtISO).getTime();
           const candidates = latest.filter((b) => {
             if (usedBookingIds.has(b.id)) return false;
@@ -736,9 +742,19 @@ export const BookingFlow = () => {
           return {
             name: slot.serviceName,
             duration: slot.duration,
-            price: match?.price ?? selectedServices.find((s) => s.name === slot.serviceName)?.price ?? 0,
-            originalPrice: match?.original_price ?? null,
-            promoApplied: match?.promo_aplicada ?? null,
+            price:
+              match?.price ??
+              (couponPreviewPercent != null && appliedCouponCode
+                ? Math.max(basePrice - Math.round(basePrice * (couponPreviewPercent / 100) * 100) / 100, 0)
+                : basePrice),
+            originalPrice:
+              match?.original_price ??
+              (couponPreviewPercent != null && appliedCouponCode ? basePrice : null),
+            promoApplied:
+              match?.promo_aplicada ??
+              (couponPreviewPercent != null && appliedCouponCode
+                ? `Cupom ${appliedCouponCode}`
+                : null),
           };
         });
         setConfirmedServices(mapped);
@@ -748,9 +764,20 @@ export const BookingFlow = () => {
           selectedServices.map((s) => ({
             name: s.name,
             duration: s.duration,
-            price: Number(s.price),
-            originalPrice: null,
-            promoApplied: null,
+            price:
+              couponPreviewPercent != null && appliedCouponCode
+                ? Math.max(
+                    Number(s.price) -
+                      Math.round(Number(s.price) * (couponPreviewPercent / 100) * 100) / 100,
+                    0
+                  )
+                : Number(s.price),
+            originalPrice:
+              couponPreviewPercent != null && appliedCouponCode ? Number(s.price) : null,
+            promoApplied:
+              couponPreviewPercent != null && appliedCouponCode
+                ? `Cupom ${appliedCouponCode}`
+                : null,
           }))
         );
       }
